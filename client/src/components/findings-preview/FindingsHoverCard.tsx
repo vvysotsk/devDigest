@@ -31,6 +31,7 @@ export function FindingsHoverCard({
   loading,
   loadingText,
   emptyText,
+  errorText,
   onOpen,
   openDelayMs = 0,
   ariaLabel,
@@ -41,6 +42,7 @@ export function FindingsHoverCard({
   loading?: boolean;
   loadingText?: string;
   emptyText?: string;
+  errorText?: string;
   /** Called once per opening (hover after the delay, or focus). */
   onOpen?: () => void;
   openDelayMs?: number;
@@ -163,6 +165,7 @@ export function FindingsHoverCard({
           loading={loading}
           loadingText={loadingText}
           emptyText={emptyText}
+          errorText={errorText}
           onClick={(e) => e.stopPropagation()}
         />
       )}

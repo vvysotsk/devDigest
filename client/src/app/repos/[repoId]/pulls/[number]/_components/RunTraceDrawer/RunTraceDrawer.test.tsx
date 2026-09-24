@@ -1,7 +1,7 @@
 import { describe, it, expect, afterEach, vi } from "vitest";
 import { render, screen, cleanup, fireEvent } from "@testing-library/react";
 import { NextIntlClientProvider } from "next-intl";
-import type { RunTrace } from "@devdigest/shared";
+import type { RunTrace, FindingRecord } from "@devdigest/shared";
 import messages from "../../../../../../../../messages/en/runs.json"; // apps/web/messages/en/runs.json
 
 // Mock the trace hooks so the drawer renders without a query client / SSE.
@@ -51,6 +51,45 @@ describe("A5 Run Trace drawer (smoke)", () => {
     renderWithIntl(<RunTraceDrawer runId="r1" agentName="Security" prNumber={482} onClose={() => {}} />);
     expect(screen.getByText("COST")).toBeInTheDocument();
     expect(screen.getByText("$0.0014")).toBeInTheDocument();
+  });
+
+  it("Findings section shows severity pills + read-only previews of the run's findings", () => {
+    const f = (id: string, severity: FindingRecord["severity"], title: string): FindingRecord => ({
+      id,
+      severity,
+      category: "security",
+      title,
+      file: "src/config.ts",
+      start_line: 12,
+      end_line: 12,
+      rationale: "Line 12 contains a literal string starting with sk_live_.",
+      suggestion: `Move the key into the secrets provider (${id}).`,
+      confidence: 0.98,
+      kind: "finding",
+      trifecta_components: null,
+      evidence: null,
+      review_id: "rv1",
+      accepted_at: null,
+      dismissed_at: null,
+    });
+    renderWithIntl(
+      <RunTraceDrawer
+        runId="r1"
+        agentName="Security"
+        prNumber={482}
+        onClose={() => {}}
+        findings={[f("f2", "WARNING", "Missing rate limit"), f("f1", "CRITICAL", "Hardcoded Stripe secret key")]}
+      />,
+    );
+    expect(screen.getByText("1 Critical")).toBeInTheDocument();
+    expect(screen.getByText("1 Warning")).toBeInTheDocument();
+    const titles = screen.getAllByText(/Hardcoded Stripe|Missing rate limit/).map((el) => el.textContent);
+    expect(titles).toEqual(["Hardcoded Stripe secret key", "Missing rate limit"]); // sorted by severity
+    expect(screen.getAllByText("src/config.ts:12")).toHaveLength(2);
+    // full mode: the suggestion is shown under its label
+    expect(screen.getByText(/Move the key into the secrets provider \(f1\)\./)).toBeInTheDocument();
+    expect(screen.getAllByText("Suggested fix:")).toHaveLength(2);
+    expect(screen.queryByRole("button", { name: /accept|dismiss/i })).not.toBeInTheDocument();
   });
 
   it("switches to the live log tab", () => {

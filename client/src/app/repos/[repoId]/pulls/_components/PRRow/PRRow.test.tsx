@@ -23,7 +23,7 @@ beforeEach(() => {
   vi.useFakeTimers();
   push.mockReset();
   usePrReviews.mockReset();
-  usePrReviews.mockReturnValue({ data: undefined });
+  usePrReviews.mockReturnValue({ data: undefined, isError: false });
 });
 afterEach(() => vi.useRealTimers());
 
@@ -102,7 +102,7 @@ describe("PRRow — FINDINGS column", () => {
   it("a never-reviewed PR shows a dash and never asks for reviews", () => {
     renderRow(pr({ latest_batch: null, score: null }));
     expect(screen.getAllByText("—").length).toBeGreaterThan(0);
-    expect(screen.queryByRole("button", { name: /^\d+ findings?$/ })).not.toBeInTheDocument();
+    expect(screen.queryByRole("button", { name: /findings? in this run/ })).not.toBeInTheDocument();
     expect(enabledArg().enabled).toBe(false);
   });
 
@@ -115,7 +115,7 @@ describe("PRRow — FINDINGS column", () => {
 
   it("a quick sweep over the cell opens nothing and fetches nothing", () => {
     renderRow(pr());
-    const trigger = screen.getByRole("button", { name: "6 findings" });
+    const trigger = screen.getByRole("button", { name: "6 findings in this run" });
     fireEvent.mouseEnter(trigger.parentElement!);
     act(() => vi.advanceTimersByTime(HOVER_INTENT_MS - 50));
     fireEvent.mouseLeave(trigger.parentElement!);
@@ -126,6 +126,7 @@ describe("PRRow — FINDINGS column", () => {
 
   it("settling on the cell opens the popover, enables the fetch and lists only the latest batch's findings", () => {
     usePrReviews.mockImplementation((_id: string, opts: { enabled: boolean }) => ({
+      isError: false,
       data: opts.enabled
         ? [
             review({ id: "rv-new", run_id: "run-new", findings: [f("f1", "rv-new", "CRITICAL", "Hardcoded Stripe secret key in commit")] }),
@@ -134,11 +135,11 @@ describe("PRRow — FINDINGS column", () => {
         : undefined,
     }));
     renderRow(pr());
-    const trigger = screen.getByRole("button", { name: "6 findings" });
+    const trigger = screen.getByRole("button", { name: "6 findings in this run" });
     fireEvent.mouseEnter(trigger.parentElement!);
     act(() => vi.advanceTimersByTime(HOVER_INTENT_MS));
 
-    expect(screen.getByRole("dialog", { name: "6 findings" })).toBeInTheDocument();
+    expect(screen.getByRole("dialog", { name: "6 findings in this run" })).toBeInTheDocument();
     expect(enabledArg().enabled).toBe(true);
     expect(screen.getByText("Hardcoded Stripe secret key in commit")).toBeInTheDocument();
     expect(screen.queryByText("Old finding from a previous batch")).not.toBeInTheDocument();
@@ -148,10 +149,21 @@ describe("PRRow — FINDINGS column", () => {
 
   it("keyboard focus opens immediately (no hover delay) and shows the loading note", () => {
     renderRow(pr());
-    fireEvent.focus(screen.getByRole("button", { name: "6 findings" }));
+    fireEvent.focus(screen.getByRole("button", { name: "6 findings in this run" }));
     expect(screen.getByRole("dialog")).toBeInTheDocument();
     expect(screen.getByText("Loading findings…")).toBeInTheDocument();
     expect(enabledArg().enabled).toBe(true);
+  });
+
+  it("a failed reviews fetch shows the error text instead of a perpetual loading note", () => {
+    usePrReviews.mockImplementation((_id: string, opts: { enabled: boolean }) => ({
+      data: undefined,
+      isError: opts.enabled,
+    }));
+    renderRow(pr());
+    fireEvent.focus(screen.getByRole("button", { name: "6 findings in this run" }));
+    expect(screen.getByRole("alert")).toHaveTextContent("Couldn’t load the findings for this PR.");
+    expect(screen.queryByText("Loading findings…")).not.toBeInTheDocument();
   });
 
   it("clicking the row still navigates to the PR", () => {

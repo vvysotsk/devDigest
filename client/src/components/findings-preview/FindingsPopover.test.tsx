@@ -55,6 +55,12 @@ describe("FindingsPopover", () => {
     expect(screen.getByText("No findings in this run.")).toBeInTheDocument();
   });
 
+  it("error state wins over loading and lists nothing", () => {
+    render(<FindingsPopover anchor={ANCHOR} title="t" findings={[]} loading loadingText="Loading…" errorText="Boom" />);
+    expect(screen.getByRole("alert")).toHaveTextContent("Boom");
+    expect(screen.queryByText("Loading…")).not.toBeInTheDocument();
+  });
+
   it("is positioned fixed below the anchor", () => {
     render(<FindingsPopover anchor={ANCHOR} title="t" findings={[]} />);
     const el = screen.getByRole("dialog");

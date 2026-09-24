@@ -42,11 +42,12 @@ export function FindingsCell({ pr }: { pr: PrMeta }) {
   return (
     <div style={s.findingsCell}>
       <FindingsHoverCard
-        title={t("findingsPopover.title", { count: total })}
+        title={t("findingsPopover.titleInRun", { count: total })}
         findings={findings}
-        loading={wanted && !reviews.data}
+        loading={wanted && !reviews.data && !reviews.isError}
         loadingText={t("findingsPopover.loading")}
         emptyText={t("findingsPopover.empty")}
+        errorText={reviews.isError ? t("findingsPopover.error") : undefined}
         openDelayMs={HOVER_INTENT_MS}
         onOpen={() => setWanted(true)}
       >

@@ -4,7 +4,9 @@ import React from "react";
 import { useTranslations } from "next-intl";
 import { Badge, Icon, CircularScore, type IconName } from "@devdigest/ui";
 import { RunCostBadge } from "@/components/run-cost-badge";
-import type { RunSummary, PrCommit } from "@devdigest/shared";
+import { SeveritySummary, countBySeverity } from "@/components/severity-summary";
+import { FindingsHoverCard } from "@/components/findings-preview";
+import type { RunSummary, PrCommit, ReviewRecord, FindingRecord } from "@devdigest/shared";
 
 /**
  * PR timeline — every agent run interleaved with the PR's commits, newest-first
@@ -16,6 +18,10 @@ import type { RunSummary, PrCommit } from "@devdigest/shared";
  * run that found blockers reads "rejected" (red), never a green "done". Outcome
  * is derived from the denormalized blocker/finding counts on the run row, so it
  * matches the CI gate (deterministic) rather than the model's verdict.
+ *
+ * When the PR's reviews are passed in, a settled run shows its findings split
+ * by severity (icon + count, matched to the review by run_id) with a read-only
+ * hover preview; runs without a matching review keep the plain "N findings".
  */
 
 type Outcome = { key: string; color: string; bg: string; icon: IconName };
@@ -88,12 +94,15 @@ function tsOf(s: string | null | undefined): number {
 export function RunHistory({
   runs,
   commits = [],
+  reviews = [],
   onOpenTrace,
   onGoToReview,
   onDelete,
 }: {
   runs: RunSummary[];
   commits?: PrCommit[];
+  /** The PR's persisted reviews — findings are matched to runs by run_id. */
+  reviews?: ReviewRecord[];
   /** Open the trace + log drawer for a run (the logs icon). */
   onOpenTrace: (runId: string) => void;
   /** Jump to this run's inline review accordion below (clicking the agent name). */
@@ -101,6 +110,11 @@ export function RunHistory({
   onDelete?: (runId: string) => void;
 }) {
   const t = useTranslations("prReview");
+  const findingsByRun = React.useMemo(() => {
+    const m = new Map<string, FindingRecord[]>();
+    for (const r of reviews) if (r.run_id) m.set(r.run_id, r.findings);
+    return m;
+  }, [reviews]);
   if (runs.length === 0 && commits.length === 0) return null;
 
   const items: TimelineItem[] = [
@@ -150,6 +164,8 @@ export function RunHistory({
         const r = item.run;
         const o = outcomeOf(r);
         const settled = r.status === "done";
+        const runFindings = findingsByRun.get(r.run_id);
+        const hasBreakdown = !!runFindings && runFindings.length > 0;
         return (
           <div key={`run:${r.run_id}`} style={rowStyle}>
             <Badge color={o.color} bg={o.bg} icon={o.icon}>
@@ -190,9 +206,21 @@ export function RunHistory({
                 </div>
               )}
               {settled && (
-                <div style={{ fontSize: 12, color: "var(--text-muted)" }}>
-                  {t("runStatus.findings", { count: r.findings_count ?? 0 })}
-                  {(r.blockers ?? 0) > 0 ? t("runStatus.blockers", { count: r.blockers ?? 0 }) : ""}
+                <div style={{ fontSize: 12, color: "var(--text-muted)", display: "flex", alignItems: "center", gap: 6, flexWrap: "wrap" }}>
+                  {hasBreakdown ? (
+                    // The hover card wraps ONLY the icons — the agent-name button
+                    // above keeps its own click (jump to the review accordion).
+                    <FindingsHoverCard
+                      title={t("findingsPopover.titleInRun", { count: runFindings!.length })}
+                      findings={runFindings!}
+                      emptyText={t("findingsPopover.empty")}
+                    >
+                      <SeveritySummary variant="icons" counts={countBySeverity(runFindings!)} />
+                    </FindingsHoverCard>
+                  ) : (
+                    <span>{t("runStatus.findings", { count: r.findings_count ?? 0 })}</span>
+                  )}
+                  {(r.blockers ?? 0) > 0 && <span>{t("runStatus.blockers", { count: r.blockers ?? 0 })}</span>}
                 </div>
               )}
             </div>

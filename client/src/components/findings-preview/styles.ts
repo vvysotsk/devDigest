@@ -32,6 +32,7 @@ export const s = {
     marginBottom: 8,
   } satisfies CSSProperties,
   note: { fontSize: 12.5, color: "var(--text-muted)" } satisfies CSSProperties,
+  error: { fontSize: 12.5, color: "var(--crit)" } satisfies CSSProperties,
   list: { display: "flex", flexDirection: "column", gap: 10 } satisfies CSSProperties,
   item: {
     border: "1px solid var(--border)",
@@ -78,4 +79,19 @@ export const s = {
     WebkitBoxOrient: "vertical",
     overflow: "hidden",
   } satisfies CSSProperties,
+  itemBodyFull: {
+    fontSize: 12.5,
+    lineHeight: 1.5,
+    color: "var(--text-secondary)",
+    marginTop: 6,
+    whiteSpace: "pre-wrap",
+  } satisfies CSSProperties,
+  itemSuggestion: {
+    fontSize: 12.5,
+    lineHeight: 1.5,
+    color: "var(--text-secondary)",
+    marginTop: 6,
+    whiteSpace: "pre-wrap",
+  } satisfies CSSProperties,
+  itemSuggestionLabel: { fontWeight: 600, color: "var(--text-primary)" } satisfies CSSProperties,
 } as const;

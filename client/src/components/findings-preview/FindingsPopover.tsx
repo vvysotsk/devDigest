@@ -15,16 +15,22 @@ export const FindingsPopover = React.forwardRef<
     loading?: boolean;
     loadingText?: string;
     emptyText?: string;
+    /** Fetch failure — shown instead of the list (never a perpetual loading note). */
+    errorText?: string;
     anchor: DOMRect | null;
     onClick?: (e: React.MouseEvent) => void;
   }
->(function FindingsPopover({ findings, title, loading, loadingText, emptyText, anchor, onClick }, ref) {
+>(function FindingsPopover({ findings, title, loading, loadingText, emptyText, errorText, anchor, onClick }, ref) {
   const { top, left } = placement(anchor);
   const sorted = React.useMemo(() => sortBySeverity(findings), [findings]);
   return (
     <div ref={ref} role="dialog" aria-label={title} style={s.popover(top, left)} onClick={onClick}>
       <div style={s.title}>{title}</div>
-      {loading ? (
+      {errorText ? (
+        <div role="alert" style={s.error}>
+          {errorText}
+        </div>
+      ) : loading ? (
         <div style={s.note}>{loadingText ?? "…"}</div>
       ) : sorted.length === 0 ? (
         <div style={s.note}>{emptyText ?? "—"}</div>

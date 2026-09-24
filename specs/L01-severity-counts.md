@@ -1,4 +1,4 @@
-Status: in-progress
+Status: done
 
 # L01 — Findings by severity: counters, filter, previews
 
@@ -13,9 +13,9 @@ toggling a filter never hits `/review`.
 | Surface | Shows | Empty state | Stage |
 |---|---|---|---|
 | PR detail — Review runs card (expanded) | pills row under the VerdictBanner + one filter chip per present severity | no pills, no chips, only the "Hide low confidence" toggle | A |
-| PR list — FINDINGS column | icon+count per severity of the **latest batch**; hover/focus → read-only popover "N FINDINGS IN THIS RUN" | `—` | B |
-| PR detail — Timeline tile | icon+count per severity (+ "· N blockers"); hover → the same popover | legacy text "N findings" when no review matches the run | C |
-| Run trace drawer — Findings section | pills row + read-only previews | "No findings for this run." | C |
+| PR list — FINDINGS column | icon+count per severity of the **latest batch**; hover/focus → read-only popover titled "N findings in this run" (fetch error → inline error text) | `—` | B |
+| PR detail — Timeline tile | icon+count per severity (+ "· N blockers"); hover → the same popover ("N findings in this run"), wrapping only the icons so the agent-name click still jumps to the review card | plain "N findings" when no review matches the run (legacy / deleted review) | C |
+| Run trace drawer — Findings section | pills row + read-only previews in `full` mode (whole rationale + "Suggested fix:") | "No findings for this run." | C |
 
 ## Semantics
 
@@ -64,6 +64,13 @@ toggling a filter never hits `/review`.
 - PR list `FindingsCell` — counts from `latest_batch`; the popover opens and
   `usePrReviews(prId, { enabled })` fires only after the pointer has settled
   for `HOVER_INTENT_MS` (180 ms), immediately on keyboard focus.
+- Timeline `RunHistory` takes `reviews` (from `FindingsTab`'s `runs` prop —
+  note the naming trap: `runs` there is `ReviewRecord[]`, `prRuns` is
+  `RunSummary[]`) and matches findings to runs by `run_id`; `runStatus.*`
+  strings use ICU plurals ("1 blocker", never "1 blockers").
+- Trace drawer `FindingsSection` renders the pills row + `FindingPreview` per
+  finding (sorted by severity); its findings come from the reviews list via
+  the drawer's `findings` prop, not from the trace document.
 - PR list narrow layout (viewport 1024–1185px, `NARROW_MAX_WIDTH`, CSS media
   query on `.pr-list` in `app/globals.css` feeding CSS variables that the
   inline styles consume): every column narrows (`GRID_NARROW`), gaps/paddings
