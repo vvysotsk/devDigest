@@ -21,6 +21,12 @@ read code.
   directly; change the server master copy and mirror (see `server/CLAUDE.md`
   for the known drift).
 
+## Do not touch
+
+- `pnpm-lock.yaml` — never edit by hand or regenerate unprompted; it changes
+  only with an intentional `package.json` change, committed together.
+- `src/vendor/shared` — a copy; edit the server master and mirror.
+
 ## Gotchas
 
 - `vendor/ui` ships components with no current usage (charts, command
@@ -29,6 +35,8 @@ read code.
 
 ## Read when
 
+- Server vs Client Components, data fetching, UI kit, i18n → read `docs/ui-architecture.md`
+- Routes and the data each page loads (what must stay true) → read `specs/pages.md`
 - Page/route structure → read `README.md` (UI route map)
 - UI kit usage, tokens, theming → read `src/vendor/ui/README.md`
 - Past lessons here → read `INSIGHTS.md`

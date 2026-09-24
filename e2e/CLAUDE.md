@@ -8,21 +8,29 @@
 
 ## Before answering
 
-Always search this package's `docs/`, `INSIGHTS.md` and the root `/specs` for
+Always search this package's `docs/`, `specs/*.md`, `INSIGHTS.md` and the root `/specs` for
 what the user asks about first — these are curated and may already answer it —
-then read code. (`specs/` here is browser test flows, not curated docs.)
+then read code. (`specs/*.flow.json` are tests; `specs/*.md` are curated.)
+
+## Do not touch
+
+- `package-lock.json` — never edit by hand or regenerate unprompted; it
+  changes only with an intentional `package.json` change, committed together.
 
 ## Non-default conventions
 
 - Flows are deterministic and LLM-free — they drive the studio over CDP
   (Vercel agent-browser). Never add a real LLM call to a flow.
-- `specs/` here = browser test flows, NOT feature specs (those live in
-  `/specs` at the repo root).
+- `specs/*.flow.json` = browser test flows; `specs/*.md` = e2e contracts
+  (seed data and preconditions the flows rely on). Course feature specs live
+  in `/specs` at the repo root.
 - Hermetic mode never touches the dev DB or the `devdigest_pgdata` volume —
   keep it that way when adding flows.
 
 ## Read when
 
+- Runner, agent-browser, hermetic stack and ports → read `docs/architecture.md`
+- Seed data and preconditions the flows rely on → read `specs/flows-contract.md`
 - Flow anatomy, run modes, coverage → read `README.md`
 - CI gating for this suite → read `../TESTING.md`
 - Past lessons here → read `INSIGHTS.md`

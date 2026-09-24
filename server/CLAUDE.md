@@ -31,6 +31,11 @@ Cross-module access ONLY through the DI container (`container.agentsRepo`,
 
 ## Do not touch
 
+- `src/db/migrations/**` (incl. `meta/_journal.json` and snapshots) — never
+  edit, rename, reorder or delete an applied migration. Schema change = edit
+  `src/db/schema/*` → `pnpm db:generate` → `pnpm db:migrate`.
+- `pnpm-lock.yaml` — never edit by hand or regenerate unprompted; it changes
+  only with an intentional `package.json` change, committed together.
 - `src/vendor/shared` — master copy of `@devdigest/shared`; mirror every edit
   to `client/src/vendor/shared`. WARNING: the copies ALREADY differ in 5 files
   (`adapters.ts`, `contracts/eval-ci.ts`, `contracts/knowledge.ts`,
@@ -45,6 +50,8 @@ Cross-module access ONLY through the DI container (`container.agentsRepo`,
 
 ## Read when
 
+- DI container, modules/adapters, request flow → read `docs/architecture.md`
+- Review run end to end (what must stay true) → read `specs/review-flow.md`
 - API surface, DI/request flow → read `README.md`
 - repo-intel internals (indexer, repo map) → read `src/modules/repo-intel/README.md`
 - Schema questions → read `src/db/schema/` (14 domains; 6 are future lessons)

@@ -1,22 +1,24 @@
-# Entry examples — vague vs useful
+# Entry examples — weak vs strong
 
-The quality gate in practice. Every "bad" entry fails the test *"if this would
-be obvious to anyone reading the code — don't write it"* or is not actionable
-cold; every "good" entry names the concrete place and the alternative.
+Every "weak" entry fails the gate (*"would an agent new to this area repeat
+this mistake?"*) or is not actionable cold / has no `path:line`. Every "strong"
+entry names the place, the line and the alternative.
+
+## Real ones from this repo
+
+**Weak:** `- 2026-09-24: Implemented PR-list cost as a sum of settled runs.` (history, not a lesson)
+**Strong:** `- 2026-09-24: resolveRunCost() returns the STORED cost for any status, including failed/cancelled runs — its 'done' check only guards the token estimate. Any "successful runs only" sum must filter status === 'done' itself (evidence: src/modules/_shared/run-cost.ts:28, src/modules/_shared/latest-batch.ts:71; first test run counted a failed run's cost).`
+
+**Weak:** `- 2026-09-24: Popovers in the PR list can be clipped.` (no place, no fix)
+**Strong:** `- 2026-09-24: A popover inside the PR list must be position: fixed — tableCard has overflow: hidden and clips absolute children; close it on window scroll, but ignore scroll events whose target is inside the popover (evidence: src/app/repos/[repoId]/pulls/styles.ts:91, src/components/findings-preview/FindingsHoverCard.tsx).` → still missing a line in the second file: find it before writing.
 
 ## Vague → useful
 
-**Bad:** `- 2026-09-18: Promises can be tricky.`
-**Good:** `- 2026-09-18: Promise.all() on the ingestion pipeline times out past ~30 items — use Promise.allSettled() with batches of 10 (evidence: server/src/modules/polling/service.ts)`
+**Weak:** `- 2026-09-18: Promises can be tricky.`
+**Strong:** `- 2026-09-18: Promise.all() on the ingestion pipeline times out past ~30 items — use Promise.allSettled() with batches of 10 (evidence: src/modules/polling/service.ts:<line>).`
 
-**Bad:** `- 2026-09-18: Be careful with async state.`
-**Good:** `- 2026-09-18: Checkout-flow state must go through the shared store (cartStore.ts) — the cart is shared by 3 components, local state desyncs them.`
-
-**Bad:** `- 2026-09-18: The shared contracts can drift.`
-**Good:** `- 2026-09-18: Before touching @devdigest/shared, diff the two copies — they already differ in 5 files (adapters.ts, contracts/eval-ci.ts, knowledge.ts, productionize.ts, trace.ts); mirror only what your change touches (evidence: diff -rq server/src/vendor/shared client/src/vendor/shared).`
-
-**Bad:** `- 2026-09-18: Watch out for the DB on first run.`
-**Good:** `- 2026-09-18: "relation ... does not exist" on a fresh clone means migrations didn't run — the server never migrates on boot; run cd server && pnpm db:migrate.`
+**Weak:** `- 2026-09-18: Watch out for the DB on first run.`
+**Strong:** `- 2026-09-18: "relation ... does not exist" on a fresh clone means migrations didn't run — the server never migrates on boot; run pnpm db:migrate (evidence: src/server.ts:<line> has no migrate call).`
 
 ## Session Notes entry
 

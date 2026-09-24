@@ -1,115 +1,119 @@
 ---
 name: engineering-insights
-description: "Captures non-obvious engineering insights into the project's per-module INSIGHTS.md files (append-only). Use proactively in ANY session the moment a durable lesson appears — a debugging dead end, a surprising library/tool behavior, a decision with a non-obvious reason, a recurring error with its fix, an approach that worked or failed. Also use as a wrap-up at the end of any meaningful task (over 30 minutes with a problem, solution, or discovery) or when the user says insights, learnings, lessons, retro, or wrap-up."
+description: "Captures engineering lessons into the per-package INSIGHTS.md (server/, client/, reviewer-core/, e2e/; root only for repo tooling). Use IMMEDIATELY, in the same turn, when any of these happens: a test or typecheck fails for a reason other than a typo; the user or a reviewer corrects your approach, plan or assumption; something needed more than one attempt; a library, tool or the environment behaved unexpectedly; you chose one approach over another for a reason the code does not show. Also MANDATORY before every commit (insights checkpoint), and when the user says insights, learnings, lessons, retro or wrap-up."
 ---
 
 # Engineering Insights
 
-Persist lessons across sessions by appending them to the right module's
-`INSIGHTS.md`. The file is what the previous session's agent left for the
-current one — treat writing it as part of the job, not an afterthought.
+`INSIGHTS.md` is the memory one session leaves for the next. An empty file
+after a week of work means lessons were lost, not that there were none: every
+failed test, correction and second attempt is a candidate. Writing it is part
+of the task, like tests.
 
-See `examples.md` for vague-vs-useful entry pairs and correction/conflict
-patterns.
+Examples of weak vs strong entries: `examples.md`.
 
 ---
 
-## When to capture / when to skip
+## Triggers — capture in the same turn
 
-**Two triggers:**
+Write the entry the moment the event happens, while the evidence is on screen.
+Do not postpone to "the end of the session" — by then it is forgotten.
 
-1. **Capture as you go** — the moment something non-obvious happens: a fix that
-   took real debugging, a library behaving unexpectedly, a decision made for a
-   reason the code doesn't show, a dead end worth not repeating.
-2. **Wrap-up** — at the end of any meaningful task (>30 min with a problem,
-   solution, or discovery), review the session and extract **2–5** entries.
-   Not more: signal quality beats volume.
+| Event | Typical section |
+|---|---|
+| A test/typecheck failed and the fix was not a typo | Recurring Errors & Fixes / What Doesn't Work |
+| The user or a reviewer corrected the approach, a plan item, or an assumption | What Doesn't Work / Codebase Patterns |
+| An assumption about the code turned out wrong (a function returns more/less than its name says, a field means something else) | Codebase Patterns |
+| Anything needed a second attempt (command, config, query, selector) | Recurring Errors & Fixes |
+| A library, tool, OS or environment surprised you | Tool & Library Notes |
+| You picked A over B for a reason the code does not show | Codebase Patterns / What Works |
 
-**Skip (do not write):**
+## Checkpoint before every commit (mandatory)
 
-- Trivial edits, config touch-ups, routine renames.
-- Anything obvious to anyone reading the code — the test for every entry:
-  *"If this would be obvious to anyone reading the code — don't write it."*
-- Anything the linter/typecheck already catches.
-- A replay of what happened — extract the lesson, not the history.
+Before `git commit`, list this task's candidates from the triggers above, then:
+- write the ones that pass the gate, or
+- state explicitly: `INSIGHTS: none — <why nothing qualified>`.
 
-## Routing — which INSIGHTS.md
+The task report ALWAYS has one line:
+`INSIGHTS: +N in <file(s)>` or `INSIGHTS: none — <reason>`.
 
-Write to the file of the package the work actually touched:
+## Quality gate
 
-| Work touched | File |
+Ask: **"Would an agent new to this area — reading only the file it is about
+to change — repeat this mistake or lose time on it?"** Yes → write it.
+
+- It qualifies even if the fact is technically visible somewhere in the code:
+  the question is whether the CALLER would notice. Example: `resolveRunCost`
+  returns a stored cost for failed runs — visible in `run-cost.ts`, invisible
+  from `pulls/routes.ts`, and it broke a test.
+- It does NOT qualify: typos, a lint/typecheck error with an obvious message,
+  a replay of what was done ("implemented X"), generic advice ("be careful
+  with async").
+- No upper limit per task; no filler either.
+
+## Routing — the package of the evidence
+
+The entry goes to the `INSIGHTS.md` of the package that contains the evidence
+file:
+
+| Evidence file under | File |
 |---|---|
 | `server/**` | `server/INSIGHTS.md` |
 | `client/**` | `client/INSIGHTS.md` |
 | `reviewer-core/**` | `reviewer-core/INSIGHTS.md` |
 | `e2e/**` | `e2e/INSIGHTS.md` |
-| Multiple packages, repo tooling (scripts, docker, git, CI), shared contracts, docs | `INSIGHTS.md` (root) |
+| repo tooling only: `scripts/`, `.gitattributes`, `docker-compose.yml`, git, `.claude/`, Claude Code itself | `INSIGHTS.md` (root) |
 
-## File sections — where an insight goes
-
-Every INSIGHTS.md has the same seven fixed sections. Append under the one that
-fits; never invent new sections:
-
-| Section | What belongs there |
-|---|---|
-| What Works | Approaches and solutions that succeeded here |
-| What Doesn't Work | Dead ends and antipatterns (most-skipped, most valuable) |
-| Codebase Patterns | Conventions and architectural decisions, with the why |
-| Tool & Library Notes | Dependency quirks, version surprises |
-| Recurring Errors & Fixes | Errors seen more than once + the fix |
-| Session Notes | Dated one-line session summaries (wrap-up only) |
-| Open Questions | Things left unresolved or unverified |
+A lesson that spans packages → one entry in EACH package, each with its own
+evidence line. Never park a package lesson in the root file because the task
+was "cross-package". Session Notes also go to each touched package.
 
 ## Entry format
 
 ```
-- YYYY-MM-DD: <actionable statement> (evidence: file:line, command, or error message)
+- YYYY-MM-DD: <what to do / avoid, and the alternative> (evidence: <path>:<line>[, command or error text])
 ```
 
-Quality gate — an entry must be **actionable cold**: an agent reading it with
-zero session context knows exactly what to do or avoid. Name the concrete
-module/file/command; state the alternative, not just the problem.
+- **Date and `path:line` are required.** Path relative to the package root
+  (`src/modules/_shared/run-cost.ts:28`). An entry without a line number is
+  not finished — open the file and find the line.
+- Environment lessons: cite the file the command runs (`scripts/dev.sh:37`,
+  `package.json:12`) plus the exact error text.
+- Actionable cold: name the module/file/command and the alternative.
+- English, terse, declarative.
+
+## Sections (fixed — never invent new ones)
+
+What Works · What Doesn't Work · Codebase Patterns · Tool & Library Notes ·
+Recurring Errors & Fixes · Session Notes · Open Questions
 
 ## Rules
 
-- **Append-only.** Never rewrite or delete existing entries. To correct an
-  outdated entry, append a dated note referencing it (see `examples.md`).
-  Two entries that contradict each other → append an explicit dated resolution.
-- **Read before writing.** Open the target file first; if the lesson is already
-  there, don't duplicate it (extend it with a dated note if you learned more).
-- **English**, terse and declarative — the format is optimized for an LLM
-  reader, matching the rest of the repo's docs.
-- Findings that harden into permanent rules get **promoted**: to the module's
-  `CLAUDE.md` if they must be seen every session, or to a hook/slash command if
-  they must be deterministic. Note the promotion in INSIGHTS.md.
+- **Append-only.** Never rewrite or delete an entry; correct with a dated
+  note under it (see `examples.md`). Contradiction → dated RESOLUTION line.
+- **Read the target file first**; extend an existing entry with a dated note
+  instead of duplicating it.
+- **Promote** a lesson that must be seen every session to the package
+  `CLAUDE.md`; note the promotion in INSIGHTS.md.
+- A line number drifted after an edit → append a dated note with the new
+  `path:line`, do not edit the old entry.
 
-## Wrap-up workflow
-
-Copy this checklist and work through it:
+## Wrap-up / backfill workflow
 
 ```
-Wrap-up:
-- [ ] 1. Review the session: attempts, errors, decisions, surprises, dead ends
-- [ ] 2. Draft candidates; apply the quality gate to each (aim for 2–5 survivors)
-- [ ] 3. Route each entry to its module's INSIGHTS.md (table above)
-- [ ] 4. Read each target file; drop duplicates
-- [ ] 5. Append entries under the correct sections
-- [ ] 6. Add one dated line to Session Notes summarizing the session
-- [ ] 7. Report to the user: what was written, to which files
+insights:
+- [ ] 1. Collect candidates: failed tests/typechecks, user corrections, retries,
+         surprises, non-obvious choices (scan the conversation and git log -p)
+- [ ] 2. Apply the gate; route each survivor by its evidence file
+- [ ] 3. Read each target file; drop duplicates, extend near-duplicates
+- [ ] 4. Find exact path:line for every entry
+- [ ] 5. Append under the right section; one dated Session Notes line per touched package
+- [ ] 6. Report: INSIGHTS: +N in <files> | none — <reason>
 ```
 
-If nothing survives the quality gate, say so and write nothing — an honest
-empty wrap-up beats generic filler.
+## Maintenance (human-owned)
 
-## Maintenance (human-owned, not this skill's job)
-
-- INSIGHTS.md is a **draft under review** — the human spot-checks entries;
-  a wrong summary is corrected, not trusted.
-- Monthly prune: delete obsolete entries (a stale quirk-note is worse than
-  none), consolidate near-duplicates, resolve contradictions.
-- Over ~200 entries in one file → split into domain files
-  (`INSIGHTS-<domain>.md`) and link them from the main one.
-- **L06 bridge:** the manual trigger is known to be unreliable ("if you skip
-  the wrap-up, the system doesn't learn"). When that friction becomes real, a
-  Stop-hook will make capture automatic — that is a planned course lesson, not
-  something to improvise now.
+INSIGHTS.md is a draft under review: the human spot-checks, prunes monthly,
+consolidates duplicates, splits a file past ~200 entries into
+`INSIGHTS-<domain>.md`. Deterministic capture (a Stop hook) is a planned
+course lesson (L06) — do not improvise it now.

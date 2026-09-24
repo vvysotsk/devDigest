@@ -2,7 +2,8 @@
 
 ## Commands
 
-`pnpm test` · `pnpm typecheck`
+`npm test` · `npm run typecheck` (npm, not pnpm — this package has
+`package-lock.json`; `scripts/dev.sh` installs it with `npm ci`)
 
 ## Before answering
 
@@ -15,6 +16,11 @@ read code.
 This package is PURE: no DB, no fs, no GitHub, no HTTP — the only side effect
 is the injected LLMProvider. Do not add imports that break this; persistence,
 SSE, cancellation and cost live in `server/src/modules/reviews/run-executor.ts`.
+
+## Do not touch
+
+- `package-lock.json` — never edit by hand or regenerate unprompted; it
+  changes only with an intentional `package.json` change, committed together.
 
 ## Non-default conventions
 
@@ -30,6 +36,8 @@ SSE, cancellation and cost live in `server/src/modules/reviews/run-executor.ts`.
 
 ## Read when
 
+- Pipeline stages and data flow → read `docs/pipeline.md`
+- Grounding gate rules (what must stay true) → read `specs/grounding-gate.md`
 - Pipeline details, public API → read `README.md`
-- How the server wraps the engine → read `server/src/modules/reviews/`
+- How the server wraps the engine → read `../server/src/modules/reviews/`
 - Past lessons here → read `INSIGHTS.md`

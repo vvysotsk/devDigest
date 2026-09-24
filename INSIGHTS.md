@@ -1,11 +1,12 @@
 # Insights — repo root
 
-Append-only lessons that the code cannot tell you. Cross-package insights live
-here; package-specific ones go to that package's own `INSIGHTS.md`.
+Append-only lessons about REPO TOOLING only: `scripts/`, `.gitattributes`,
+`docker-compose.yml`, git, `.claude/`, Claude Code. Anything about package code
+goes to that package's `INSIGHTS.md` (one entry per package it touches).
 
 Entry format, quality gate, and capture rules live in the
 `engineering-insights` skill (`.claude/skills/engineering-insights/SKILL.md`).
-Entries: `- YYYY-MM-DD: <actionable statement> (evidence: file:line or command)`.
+Entries: `- YYYY-MM-DD: <actionable statement> (evidence: path:line[, command/error])` — date and path:line are required.
 Never rewrite existing entries — correct with a dated note.
 
 ## What Works
@@ -32,14 +33,39 @@ Never rewrite existing entries — correct with a dated note.
   frontmatter `description` alone drives when it triggers (evidence:
   engineering-insights appeared in the available-skills list right after Write).
 
+- 2026-09-24: Line numbers read off a multi-file dump (`cat -n a b c`, or
+  several files in one tool result) are CUMULATIVE — 52 of 237 `path:line`
+  refs in the first seed of `server/specs/review-flow.md` pointed past EOF
+  (e.g. `sse.ts:458` in a 103-line file). When citing lines, read ONE file per
+  command, and verify with a script that checks line ≤ file length AND that
+  the cited symbol appears near the line; a "path exists" check catches none
+  of these (evidence: `.claude/skills/package-docs/SKILL.md:61`, `:88`).
+
 ## Recurring Errors & Fixes
 
 - 2026-09-18: Python on this Windows box crashes with UnicodeEncodeError
   (cp1251) when printing non-ASCII from scripts run via Git Bash — prefix with
   `PYTHONIOENCODING=utf-8` (evidence: heredoc script printing "→" failed until
   prefixed).
+- 2026-09-24: `env: $'bash\r': No such file or directory` on `./scripts/dev.sh`
+  means the script was checked out with CRLF. `.gitattributes` forces
+  `eol=lf` for `*.sh`; after changing it run `git add --renormalize .` so
+  already-tracked files are rewritten, then re-run (evidence:
+  `.gitattributes:2-4`, commit `b11fd0c`).
+- 2026-09-24: After a reinstall pnpm 10+ skips dependency build scripts and
+  warns `Ignored build scripts: ssh2… help: Run "pnpm approve-builds"`
+  (surfaces as `ERR_PNPM_IGNORED_BUILDS` when the build is required) — run
+  `pnpm approve-builds` once in `server/`; `scripts/dev.sh` only runs
+  `pnpm install` and does not do it for you (evidence: `scripts/dev.sh:73`,
+  pnpm output on 2026-09-22).
 
 ## Session Notes
+
+- 2026-09-24: Rewrote the `engineering-insights` skill (path:line + date
+  mandatory, routing by evidence file), added the `package-docs` skill, and
+  seeded real docs/specs for server, client, reviewer-core and e2e; the
+  evidence line-check (step 6 of the package-docs workflow) came out of the
+  cumulative-line-number miss recorded above.
 
 - 2026-09-24: L01 severity counts shipped in three reviewed stages; `server/src/modules/_shared/latest-batch.ts` now owns the "latest batch" rule for BOTH the PR-list cost and the findings counts — change it there, not in `pulls/routes.ts`.
   - 2026-09-24 correction (criterion 12): the PR-list COST no longer uses the latest batch — it is `sumSettledRunCost` over every `done` run; only the FINDINGS column is batch-scoped. Both rules still live in `latest-batch.ts`.

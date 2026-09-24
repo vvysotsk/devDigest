@@ -295,8 +295,8 @@ d('A2 reviews + agents (Testcontainers pg)', () => {
     const body = (
       await app.inject({ method: 'POST', url: `/pulls/${pr.id}/review`, payload: { all: true } })
     ).json();
-    // seed has 2 enabled agents; we may have created more above in this PR's ws.
-    expect(body.runs.length).toBeGreaterThanOrEqual(2);
+    // seed has 3 enabled agents (src/db/seed.ts); we may have created more above in this PR's ws.
+    expect(body.runs.length).toBeGreaterThanOrEqual(3);
 
     // L01 — every run queued by ONE "Run review" action shares one batch_id.
     const ids = body.runs.map((r: { run_id: string }) => r.run_id);
