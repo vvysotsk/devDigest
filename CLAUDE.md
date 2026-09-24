@@ -11,6 +11,9 @@ workspace: each has its own package.json and lockfile; install per package.
 - `reviewer-core/` — pure review engine (diff → prompt → LLM → grounded findings)
 - `e2e/` — deterministic browser tests (agent-browser, no LLM)
 - `docs/` — cross-package docs · `specs/` — feature specs · `INSIGHTS.md` — lessons
+- `demo/LNN/` — one lesson's demo video inputs (scenario, cues, scenes, config)
+  and its mp4; filmed with the `screencast-demo-maker` plugin per
+  `.claude/skills/devdigest-demo` — see `docs/demo-video.md`
 - `@devdigest/shared` (zod contracts) is NOT a package: master copy in
   `server/src/vendor/shared`, COPIED to `client/src/vendor/shared`.
 

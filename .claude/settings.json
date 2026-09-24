@@ -1,0 +1,8 @@
+{
+  "extraKnownMarketplaces": {
+    "screencast-demo-maker": {
+      "source": { "source": "github", "repo": "vvysotsk/screencast-demo-maker" }
+    }
+  },
+  "enabledPlugins": { "screencast-demo-maker@screencast-demo-maker": true }
+}
