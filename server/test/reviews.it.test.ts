@@ -297,6 +297,83 @@ d('A2 reviews + agents (Testcontainers pg)', () => {
     ).json();
     // seed has 2 enabled agents; we may have created more above in this PR's ws.
     expect(body.runs.length).toBeGreaterThanOrEqual(2);
+
+    // L01 — every run queued by ONE "Run review" action shares one batch_id.
+    const ids = body.runs.map((r: { run_id: string }) => r.run_id);
+    const rows = await pg.handle.db.select().from(t.agentRuns).where(eq(t.agentRuns.prId, pr.id));
+    const batchIds = new Set(rows.filter((r) => ids.includes(r.id)).map((r) => r.batchId));
+    expect(batchIds.size).toBe(1);
+    expect([...batchIds][0]).not.toBeNull();
+
+    await app.close();
+  });
+
+  it('L01 run cost: persisted, surfaced on runs/trace/PR list, latest batch only, legacy estimated', async () => {
+    const app = await appWith(REVIEW_FIXTURE);
+    const { repo, pr } = await setupRepoAndPr(pg.handle.db, workspaceId);
+    const agent = (
+      await app.inject({
+        method: 'POST',
+        url: '/agents',
+        payload: { name: 'CostAgent', provider: 'openai', model: 'gpt-4.1', system_prompt: 's' },
+      })
+    ).json();
+
+    // ---- batch 1 ------------------------------------------------------------
+    const first = (
+      await app.inject({ method: 'POST', url: `/pulls/${pr.id}/review`, payload: { agentId: agent.id } })
+    ).json();
+    const runId1 = first.runs[0].run_id;
+    await waitForPrRuns(pg.handle.db, pr.id, { expected: 1 });
+
+    // cost + batch persisted on the agent_runs row (mock LLM yields costUsd 0.001/call)
+    const [row1] = await pg.handle.db.select().from(t.agentRuns).where(eq(t.agentRuns.id, runId1));
+    expect(row1!.costUsd).toBeCloseTo(0.001, 6);
+    expect(row1!.batchId).not.toBeNull();
+
+    // GET /pulls/:id/runs carries cost_usd
+    const runsList = (await app.inject({ method: 'GET', url: `/pulls/${pr.id}/runs` })).json();
+    expect(runsList[0].cost_usd).toBeCloseTo(0.001, 6);
+
+    // GET /runs/:id/trace carries stats.cost_usd
+    const trace = (await app.inject({ method: 'GET', url: `/runs/${runId1}/trace` })).json();
+    expect(trace.stats.cost_usd).toBeCloseTo(0.001, 6);
+
+    // ---- batch 2 (a re-run) — PR list must count ONLY this one ---------------
+    const second = (
+      await app.inject({ method: 'POST', url: `/pulls/${pr.id}/review`, payload: { agentId: agent.id } })
+    ).json();
+    const runId2 = second.runs[0].run_id;
+    await waitForPrRuns(pg.handle.db, pr.id, { expected: 2 });
+    const [row2] = await pg.handle.db.select().from(t.agentRuns).where(eq(t.agentRuns.id, runId2));
+    expect(row2!.batchId).not.toBe(row1!.batchId);
+
+    const pulls = (await app.inject({ method: 'GET', url: `/repos/${repo.id}/pulls` })).json();
+    const meta = pulls.find((p: { id: string }) => p.id === pr.id);
+    // Two settled runs at 0.001 each exist, but only the latest batch counts.
+    expect(meta.cost_usd).toBeCloseTo(0.001, 6);
+
+    // ---- legacy rows (persisted before cost_usd existed) ---------------------
+    // Null the stored cost: read paths fall back to tokens × PriceBook.
+    // Mock runs are gpt-4.1 with 100 in / 50 out ⇒ (100·2.0 + 50·8.0)/1M = 0.0006.
+    await pg.handle.db.update(t.agentRuns).set({ costUsd: null }).where(eq(t.agentRuns.prId, pr.id));
+    const legacyRuns = (await app.inject({ method: 'GET', url: `/pulls/${pr.id}/runs` })).json();
+    expect(legacyRuns[0].cost_usd).toBeCloseTo(0.0006, 6);
+    const legacyPulls = (await app.inject({ method: 'GET', url: `/repos/${repo.id}/pulls` })).json();
+    const legacyMeta = legacyPulls.find((p: { id: string }) => p.id === pr.id);
+    expect(legacyMeta.cost_usd).toBeCloseTo(0.0006, 6);
+
+    // Old trace docs (persisted without stats.cost_usd) are backfilled on read.
+    const [traceRow] = await pg.handle.db
+      .select()
+      .from(t.runTraces)
+      .where(eq(t.runTraces.runId, runId1));
+    const doc = traceRow!.trace as { stats: Record<string, unknown> };
+    delete doc.stats['cost_usd'];
+    await pg.handle.db.update(t.runTraces).set({ trace: doc }).where(eq(t.runTraces.runId, runId1));
+    const legacyTrace = (await app.inject({ method: 'GET', url: `/runs/${runId1}/trace` })).json();
+    expect(legacyTrace.stats.cost_usd).toBeCloseTo(0.0006, 6);
+
     await app.close();
   });
 });

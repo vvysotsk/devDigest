@@ -20,6 +20,13 @@ Never rewrite existing entries — correct with a dated note.
 
 ## Tool & Library Notes
 
+- 2026-09-22: pnpm v12 auto-recreates untracked `client/pnpm-workspace.yaml` /
+  `server/pnpm-workspace.yaml` (the repo is deliberately NOT a workspace) —
+  harmless to the build, but it breaks `git stash pop` of a stash made with
+  `--include-untracked` ("already exists, no checkout"); recover with
+  `git ls-tree stash@{0}^3` to verify contents, then `git stash drop`
+  (evidence: pop failed after a vitest run recreated server/pnpm-workspace.yaml).
+
 - 2026-09-18: A new skill added under `.claude/skills/<name>/SKILL.md` is
   discovered live in the same Claude Code session — no restart needed; the
   frontmatter `description` alone drives when it triggers (evidence:
@@ -37,5 +44,10 @@ Never rewrite existing entries — correct with a dated note.
 - 2026-09-18: Scaffolded CLAUDE.md maps, per-module INSIGHTS/docs/specs, and
   the engineering-insights skill; confirmed shared-contracts drift (5 files)
   and promoted it straight to server/CLAUDE.md.
+- 2026-09-22: Implemented L01 run-cost badge end-to-end (re-added
+  `agent_runs.cost_usd` + new `batch_id`, read-time `resolveRunCost` fallback,
+  `RunCostBadge` on PR list / timeline / trace drawer; spec in
+  `specs/L01-run-cost.md`); hit the Windows db:migrate no-op and the stale
+  stash/pnpm-workspace quirks recorded above.
 
 ## Open Questions

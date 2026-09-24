@@ -6,6 +6,7 @@ import { PrCommentInput } from '@devdigest/shared';
 import * as t from '../../db/schema.js';
 import { getContext } from '../_shared/context.js';
 import { IdParams } from '../_shared/schemas.js';
+import { resolveRunCost } from '../_shared/run-cost.js';
 import { AppError, NotFoundError } from '../../platform/errors.js';
 import { deriveReviewStatus } from './status.js';
 
@@ -129,6 +130,51 @@ export default async function pullsRoutes(appBase: FastifyInstance) {
       }
     }
 
+    // Latest-BATCH cost per PR: the runs created by the most recent "Run
+    // review" action (shared batch_id). Rows are newest-first, so the first
+    // run per PR fixes the batch; legacy rows without a batch_id degrade to
+    // "the latest run alone is the batch". Runs without usage resolve to null
+    // and stay out of the sum — a PR whose latest batch has no data shows "—".
+    const latestBatchCostByPr = new Map<string, number>();
+    if (prIds.length > 0) {
+      const runRows = await container.db
+        .select({
+          prId: t.agentRuns.prId,
+          batchId: t.agentRuns.batchId,
+          status: t.agentRuns.status,
+          model: t.agentRuns.model,
+          costUsd: t.agentRuns.costUsd,
+          tokensIn: t.agentRuns.tokensIn,
+          tokensOut: t.agentRuns.tokensOut,
+        })
+        .from(t.agentRuns)
+        .where(inArray(t.agentRuns.prId, prIds))
+        .orderBy(desc(t.agentRuns.ranAt));
+      const latestBatch = new Map<string, { batchId: string | null; consumedLegacy: boolean }>();
+      for (const run of runRows) {
+        if (!run.prId) continue; // set-null rows from a deleted PR
+        let head = latestBatch.get(run.prId);
+        if (!head) {
+          head = { batchId: run.batchId, consumedLegacy: false };
+          latestBatch.set(run.prId, head);
+        }
+        let inBatch: boolean;
+        if (head.batchId != null) {
+          inBatch = run.batchId === head.batchId;
+        } else {
+          inBatch = !head.consumedLegacy;
+          head.consumedLegacy = true;
+        }
+        if (!inBatch) continue;
+        const cost = resolveRunCost(run, (model, tokensIn, tokensOut) =>
+          container.priceBook.estimate(model, tokensIn, tokensOut),
+        );
+        if (cost != null) {
+          latestBatchCostByPr.set(run.prId, (latestBatchCostByPr.get(run.prId) ?? 0) + cost);
+        }
+      }
+    }
+
     const now = Date.now();
     return rows.map((r) => {
       const review = latestReviewByPr.get(r.id);
@@ -153,6 +199,7 @@ export default async function pullsRoutes(appBase: FastifyInstance) {
         opened_at: r.openedAt?.toISOString() ?? null,
         updated_at: r.updatedAt?.toISOString() ?? null,
         score: review ? review.score : null,
+        cost_usd: latestBatchCostByPr.get(r.id) ?? null,
       };
     });
   });
