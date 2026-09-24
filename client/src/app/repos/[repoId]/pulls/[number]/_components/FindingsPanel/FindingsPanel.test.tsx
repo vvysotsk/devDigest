@@ -1,5 +1,10 @@
+/**
+ * FindingsPanel — severity counter pills + severity filter chips.
+ * Pills count findings AFTER "Hide low confidence" and BEFORE the severity
+ * filter, so a pill's number always equals the cards of that severity below.
+ */
 import { describe, it, expect, afterEach, vi } from "vitest";
-import { render, screen, cleanup } from "@testing-library/react";
+import { render, screen, cleanup, fireEvent } from "@testing-library/react";
 import { NextIntlClientProvider } from "next-intl";
 import type { FindingRecord } from "@devdigest/shared";
 import messages from "../../../../../../../../messages/en/prReview.json";
@@ -12,25 +17,33 @@ import { FindingsPanel } from "./FindingsPanel";
 
 afterEach(cleanup);
 
-const FINDINGS: FindingRecord[] = [
-  {
-    id: "f1",
-    severity: "CRITICAL",
-    category: "security",
-    title: "Hardcoded secret",
-    file: "src/config.ts",
-    start_line: 11,
-    end_line: 11,
-    rationale: "A secret is committed.",
+function finding(o: Partial<FindingRecord> & { id: string }): FindingRecord {
+  return {
+    severity: "WARNING",
+    category: "bug",
+    title: `Finding ${o.id}`,
+    file: "src/a.ts",
+    start_line: 1,
+    end_line: 1,
+    rationale: "Because.",
     suggestion: null,
-    confidence: 0.95,
+    confidence: 0.9,
     kind: "finding",
     trifecta_components: null,
     evidence: null,
     review_id: "r1",
     accepted_at: null,
     dismissed_at: null,
-  },
+    ...o,
+  };
+}
+
+const FINDINGS: FindingRecord[] = [
+  finding({ id: "c1", severity: "CRITICAL", title: "Hardcoded secret", category: "security" }),
+  finding({ id: "c2", severity: "CRITICAL", title: "SSRF forwarder" }),
+  finding({ id: "w1", severity: "WARNING", title: "N+1 query" }),
+  finding({ id: "w2", severity: "WARNING", title: "Low-confidence warning", confidence: 0.4 }),
+  finding({ id: "s1", severity: "SUGGESTION", title: "Extract magic number", category: "style" }),
 ];
 
 function renderWithIntl(ui: React.ReactElement) {
@@ -41,15 +54,84 @@ function renderWithIntl(ui: React.ReactElement) {
   );
 }
 
+const renderedIds = () =>
+  Array.from(document.querySelectorAll("[data-finding-id]")).map((el) =>
+    el.getAttribute("data-finding-id"),
+  );
+
+const chip = (name: string) => screen.getByRole("button", { name });
+
 describe("FindingsPanel (smoke)", () => {
   it("renders the toolbar + a finding card", () => {
-    renderWithIntl(<FindingsPanel findings={FINDINGS} prId="pr1" />);
+    renderWithIntl(<FindingsPanel findings={FINDINGS.slice(0, 1)} prId="pr1" />);
     expect(screen.getByText("Hide low confidence")).toBeInTheDocument();
     expect(screen.getByText("Hardcoded secret")).toBeInTheDocument();
   });
 
-  it("shows the empty state when nothing matches", () => {
+  it("shows the empty state when nothing matches, and no pills/chips", () => {
     renderWithIntl(<FindingsPanel findings={[]} prId="pr1" />);
     expect(screen.getByText("No findings match")).toBeInTheDocument();
+    expect(screen.queryByRole("group", { name: "Findings by severity" })).not.toBeInTheDocument();
+    expect(screen.queryByRole("button", { name: "Critical" })).not.toBeInTheDocument();
+  });
+});
+
+describe("FindingsPanel — severity counters", () => {
+  it("pills show one entry per present severity with the card count", () => {
+    renderWithIntl(<FindingsPanel findings={FINDINGS} prId="pr1" />);
+    expect(screen.getByText("2 Critical")).toBeInTheDocument();
+    expect(screen.getByText("2 Warning")).toBeInTheDocument();
+    expect(screen.getByText("1 Suggestion")).toBeInTheDocument();
+    expect(renderedIds()).toHaveLength(5);
+  });
+
+  it("only present severities get a pill and a filter chip", () => {
+    renderWithIntl(<FindingsPanel findings={FINDINGS.filter((f) => f.severity !== "WARNING")} prId="pr1" />);
+    expect(screen.queryByText(/Warning/)).not.toBeInTheDocument();
+    expect(screen.queryByRole("button", { name: "Warning" })).not.toBeInTheDocument();
+    expect(chip("Critical")).toBeInTheDocument();
+    expect(chip("Suggestion")).toBeInTheDocument();
+  });
+
+  it("with hide-low-confidence ON, the pill equals the visible cards of that severity", () => {
+    renderWithIntl(<FindingsPanel findings={FINDINGS} prId="pr1" />);
+    fireEvent.click(screen.getByRole("switch"));
+    expect(screen.getByText("1 Warning")).toBeInTheDocument();
+    expect(renderedIds()).toEqual(["c1", "c2", "w1", "s1"]);
+  });
+});
+
+describe("FindingsPanel — severity filter", () => {
+  it("clicking a chip keeps only that severity; clicking again restores all", () => {
+    renderWithIntl(<FindingsPanel findings={FINDINGS} prId="pr1" />);
+    fireEvent.click(chip("Warning"));
+    expect(renderedIds()).toEqual(["w1", "w2"]);
+    expect(chip("Warning")).toHaveAttribute("aria-pressed", "true");
+    // Pills are unaffected by the severity filter.
+    expect(screen.getByText("2 Critical")).toBeInTheDocument();
+
+    fireEvent.click(chip("Warning"));
+    expect(renderedIds()).toHaveLength(5);
+    expect(chip("Warning")).toHaveAttribute("aria-pressed", "false");
+  });
+
+  it("switching chips replaces the filter", () => {
+    renderWithIntl(<FindingsPanel findings={FINDINGS} prId="pr1" />);
+    fireEvent.click(chip("Critical"));
+    fireEvent.click(chip("Suggestion"));
+    expect(renderedIds()).toEqual(["s1"]);
+    expect(chip("Critical")).toHaveAttribute("aria-pressed", "false");
+  });
+
+  it("an active filter is dropped when its severity disappears after hiding low confidence", () => {
+    const only = [finding({ id: "w-low", severity: "WARNING", confidence: 0.3 }), FINDINGS[0]!];
+    renderWithIntl(<FindingsPanel findings={only} prId="pr1" />);
+    fireEvent.click(chip("Warning"));
+    expect(renderedIds()).toEqual(["w-low"]);
+
+    fireEvent.click(screen.getByRole("switch"));
+    // Warning vanished: its chip is gone and the list falls back to everything visible.
+    expect(screen.queryByRole("button", { name: "Warning" })).not.toBeInTheDocument();
+    expect(renderedIds()).toEqual(["c1"]);
   });
 });

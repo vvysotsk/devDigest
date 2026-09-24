@@ -7,7 +7,11 @@ export const s = {
     // All-longhand (never mix `border` shorthand with `borderLeft` — React warns
     // about updating shorthand + non-shorthand on the same rerender).
     borderStyle: "solid",
-    borderColor: focused ? sevColor : "var(--border)",
+    // `borderColor` is itself a shorthand (all four sides) and conflicts with
+    // `borderLeftColor` below — set the three other sides individually.
+    borderTopColor: focused ? sevColor : "var(--border)",
+    borderRightColor: focused ? sevColor : "var(--border)",
+    borderBottomColor: focused ? sevColor : "var(--border)",
     borderWidth: 1,
     borderLeftWidth: 3,
     borderLeftColor: sevColor,

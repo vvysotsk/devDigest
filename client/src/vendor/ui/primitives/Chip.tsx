@@ -8,6 +8,8 @@ export function Chip({
   icon,
   count,
   color,
+  pressed,
+  title,
 }: {
   children?: React.ReactNode;
   active?: boolean;
@@ -15,12 +17,18 @@ export function Chip({
   icon?: IconName;
   count?: number;
   color?: string;
+  /** Toggle semantics: renders `aria-pressed` (filter chips). */
+  pressed?: boolean;
+  title?: string;
 }) {
   const I = icon ? Icon[icon] : null;
   const [h, setH] = React.useState(false);
   return (
     <button
+      type="button"
       onClick={onClick}
+      aria-pressed={pressed}
+      title={title}
       onMouseEnter={() => setH(true)}
       onMouseLeave={() => setH(false)}
       style={{
