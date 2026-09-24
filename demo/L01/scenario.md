@@ -8,8 +8,8 @@ Narration is Ukrainian; everything else here stays English.
 - Browser-only video (Windows): files are shown rendered on GitHub, branch `lesson-1`,
   which must be pushed before filming.
 - The data PR is `burnjohn/quick-blog` #12 (stale; three settled runs, 22 findings).
-- Voice: `edge` provider, `uk-UA-PolinaNeural` or `uk-UA-OstapNeural` — chosen by ear
-  during `demo-film`.
+- Voice: ElevenLabs `Eric` (`cjVigY5qzO86Huf0OWal`, `eleven_multilingual_v2`), chosen by ear
+  over Alice, Daniel and the free edge voices.
 
 ## Preconditions
 
@@ -23,7 +23,7 @@ Narration is Ukrainian; everything else here stays English.
 **Show:** `/repos/8dad2132-…/pulls?status=stale` — one row, PR #12.
 **Do:** glide across the row to FINDINGS (3 / 17 / 2) and COST ($0.021).
 **Say (s1-01):** "Це DevDigest, локальна студія AI-ревʼю pull request-ів. У першому уроці ми додали вартість прогонів і лічильники знахідок за severity. Починаємо зі списку Pull Requests."
-**Say (s1-02):** "Колонка COST показує нуль крапка нуль два один долара. Це сума вартості всіх успішних прогонів цього PR, а не останнього. Якщо прогонів немає, клітинка порожня."
+**Say (s1-02):** "Колонка COST показує двадцять одну тисячну долара. Це сума вартості всіх успішних прогонів цього PR, а не останнього. Якщо прогонів немає, клітинка порожня."
 **Say (s1-03):** "Колонка FINDINGS показує три critical, сімнадцять warning і дві suggestion. Це знахідки останнього запуску ревʼю, згруповані за severity."
 
 ## 2. PR list — the popover — 30 s
@@ -36,14 +36,14 @@ Narration is Ukrainian; everything else here stays English.
 **Show:** `/repos/…/pulls/12?tab=findings` — the "Agent runs" tab, Timeline section on top.
 **Do:** glide over the three run tiles, pausing on each cost.
 **Say (s3-01):** "Відкриваємо PR і вкладку Agent runs. Зверху Timeline: прогони й коміти в хронології, найновіші згори."
-**Say (s3-02):** "Кожна плитка прогону показує свою вартість і токени: Performance Reviewer нуль крапка нуль нуль три чотири долара, Security Reviewer нуль крапка нуль один три, General Reviewer нуль крапка нуль нуль пʼять. Разом це і є ті нуль крапка нуль два один зі списку."
+**Say (s3-02):** "Кожна плитка прогону показує свою вартість і токени: Performance Reviewer тридцять чотири десятитисячні долара, Security Reviewer тринадцять тисячних долара, General Reviewer п'ять тисячних долара. Разом це і є та двадцять одна тисячна долара зі списку пул реквестів."
 **Say (s3-03):** "На плитках теж є іконки severity, але без кліку. Лічильники, які рахує критерій, живуть нижче, у секції Review runs."
 
 ## 4. Review runs — pills, filter, Accept and Reject — 75 s
 **Show:** the expanded Performance Reviewer card: VerdictBanner, PR SCORE, pills row, toggle, three chips, finding cards.
 **Do:** glide to the pills; toggle "Hide low confidence" on and off; click Critical, then click it again; hover Accept / Reject on the first card (never click).
-**Say (s4-01):** "Секція Review runs: по картці на прогін, перша розгорнута. Під вердиктом і PR SCORE рядок пілюль: одна critical, чотирнадцять warning. Пілюля suggestion не показана, бо таких знахідок у цьому прогоні немає."
-**Say (s4-02):** "Числа рахуються простим групуванням уже збережених findings за полем severity. Жодного звернення до LLM ні при відкритті сторінки, ні при перемиканні фільтра."
+**Say (s4-01):** "Секція Review runs: по картці прогону агента, перша розгорнута. Під вердиктом і PR SCORE рядок пілюль: одна critical, чотирнадцять warning. Пілюля suggestion не показана, бо таких знахідок у цьому прогоні немає."
+**Say (s4-02):** "Числа рахуються простим групуванням уже збережених findings за полем severity."
 **Say (s4-03):** "Число на пілюлі дорівнює кількості карток нижче. Вмикаємо Hide low confidence: чотирнадцять warning мають confidence нижче шістдесяти пʼяти відсотків і ховаються, лишається одна картка, і пілюля показує одну critical."
 **Say (s4-04):** "Вимикаємо тумблер. Під пілюлями три кнопки-фільтри: Critical, Warning, Suggestion. Suggestion неактивна, бо їй нема що показати. Клік по Critical лишає лише картки цього рівня, повторний клік знімає фільтр."
 **Say (s4-05):** "У кожної картки знахідки тут є кнопки Accept і Reject. Це інше місце, ніж попап у списку PR: там лише читання, тут рішення."
@@ -51,8 +51,8 @@ Narration is Ukrainian; everything else here stays English.
 ## 5. Trace drawer — Stats and Findings — 35 s
 **Show:** `…/pulls/12?tab=findings&trace=632a135c-…` — the drawer for the Security Reviewer run.
 **Do:** glide over the Stats tiles to COST, then down to the Findings section.
-**Say (s5-01):** "Кнопка «Open run trace and logs» на плитці відкриває сайдбар трасування. У блоці Stats окрема плитка COST: нуль крапка нуль один три долара, поруч тривалість, токени і кількість знахідок."
-**Say (s5-02):** "Нижче секція Findings: пілюлі одна warning і одна suggestion, і самі знахідки з повним описом і suggested fix. Тобто в сайдбарі видно не лише статистику, а й знахідки."
+**Say (s5-01):** "Кнопка «Open run trace and logs» на плитці відкриває сайдбар трасування. У блоці Stats окрема плитка COST: тринадцять тисячних долара, поруч тривалість, токени і кількість знахідок."
+**Say (s5-02):** "Нижче секція Findings: одна warning і одна suggestion, і самі знахідки з повним описом і suggested fix. Тобто в сайдбарі видно не лише статистику, а й знахідки."
 
 ## 6. GitHub — CLAUDE.md — 50 s
 **Show:** `https://github.com/vvysotsk/devDigest/blob/lesson-1/CLAUDE.md`.

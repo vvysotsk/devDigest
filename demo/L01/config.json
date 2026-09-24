@@ -2,15 +2,34 @@
   "slug": "devdigest-l01",
   "projectRoot": "../..",
   "output": "demo/L01/devdigest-l01.mp4",
-  "order": ["s1", "s2", "s3", "s4", "s5", "s6", "s7", "s8"],
-  "surfaces": ["browser"],
-  "healthUrls": ["http://localhost:3000", "http://localhost:3001/health"],
-  "video": { "fps": 30, "zoom": 1 },
+  "order": [
+    "s1",
+    "s2",
+    "s3",
+    "s4",
+    "s5",
+    "s6",
+    "s7",
+    "s8"
+  ],
+  "surfaces": [
+    "browser"
+  ],
+  "healthUrls": [
+    "http://localhost:3000",
+    "http://localhost:3001/health"
+  ],
+  "video": {
+    "fps": 30,
+    "zoom": 1
+  },
   "tts": {
-    "provider": "edge",
-    "voiceId": "",
-    "voiceName": "",
-    "language": "uk-UA",
+    "provider": "elevenlabs",
+    "voiceId": "cjVigY5qzO86Huf0OWal",
+    "voiceName": "Eric",
+    "language": "uk",
+    "model": "eleven_multilingual_v2",
+    "keychainService": "elevenlabs-api",
     "charsPerSecond": 14
   },
   "web": {
@@ -18,5 +37,14 @@
     "repoId": "8dad2132-da16-409b-9eeb-a17d8917c763",
     "prNumber": 12
   },
-  "neverClick": ["Run review", "Run all enabled agents", "Accept", "Reject", "Delete", "Cancel", "Refresh", "Configure agents"]
+  "neverClick": [
+    "Run review",
+    "Run all enabled agents",
+    "Accept",
+    "Reject",
+    "Delete",
+    "Cancel",
+    "Refresh",
+    "Configure agents"
+  ]
 }
