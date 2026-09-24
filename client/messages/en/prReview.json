@@ -97,6 +97,7 @@
       "author": "Author",
       "size": "Size",
       "score": "Score",
+      "findings": "Findings",
       "cost": "Cost",
       "status": "Status",
       "updated": "Updated"
@@ -107,6 +108,11 @@
     "emptyTitle": "No pull requests",
     "emptyAllBody": "No open PRs found for this repo yet. Refresh to sync from GitHub.",
     "emptyStatusBody": "No PRs with status “{status}”."
+  },
+  "findingsPopover": {
+    "title": "{count, plural, one {# finding} other {# findings}}",
+    "loading": "Loading findings…",
+    "empty": "No findings in this run."
   },
   "timeline": {
     "goToReview": "Jump to this run’s findings below",

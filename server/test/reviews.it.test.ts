@@ -376,4 +376,51 @@ d('A2 reviews + agents (Testcontainers pg)', () => {
 
     await app.close();
   });
+
+  it('L01 severity counts: PR list carries latest-batch run_ids + findings_by_severity', async () => {
+    const app = await appWith(REVIEW_FIXTURE);
+    const { repo, pr } = await setupRepoAndPr(pg.handle.db, workspaceId);
+    const agent = (
+      await app.inject({
+        method: 'POST',
+        url: '/agents',
+        payload: { name: 'SevAgent', provider: 'openai', model: 'gpt-4.1', system_prompt: 's' },
+      })
+    ).json();
+
+    // Never reviewed → no batch at all (the list shows a dash, not zeros).
+    const before = (await app.inject({ method: 'GET', url: `/repos/${repo.id}/pulls` })).json();
+    expect(before.find((p: { id: string }) => p.id === pr.id).latest_batch).toBeNull();
+
+    // ---- batch 1 ------------------------------------------------------------
+    const first = (
+      await app.inject({ method: 'POST', url: `/pulls/${pr.id}/review`, payload: { agentId: agent.id } })
+    ).json();
+    const runId1 = first.runs[0].run_id;
+    await waitForPrRuns(pg.handle.db, pr.id, { expected: 1 });
+
+    // Expected counts = a plain COUNT over the persisted findings of that run.
+    const reviews = (await app.inject({ method: 'GET', url: `/pulls/${pr.id}/reviews` })).json();
+    const persisted = reviews.find((r: { run_id: string }) => r.run_id === runId1).findings;
+    const expected = { CRITICAL: 0, WARNING: 0, SUGGESTION: 0 } as Record<string, number>;
+    for (const f of persisted) expected[f.severity] += 1;
+    expect(persisted.length).toBeGreaterThan(0);
+
+    const pulls1 = (await app.inject({ method: 'GET', url: `/repos/${repo.id}/pulls` })).json();
+    const meta1 = pulls1.find((p: { id: string }) => p.id === pr.id);
+    expect(meta1.latest_batch).toEqual({ run_ids: [runId1], findings_by_severity: expected });
+
+    // ---- batch 2 (a re-run) — ONLY the new run counts, numbers are not doubled
+    const second = (
+      await app.inject({ method: 'POST', url: `/pulls/${pr.id}/review`, payload: { agentId: agent.id } })
+    ).json();
+    const runId2 = second.runs[0].run_id;
+    await waitForPrRuns(pg.handle.db, pr.id, { expected: 2 });
+
+    const pulls2 = (await app.inject({ method: 'GET', url: `/repos/${repo.id}/pulls` })).json();
+    const meta2 = pulls2.find((p: { id: string }) => p.id === pr.id);
+    expect(meta2.latest_batch).toEqual({ run_ids: [runId2], findings_by_severity: expected });
+
+    await app.close();
+  });
 });

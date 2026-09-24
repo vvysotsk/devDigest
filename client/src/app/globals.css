@@ -22,3 +22,30 @@
     transform: translateY(0);
   }
 }
+
+/* PR list (/repos/:id/pulls) — layout tokens consumed by the inline styles in
+   pulls/styles.ts. At or below NARROW_MAX_WIDTH (pulls/constants.ts) every
+   column narrows, spacing shrinks, FINDINGS chips lose their numbers and wrap,
+   the author name truncates and the status badge may wrap — rows grow in
+   height instead of columns bleeding into each other (fits a 1024px viewport). */
+.pr-list {
+  --pr-grid: var(--pr-grid-wide);
+  --pr-gap: 14px;
+  --pr-pad-x: 20px;
+  --pr-margin-x: 32px;
+  --pr-head-font: 12px;
+  --pr-status-wrap: nowrap;
+}
+@media (max-width: 1185px) {
+  .pr-list {
+    --pr-grid: var(--pr-grid-narrow);
+    --pr-gap: 8px;
+    --pr-pad-x: 14px;
+    --pr-margin-x: 16px;
+    --pr-head-font: 11px;
+    --pr-status-wrap: normal;
+  }
+  .pr-list .severity-summary-count {
+    display: none;
+  }
+}

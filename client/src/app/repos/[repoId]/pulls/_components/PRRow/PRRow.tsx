@@ -10,6 +10,7 @@ import type { PrMeta } from "@/lib/types";
 import { SIZE_COLOR, STATUS_META } from "../../constants";
 import { relativeTime, sizeOf } from "../../helpers";
 import { s } from "../../styles";
+import { FindingsCell } from "./FindingsCell";
 
 export function PRRow({ pr, repoId }: { pr: PrMeta; repoId: string }) {
   const t = useTranslations("prReview");
@@ -36,7 +37,9 @@ export function PRRow({ pr, repoId }: { pr: PrMeta; repoId: string }) {
       </div>
       <div style={s.authorCell}>
         <Avatar name={pr.author} size={18} />
-        {pr.author}
+        <span style={s.authorName} title={pr.author}>
+          {pr.author}
+        </span>
       </div>
       <div>
         <Badge
@@ -54,11 +57,12 @@ export function PRRow({ pr, repoId }: { pr: PrMeta; repoId: string }) {
           <span style={s.muted}>—</span>
         )}
       </div>
+      <FindingsCell pr={pr} />
       <div style={s.costCell}>
         <RunCostBadge costUsd={pr.cost_usd} />
       </div>
       <div>
-        <Badge dot color={st.c} bg="transparent">
+        <Badge dot color={st.c} bg="transparent" style={s.statusBadge}>
           {t(`list.status.${st.labelKey}`)}
         </Badge>
       </div>

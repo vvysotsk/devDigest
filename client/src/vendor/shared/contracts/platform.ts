@@ -154,6 +154,26 @@ export type Repo = z.infer<typeof Repo>;
 export const PrStatus = z.enum(['needs_review', 'reviewed', 'stale', 'open', 'closed', 'merged']);
 export type PrStatus = z.infer<typeof PrStatus>;
 
+/** Finding counts by severity — a plain COUNT over `findings.severity`. */
+export const FindingsBySeverity = z.object({
+  CRITICAL: z.number().int(),
+  WARNING: z.number().int(),
+  SUGGESTION: z.number().int(),
+});
+export type FindingsBySeverity = z.infer<typeof FindingsBySeverity>;
+
+/**
+ * The runs created by the most recent "Run review" action on a PR (shared
+ * `batch_id`; legacy rows without one degrade to "the latest run alone") and
+ * the severity breakdown of the findings those runs produced. `run_ids` lets
+ * the client narrow `GET /pulls/:id/reviews` to the same batch lazily.
+ */
+export const PrLatestBatch = z.object({
+  run_ids: z.array(z.string()),
+  findings_by_severity: FindingsBySeverity,
+});
+export type PrLatestBatch = z.infer<typeof PrLatestBatch>;
+
 export const PrMeta = z.object({
   id: z.string().nullish(),
   number: z.number().int(),
@@ -173,6 +193,9 @@ export const PrMeta = z.object({
   // Latest review batch's summed LLM cost in USD (list endpoint only;
   // null/absent when the latest batch has no usage data).
   cost_usd: z.number().nullish(),
+  // Latest review batch's runs + per-severity finding counts (list endpoint
+  // only; null/absent until the PR has been reviewed at least once).
+  latest_batch: PrLatestBatch.nullish(),
 });
 export type PrMeta = z.infer<typeof PrMeta>;
 

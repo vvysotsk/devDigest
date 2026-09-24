@@ -23,8 +23,18 @@ export const SIZE_COLOR: Record<string, string> = {
   L: "var(--crit)",
 };
 
-/** Grid template for both the header row and PR rows. */
-export const GRID = "1fr 132px 92px 60px 72px 118px 78px";
+/** Grid template for both the header row and PR rows (viewports > NARROW_MAX_WIDTH). */
+export const GRID = "1fr 132px 92px 60px 110px 72px 118px 78px";
+/**
+ * At or below NARROW_MAX_WIDTH (down to a 1024px viewport, content ≈ 634px)
+ * every column narrows, gaps/paddings shrink, the FINDINGS chips drop their
+ * numbers (kept in tooltip + popover title) and wrap inside their column, the
+ * author name is truncated and the status badge may wrap — rows grow in
+ * height instead of columns bleeding into each other. Applied via the
+ * `.pr-table` rules in `app/globals.css`.
+ */
+export const GRID_NARROW = "minmax(140px, 1fr) 72px 76px 40px 64px 48px 84px 36px";
+export const NARROW_MAX_WIDTH = 1185;
 
 /** Line-count thresholds for the S/M/L size bucket. */
 export const SIZE_SMALL_MAX = 100;
@@ -44,6 +54,7 @@ export const COLUMN_KEYS: string[] = [
   "author",
   "size",
   "score",
+  "findings",
   "cost",
   "status",
   "updated",

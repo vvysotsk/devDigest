@@ -71,64 +71,66 @@ export default function PullsPage() {
 
   return (
     <AppShell crumb={[{ label: repoName, mono: true }, { label: t("list.breadcrumb") }]}>
-      <div style={s.pageHeader}>
-        <div>
-          <h1 style={s.pageTitle}>{t("list.title")}</h1>
-          <p style={s.pageSubtitle}>
-            {pulls
-              ? t("list.summary", { open: openCount, needsReview: needsReviewCount })
-              : t("list.loading")}
-          </p>
-        </div>
-        <div style={s.headerActions}>
-          <AutoTriggerStatus on={false} />
-        </div>
-      </div>
-
-      <div style={s.tableCard}>
-        <FilterBar
-          active={status}
-          onActive={setStatus}
-          query={query}
-          onQuery={setQuery}
-          sort={sort}
-          onSort={setSort}
-          onRefresh={() => refresh.mutate(repoId)}
-          refreshing={refresh.isPending}
-        />
-        <div style={s.headRow}>
-          {COLUMN_KEYS.map((key) => (
-            <div key={key} style={s.headCell(RIGHT_ALIGNED_COLUMNS.has(key))}>
-              {t(`list.columns.${key}`)}
-            </div>
-          ))}
+      <div className="pr-list" style={s.listRoot}>
+        <div style={s.pageHeader}>
+          <div>
+            <h1 style={s.pageTitle}>{t("list.title")}</h1>
+            <p style={s.pageSubtitle}>
+              {pulls
+                ? t("list.summary", { open: openCount, needsReview: needsReviewCount })
+                : t("list.loading")}
+            </p>
+          </div>
+          <div style={s.headerActions}>
+            <AutoTriggerStatus on={false} />
+          </div>
         </div>
 
-        {isLoading ? (
-          <div style={s.loadingStack}>
-            {Array.from({ length: SKELETON_ROWS }).map((_, i) => (
-              <Skeleton key={i} height={28} />
+        <div style={s.tableCard}>
+          <FilterBar
+            active={status}
+            onActive={setStatus}
+            query={query}
+            onQuery={setQuery}
+            sort={sort}
+            onSort={setSort}
+            onRefresh={() => refresh.mutate(repoId)}
+            refreshing={refresh.isPending}
+          />
+          <div style={s.headRow}>
+            {COLUMN_KEYS.map((key) => (
+              <div key={key} style={s.headCell(RIGHT_ALIGNED_COLUMNS.has(key))}>
+                {t(`list.columns.${key}`)}
+              </div>
             ))}
           </div>
-        ) : isError ? (
-          <ErrorState
-            title={t("list.errorTitle")}
-            body={error instanceof ApiError ? error.message : t("list.errorBody")}
-            onRetry={() => refetch()}
-          />
-        ) : filtered.length === 0 ? (
-          <EmptyState
-            icon="GitPullRequest"
-            title={t("list.emptyTitle")}
-            body={
-              status === "all"
-                ? t("list.emptyAllBody")
-                : t("list.emptyStatusBody", { status })
-            }
-          />
-        ) : (
-          filtered.map((pr) => <PRRow key={pr.number} pr={pr} repoId={repoId} />)
-        )}
+
+          {isLoading ? (
+            <div style={s.loadingStack}>
+              {Array.from({ length: SKELETON_ROWS }).map((_, i) => (
+                <Skeleton key={i} height={28} />
+              ))}
+            </div>
+          ) : isError ? (
+            <ErrorState
+              title={t("list.errorTitle")}
+              body={error instanceof ApiError ? error.message : t("list.errorBody")}
+              onRetry={() => refetch()}
+            />
+          ) : filtered.length === 0 ? (
+            <EmptyState
+              icon="GitPullRequest"
+              title={t("list.emptyTitle")}
+              body={
+                status === "all"
+                  ? t("list.emptyAllBody")
+                  : t("list.emptyStatusBody", { status })
+              }
+            />
+          ) : (
+            filtered.map((pr) => <PRRow key={pr.number} pr={pr} repoId={repoId} />)
+          )}
+        </div>
       </div>
     </AppShell>
   );

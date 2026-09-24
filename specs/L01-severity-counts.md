@@ -36,9 +36,15 @@ toggling a filter never hits `/review`.
 
 ## Contracts
 
-- Stage A: none (pure client).
-- Stage B: `PrMeta.latest_batch` (nullish) — `{ run_ids, findings_by_severity }`,
-  list endpoint only.
+- `PrMeta.latest_batch` (nullish, list endpoint only) —
+  `{ run_ids: string[], findings_by_severity: { CRITICAL, WARNING, SUGGESTION } }`.
+  `null` until the PR has at least one run. `run_ids` lets the client narrow
+  `GET /pulls/:id/reviews` to the same batch for the popover.
+- Server: `modules/_shared/latest-batch.ts` — `groupLatestBatches` (one
+  grouping for both `cost_usd` and `latest_batch`, including the legacy
+  "no batch_id" rule) and `countFindingsBySeverity`; both hermetic-tested in
+  `test/latest-batch.test.ts`, end-to-end in `reviews.it.test.ts` ("L01
+  severity counts").
 
 ## Client
 
@@ -49,6 +55,23 @@ toggling a filter never hits `/review`.
 - `FindingsPanel` (`[number]/_components/FindingsPanel`) — pills + chips +
   `visibleFindings(findings, hideLow, severity)`.
 - UI kit `Chip` gained optional `pressed` (renders `aria-pressed`) and `title`.
+- `client/src/components/findings-preview/` — `FindingPreview` (read-only
+  row), `FindingsPopover` (`position: fixed`, clamped to the viewport; list
+  containers clip overflow so `absolute` would be cut off) and
+  `FindingsHoverCard` (trigger: hover after `openDelayMs` or focus; closes on
+  leave with a 100 ms grace, blur, Escape, resize and outer scroll — scrolls
+  inside the popover are ignored).
+- PR list `FindingsCell` — counts from `latest_batch`; the popover opens and
+  `usePrReviews(prId, { enabled })` fires only after the pointer has settled
+  for `HOVER_INTENT_MS` (180 ms), immediately on keyboard focus.
+- PR list narrow layout (viewport 1024–1185px, `NARROW_MAX_WIDTH`, CSS media
+  query on `.pr-list` in `app/globals.css` feeding CSS variables that the
+  inline styles consume): every column narrows (`GRID_NARROW`), gaps/paddings
+  and the table margin shrink, FINDINGS chips drop their numbers (kept in the
+  tooltip / popover title) and wrap inside the column, the author name is
+  truncated and the status badge may wrap — rows grow in height instead of
+  columns bleeding into each other. Above 1185px the original layout (`GRID`)
+  is untouched.
 
 ## Deviations from the acceptance criteria
 
