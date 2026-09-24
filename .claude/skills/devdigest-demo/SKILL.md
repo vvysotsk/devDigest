@@ -68,6 +68,22 @@ They cost money (OpenRouter) or destroy data, and a demo must be reproducible. H
 show that a control exists — that is enough to prove it is there. Client-side toggles
 (severity chips, "Hide low confidence", tabs, the trace drawer) are fine.
 
+## Filming notes (from L01)
+
+- `demo/L01/scenes.mjs` is the finished example: browser-only, its `scrollTo`
+  helper scrolls whichever container owns the element (the studio's `<main>` pane
+  or GitHub's window) and waits for the smooth scroll to settle before anything
+  is measured; `clock(ms)` paces a cue absolutely so a slow page load does not
+  push the later stops out of the line.
+- Studio: the sticky title + tabs on the PR page are ~150 css px, so scroll a
+  card to offset 150 to land it right under them. GitHub: open blob pages at the
+  heading anchor (`…/CLAUDE.md#read-when`) and wait for `domcontentloaded`.
+- Allowed clicks proved safe: the "Hide low confidence" switch, the severity
+  chips, the trace icon on a Timeline tile. All are React state, reset by a reload.
+- Verify with the frame-checker, then `ffmpeg … silencedetect=n=-45dB:d=4` on
+  the assembled file; ffmpeg is on the *user* PATH only — in Git Bash use
+  `$LOCALAPPDATA/Microsoft/WinGet/Packages/Gyan.FFmpeg*/ffmpeg-*/bin`.
+
 ## Numbers that have bitten us
 
 - The VerdictBanner inside an expanded review card says "15 findings · 1 blockers"
