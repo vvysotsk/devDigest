@@ -42,6 +42,7 @@ Never rewrite existing entries — correct with a dated note.
 ## Session Notes
 
 - 2026-09-24: L01 severity counts shipped in three reviewed stages; `server/src/modules/_shared/latest-batch.ts` now owns the "latest batch" rule for BOTH the PR-list cost and the findings counts — change it there, not in `pulls/routes.ts`.
+  - 2026-09-24 correction (criterion 12): the PR-list COST no longer uses the latest batch — it is `sumSettledRunCost` over every `done` run; only the FINDINGS column is batch-scoped. Both rules still live in `latest-batch.ts`.
 - 2026-09-18: Scaffolded CLAUDE.md maps, per-module INSIGHTS/docs/specs, and
   the engineering-insights skill; confirmed shared-contracts drift (5 files)
   and promoted it straight to server/CLAUDE.md.

@@ -308,7 +308,7 @@ d('A2 reviews + agents (Testcontainers pg)', () => {
     await app.close();
   });
 
-  it('L01 run cost: persisted, surfaced on runs/trace/PR list, latest batch only, legacy estimated', async () => {
+  it('L01 run cost: persisted, surfaced on runs/trace/PR list, summed over every settled run, legacy estimated', async () => {
     const app = await appWith(REVIEW_FIXTURE);
     const { repo, pr } = await setupRepoAndPr(pg.handle.db, workspaceId);
     const agent = (
@@ -339,7 +339,7 @@ d('A2 reviews + agents (Testcontainers pg)', () => {
     const trace = (await app.inject({ method: 'GET', url: `/runs/${runId1}/trace` })).json();
     expect(trace.stats.cost_usd).toBeCloseTo(0.001, 6);
 
-    // ---- batch 2 (a re-run) — PR list must count ONLY this one ---------------
+    // ---- batch 2 (a re-run) — PR list sums BOTH settled runs (criterion 12) --
     const second = (
       await app.inject({ method: 'POST', url: `/pulls/${pr.id}/review`, payload: { agentId: agent.id } })
     ).json();
@@ -350,8 +350,8 @@ d('A2 reviews + agents (Testcontainers pg)', () => {
 
     const pulls = (await app.inject({ method: 'GET', url: `/repos/${repo.id}/pulls` })).json();
     const meta = pulls.find((p: { id: string }) => p.id === pr.id);
-    // Two settled runs at 0.001 each exist, but only the latest batch counts.
-    expect(meta.cost_usd).toBeCloseTo(0.001, 6);
+    // Two settled runs at 0.001 each, in different batches → 0.002.
+    expect(meta.cost_usd).toBeCloseTo(0.002, 6);
 
     // ---- legacy rows (persisted before cost_usd existed) ---------------------
     // Null the stored cost: read paths fall back to tokens × PriceBook.
@@ -361,7 +361,7 @@ d('A2 reviews + agents (Testcontainers pg)', () => {
     expect(legacyRuns[0].cost_usd).toBeCloseTo(0.0006, 6);
     const legacyPulls = (await app.inject({ method: 'GET', url: `/repos/${repo.id}/pulls` })).json();
     const legacyMeta = legacyPulls.find((p: { id: string }) => p.id === pr.id);
-    expect(legacyMeta.cost_usd).toBeCloseTo(0.0006, 6);
+    expect(legacyMeta.cost_usd).toBeCloseTo(0.0012, 6); // both settled runs estimated
 
     // Old trace docs (persisted without stats.cost_usd) are backfilled on read.
     const [traceRow] = await pg.handle.db

@@ -1,4 +1,4 @@
-/* RunCostBadge — compact LLM spend for one run (or a batch of runs).
+/* RunCostBadge — compact LLM spend for one run (or every settled run of a PR).
    variant "cost" → "$0.014" (PR list); "costTokens" → "$0.014 · 8.2k→1.3k"
    (run timeline). No usage data renders "—", never a fabricated "$0.00". */
 import React from "react";

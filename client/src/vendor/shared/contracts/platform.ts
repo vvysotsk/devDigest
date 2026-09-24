@@ -190,8 +190,8 @@ export const PrMeta = z.object({
   updated_at: z.string().nullish(),
   // Latest-review score (list endpoint only; null/absent until reviewed).
   score: z.number().int().nullish(),
-  // Latest review batch's summed LLM cost in USD (list endpoint only;
-  // null/absent when the latest batch has no usage data).
+  // Summed LLM cost in USD of EVERY settled (done) run of the PR, any batch
+  // (list endpoint only; null/absent when no settled run has usage data).
   cost_usd: z.number().nullish(),
   // Latest review batch's runs + per-severity finding counts (list endpoint
   // only; null/absent until the PR has been reviewed at least once).

@@ -8,6 +8,7 @@ import { getContext } from '../_shared/context.js';
 import { IdParams } from '../_shared/schemas.js';
 import {
   groupLatestBatches,
+  sumSettledRunCost,
   countFindingsBySeverity,
   emptyFindingsBySeverity,
 } from '../_shared/latest-batch.js';
@@ -133,13 +134,16 @@ export default async function pullsRoutes(appBase: FastifyInstance) {
       }
     }
 
-    // Latest BATCH per PR — the runs created by the most recent "Run review"
-    // action (shared batch_id; legacy rows degrade to "the latest run alone").
-    // Feeds BOTH the COST column (summed run cost, null when no usage data)
-    // and the FINDINGS column (per-severity COUNT over the batch's findings),
-    // so the two never disagree. Runs still in flight belong to the batch but
-    // have no review yet, so counts are partial until they settle.
-    const latestBatchByPr = new Map<string, { runIds: string[]; costUsd: number | null }>();
+    // Two per-PR aggregations over agent_runs, one query:
+    //  - COST = the sum of EVERY settled (done) run's cost, any batch; null
+    //    when no run has usage data (criterion 12).
+    //  - FINDINGS = per-severity COUNT over the LATEST BATCH — the runs created
+    //    by the most recent "Run review" action (shared batch_id; legacy rows
+    //    degrade to "the latest run alone"). Runs still in flight belong to
+    //    the batch but have no review yet, so counts are partial until they
+    //    settle.
+    const costByPr = new Map<string, number>();
+    const latestBatchByPr = new Map<string, { runIds: string[] }>();
     const findingsByPr = new Map<string, ReturnType<typeof emptyFindingsBySeverity>>();
     if (prIds.length > 0) {
       const runRows = await container.db
@@ -156,9 +160,12 @@ export default async function pullsRoutes(appBase: FastifyInstance) {
         .from(t.agentRuns)
         .where(inArray(t.agentRuns.prId, prIds))
         .orderBy(desc(t.agentRuns.ranAt));
-      for (const [prId, batch] of groupLatestBatches(runRows, (model, tokensIn, tokensOut) =>
+      for (const [prId, cost] of sumSettledRunCost(runRows, (model, tokensIn, tokensOut) =>
         container.priceBook.estimate(model, tokensIn, tokensOut),
       )) {
+        costByPr.set(prId, cost);
+      }
+      for (const [prId, batch] of groupLatestBatches(runRows)) {
         latestBatchByPr.set(prId, batch);
       }
 
@@ -208,7 +215,7 @@ export default async function pullsRoutes(appBase: FastifyInstance) {
         opened_at: r.openedAt?.toISOString() ?? null,
         updated_at: r.updatedAt?.toISOString() ?? null,
         score: review ? review.score : null,
-        cost_usd: batch?.costUsd ?? null,
+        cost_usd: costByPr.get(r.id) ?? null,
         latest_batch: batch
           ? {
               run_ids: batch.runIds,

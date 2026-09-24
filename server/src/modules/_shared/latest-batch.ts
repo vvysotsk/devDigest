@@ -1,12 +1,14 @@
 /**
- * "Latest batch" grouping for the PR list, shared by the pulls module (and
- * anything else that needs the same rule) — pulls may not import from
+ * PR-list aggregations over agent_runs, shared by the pulls module (and
+ * anything else that needs the same rules) — pulls may not import from
  * modules/reviews, so this lives in _shared.
  *
- * A batch = the runs created by ONE "Run review" action (shared `batch_id`).
- * Legacy rows persisted before `batch_id` existed degrade to "the latest run
- * alone is the batch". Both the COST column and the FINDINGS column of the PR
- * list derive from this same grouping so they never disagree.
+ * Two DIFFERENT rules feed the PR list:
+ *  - FINDINGS column → the LATEST BATCH: the runs created by ONE "Run review"
+ *    action (shared `batch_id`; legacy rows persisted before `batch_id`
+ *    existed degrade to "the latest run alone is the batch").
+ *  - COST column → the sum of EVERY settled (`status = 'done'`) run of the PR,
+ *    regardless of batch (criterion 12).
  */
 import type { FindingsBySeverity } from '@devdigest/shared';
 import { resolveRunCost, type CostableRun } from './run-cost.js';
@@ -21,8 +23,6 @@ export type BatchRunRow = CostableRun & {
 export interface LatestBatch {
   /** Run ids of the batch, newest-first. */
   runIds: string[];
-  /** Sum of the batch's resolvable run costs; null when no run had usage data. */
-  costUsd: number | null;
 }
 
 export type EstimateFn = (model: string, tokensIn: number, tokensOut: number) => number | null;
@@ -31,10 +31,7 @@ export type EstimateFn = (model: string, tokensIn: number, tokensOut: number) =>
  * Group runs into the latest batch per PR. `runRows` MUST be newest-first: the
  * first row seen per PR fixes that PR's batch.
  */
-export function groupLatestBatches(
-  runRows: readonly BatchRunRow[],
-  estimate: EstimateFn,
-): Map<string, LatestBatch> {
+export function groupLatestBatches(runRows: readonly BatchRunRow[]): Map<string, LatestBatch> {
   const heads = new Map<string, { batchId: string | null; consumedLegacy: boolean }>();
   const out = new Map<string, LatestBatch>();
   for (const run of runRows) {
@@ -43,7 +40,7 @@ export function groupLatestBatches(
     if (!head) {
       head = { batchId: run.batchId, consumedLegacy: false };
       heads.set(run.prId, head);
-      out.set(run.prId, { runIds: [], costUsd: null });
+      out.set(run.prId, { runIds: [] });
     }
     let inBatch: boolean;
     if (head.batchId != null) {
@@ -52,11 +49,29 @@ export function groupLatestBatches(
       inBatch = !head.consumedLegacy;
       head.consumedLegacy = true;
     }
-    if (!inBatch) continue;
-    const batch = out.get(run.prId)!;
-    batch.runIds.push(run.id);
+    if (inBatch) out.get(run.prId)!.runIds.push(run.id);
+  }
+  return out;
+}
+
+/**
+ * Sum of the resolvable cost of ALL settled (`status = 'done'`) runs per PR.
+ * The status check is explicit: `resolveRunCost` lets a STORED cost win even
+ * on a failed run (correct for the run history, where a failed call may still
+ * have been billed), but the PR-list total only counts successful runs. A PR
+ * is absent from the result when none of its settled runs resolved to a cost —
+ * the list shows "—".
+ */
+export function sumSettledRunCost(
+  runRows: readonly BatchRunRow[],
+  estimate: EstimateFn,
+): Map<string, number> {
+  const out = new Map<string, number>();
+  for (const run of runRows) {
+    if (!run.prId || run.status !== 'done') continue;
     const cost = resolveRunCost(run, estimate);
-    if (cost != null) batch.costUsd = (batch.costUsd ?? 0) + cost;
+    if (cost == null) continue;
+    out.set(run.prId, (out.get(run.prId) ?? 0) + cost);
   }
   return out;
 }

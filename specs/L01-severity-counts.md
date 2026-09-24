@@ -31,8 +31,10 @@ toggling a filter never hits `/review`.
   hiding low confidence) is *derived* back to "no filter" — nothing is stored.
 - **PR list / Timeline / Trace drawer** count **all** findings of the run(s);
   there is no confidence toggle on those surfaces.
-- **PR list scope** = the latest batch (same `batch_id` rule as the COST column;
-  legacy rows without `batch_id` degrade to "the latest run alone").
+- **PR list scope** = the latest batch (`batch_id` of the most recent "Run
+  review"; legacy rows without `batch_id` degrade to "the latest run alone").
+  This is a FINDINGS-only rule — the COST column sums every settled run of the
+  PR regardless of batch (`specs/L01-run-cost.md`).
 
 ## Contracts
 
@@ -40,11 +42,11 @@ toggling a filter never hits `/review`.
   `{ run_ids: string[], findings_by_severity: { CRITICAL, WARNING, SUGGESTION } }`.
   `null` until the PR has at least one run. `run_ids` lets the client narrow
   `GET /pulls/:id/reviews` to the same batch for the popover.
-- Server: `modules/_shared/latest-batch.ts` — `groupLatestBatches` (one
-  grouping for both `cost_usd` and `latest_batch`, including the legacy
-  "no batch_id" rule) and `countFindingsBySeverity`; both hermetic-tested in
-  `test/latest-batch.test.ts`, end-to-end in `reviews.it.test.ts` ("L01
-  severity counts").
+- Server: `modules/_shared/latest-batch.ts` — `groupLatestBatches` (the
+  latest-batch `run_ids`, including the legacy "no batch_id" rule) and
+  `countFindingsBySeverity`; `sumSettledRunCost` lives next to them but feeds
+  the COST column only. All hermetic-tested in `test/latest-batch.test.ts`,
+  end-to-end in `reviews.it.test.ts` ("L01 severity counts").
 
 ## Client
 
