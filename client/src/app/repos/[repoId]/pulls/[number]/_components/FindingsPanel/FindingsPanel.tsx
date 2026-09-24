@@ -3,9 +3,10 @@
 
    Counters are computed AFTER the confidence toggle and BEFORE the severity
    filter, so a pill's number always equals the cards of that severity below
-   (the filter only hides other severities). Filter chips exist only for
-   severities that occur; an active filter whose severity vanished (e.g. after
-   hiding low confidence) is derived back to "no filter". */
+   (the filter only hides other severities). All three filter chips are always
+   rendered; one whose severity has no visible finding is disabled, and an
+   active filter whose severity vanished (e.g. after hiding low confidence) is
+   derived back to "no filter". */
 "use client";
 
 import React from "react";
@@ -13,9 +14,9 @@ import { useTranslations } from "next-intl";
 import { Toggle, EmptyState, Chip, SEV } from "@devdigest/ui";
 import type { FindingRecord, Severity } from "@devdigest/shared";
 import {
+  SEVERITIES,
   SeveritySummary,
   countBySeverity,
-  presentSeverities,
   totalFindings,
 } from "@/components/severity-summary";
 import { FindingCard } from "../FindingCard";
@@ -94,22 +95,21 @@ export function FindingsPanel({
             <Toggle on={hideLow} onChange={onHideLow} size={16} />
           </div>
         </div>
-        {hasFindings && (
-          <div style={s.filterRow}>
-            {presentSeverities(counts).map((sev) => (
-              <Chip
-                key={sev}
-                icon={SEV[sev].icon}
-                color={SEV[sev].c}
-                active={activeFilter === sev}
-                pressed={activeFilter === sev}
-                onClick={() => toggleSeverity(sev)}
-              >
-                {t(`panel.severity.${SEVERITY_LABEL_KEY[sev]}`)}
-              </Chip>
-            ))}
-          </div>
-        )}
+        <div style={s.filterRow}>
+          {SEVERITIES.map((sev) => (
+            <Chip
+              key={sev}
+              icon={SEV[sev].icon}
+              color={SEV[sev].c}
+              active={activeFilter === sev}
+              pressed={activeFilter === sev}
+              disabled={counts[sev] === 0}
+              onClick={() => toggleSeverity(sev)}
+            >
+              {t(`panel.severity.${SEVERITY_LABEL_KEY[sev]}`)}
+            </Chip>
+          ))}
+        </div>
       </div>
 
       <div style={s.list}>

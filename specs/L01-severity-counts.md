@@ -12,7 +12,7 @@ toggling a filter never hits `/review`.
 
 | Surface | Shows | Empty state | Stage |
 |---|---|---|---|
-| PR detail — Review runs card (expanded) | pills row under the VerdictBanner + one filter chip per present severity | no pills, no chips, only the "Hide low confidence" toggle | A |
+| PR detail — Review runs card (expanded) | pills row under the VerdictBanner + three filter chips (Critical / Warning / Suggestion; a severity with no visible finding is disabled); finding cards below carry Accept / Reject | no pills, three disabled chips, the "Hide low confidence" toggle | A |
 | PR list — FINDINGS column | icon+count per severity of the **latest batch**; hover/focus → read-only popover titled "N findings in this run" (fetch error → inline error text) | `—` | B |
 | PR detail — Timeline tile | icon+count per severity (+ "· N blockers"); hover → the same popover ("N findings in this run"), wrapping only the icons so the agent-name click still jumps to the review card | plain "N findings" when no review matches the run (legacy / deleted review) | C |
 | Run trace drawer — Findings section | pills row + read-only previews in `full` mode (whole rationale + "Suggested fix:") | "No findings for this run." | C |
@@ -25,10 +25,15 @@ toggling a filter never hits `/review`.
   "Hide low confidence" toggle and **before** the severity filter, so the number
   on a pill always equals the finding cards of that severity rendered below.
   Dismissed/accepted findings are counted (their cards still render).
-- **Severity filter** is client-side state only. Chips exist only for
-  severities with ≥1 (visible) finding; click = keep only that severity, click
+- **Severity filter** is client-side state only. All three chips always
+  render; a chip whose severity has no visible finding is `disabled` (native +
+  `aria-disabled`) and ignores clicks. Click = keep only that severity, click
   again = clear. A filter whose severity has no visible findings (e.g. after
   hiding low confidence) is *derived* back to "no filter" — nothing is stored.
+- **Finding card actions** are labelled **Accept / Reject** (i18n
+  `prReview.finding.accept` / `finding.dismiss`, plus `aria-label`); the
+  reject button still calls `POST /findings/:id/dismiss` and the DB column
+  stays `dismissed_at` — only the wording changed.
 - **PR list / Timeline / Trace drawer** count **all** findings of the run(s);
   there is no confidence toggle on those surfaces.
 - **PR list scope** = the latest batch (`batch_id` of the most recent "Run
@@ -56,7 +61,8 @@ toggling a filter never hits `/review`.
   kit's `Severity` (which also has INFO).
 - `FindingsPanel` (`[number]/_components/FindingsPanel`) — pills + chips +
   `visibleFindings(findings, hideLow, severity)`.
-- UI kit `Chip` gained optional `pressed` (renders `aria-pressed`) and `title`.
+- UI kit `Chip` gained optional `pressed` (renders `aria-pressed`), `title`
+  and `disabled` (native `disabled` + `aria-disabled`, muted, no hover).
 - `client/src/components/findings-preview/` — `FindingPreview` (read-only
   row), `FindingsPopover` (`position: fixed`, clamped to the viewport; list
   containers clip overflow so `absolute` would be cut off) and
@@ -86,10 +92,5 @@ toggling a filter never hits `/review`.
 
 - Pills on the run card respect "Hide low confidence" (so the counter always
   equals the cards below); the criteria did not mention the toggle.
-- Filter chips for severities with zero findings are hidden; the criteria say
-  "three buttons".
-- The finding card's second action is **Dismiss**, not Reject — that is the
-  name already used by the API (`/findings/:id/dismiss`) and the DB
-  (`dismissed_at`).
 - PR-list counters are partial while the latest batch is still running (runs
   in flight have no review yet); they settle on the next list refetch.

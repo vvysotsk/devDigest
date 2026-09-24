@@ -107,6 +107,9 @@ export function Gallery() {
         <Chip icon="Plus" count={4}>
           Add
         </Chip>
+        <Chip icon="AlertTriangle" disabled>
+          Disabled
+        </Chip>
         <Avatar name="Ada Lovelace" />
         <Avatar name="you" size={28} />
         <ConfidenceNum value={0.91} />

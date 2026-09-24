@@ -1,5 +1,5 @@
 /**
- * FindingsPopover — read-only previews (no Accept/Dismiss), sorted by severity,
+ * FindingsPopover — read-only previews (no Accept/Reject), sorted by severity,
  * with loading / empty states.
  */
 import { describe, it, expect, afterEach } from "vitest";

@@ -2,6 +2,7 @@
  * FindingsPanel — severity counter pills + severity filter chips.
  * Pills count findings AFTER "Hide low confidence" and BEFORE the severity
  * filter, so a pill's number always equals the cards of that severity below.
+ * All three chips always render; a severity with no visible finding is disabled.
  */
 import { describe, it, expect, afterEach, vi } from "vitest";
 import { render, screen, cleanup, fireEvent } from "@testing-library/react";
@@ -68,11 +69,13 @@ describe("FindingsPanel (smoke)", () => {
     expect(screen.getByText("Hardcoded secret")).toBeInTheDocument();
   });
 
-  it("shows the empty state when nothing matches, and no pills/chips", () => {
+  it("shows the empty state when nothing matches: no pills, three disabled chips", () => {
     renderWithIntl(<FindingsPanel findings={[]} prId="pr1" />);
     expect(screen.getByText("No findings match")).toBeInTheDocument();
     expect(screen.queryByRole("group", { name: "Findings by severity" })).not.toBeInTheDocument();
-    expect(screen.queryByRole("button", { name: "Critical" })).not.toBeInTheDocument();
+    for (const name of ["Critical", "Warning", "Suggestion"]) {
+      expect(chip(name)).toBeDisabled();
+    }
   });
 });
 
@@ -85,12 +88,21 @@ describe("FindingsPanel — severity counters", () => {
     expect(renderedIds()).toHaveLength(5);
   });
 
-  it("only present severities get a pill and a filter chip", () => {
+  it("always renders three chips; a severity with no finding gets no pill and a disabled chip", () => {
     renderWithIntl(<FindingsPanel findings={FINDINGS.filter((f) => f.severity !== "WARNING")} prId="pr1" />);
-    expect(screen.queryByText(/Warning/)).not.toBeInTheDocument();
-    expect(screen.queryByRole("button", { name: "Warning" })).not.toBeInTheDocument();
-    expect(chip("Critical")).toBeInTheDocument();
-    expect(chip("Suggestion")).toBeInTheDocument();
+    expect(screen.queryByText("2 Warning")).not.toBeInTheDocument();
+    expect(screen.getAllByRole("button", { name: /^(Critical|Warning|Suggestion)$/ })).toHaveLength(3);
+    expect(chip("Warning")).toBeDisabled();
+    expect(chip("Warning")).toHaveAttribute("aria-disabled", "true");
+    expect(chip("Critical")).toBeEnabled();
+    expect(chip("Suggestion")).toBeEnabled();
+  });
+
+  it("clicking a disabled chip does nothing", () => {
+    renderWithIntl(<FindingsPanel findings={FINDINGS.filter((f) => f.severity !== "WARNING")} prId="pr1" />);
+    fireEvent.click(chip("Warning"));
+    expect(renderedIds()).toHaveLength(3);
+    expect(chip("Warning")).toHaveAttribute("aria-pressed", "false");
   });
 
   it("with hide-low-confidence ON, the pill equals the visible cards of that severity", () => {
@@ -130,8 +142,9 @@ describe("FindingsPanel — severity filter", () => {
     expect(renderedIds()).toEqual(["w-low"]);
 
     fireEvent.click(screen.getByRole("switch"));
-    // Warning vanished: its chip is gone and the list falls back to everything visible.
-    expect(screen.queryByRole("button", { name: "Warning" })).not.toBeInTheDocument();
+    // Warning vanished: its chip is disabled + unpressed and the list falls back to everything visible.
+    expect(chip("Warning")).toBeDisabled();
+    expect(chip("Warning")).toHaveAttribute("aria-pressed", "false");
     expect(renderedIds()).toEqual(["c1"]);
   });
 });
