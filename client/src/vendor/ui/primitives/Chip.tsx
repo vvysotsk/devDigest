@@ -8,6 +8,9 @@ export function Chip({
   icon,
   count,
   color,
+  pressed,
+  title,
+  disabled,
 }: {
   children?: React.ReactNode;
   active?: boolean;
@@ -15,12 +18,22 @@ export function Chip({
   icon?: IconName;
   count?: number;
   color?: string;
+  /** Toggle semantics: renders `aria-pressed` (filter chips). */
+  pressed?: boolean;
+  title?: string;
+  /** Non-interactive: native `disabled` + `aria-disabled`, muted, no hover. */
+  disabled?: boolean;
 }) {
   const I = icon ? Icon[icon] : null;
   const [h, setH] = React.useState(false);
   return (
     <button
-      onClick={onClick}
+      type="button"
+      onClick={disabled ? undefined : onClick}
+      disabled={disabled}
+      aria-disabled={disabled || undefined}
+      aria-pressed={pressed}
+      title={title}
       onMouseEnter={() => setH(true)}
       onMouseLeave={() => setH(false)}
       style={{
@@ -33,8 +46,16 @@ export function Chip({
         fontWeight: 500,
         transition: "all .12s",
         border: "1px solid " + (active ? "var(--accent)" : "var(--border)"),
-        background: active ? "var(--accent-bg)" : h ? "var(--bg-hover)" : "transparent",
-        color: active ? "var(--accent-text)" : h ? "var(--text-primary)" : "var(--text-secondary)",
+        background: active ? "var(--accent-bg)" : h && !disabled ? "var(--bg-hover)" : "transparent",
+        color: active
+          ? "var(--accent-text)"
+          : disabled
+            ? "var(--text-muted)"
+            : h
+              ? "var(--text-primary)"
+              : "var(--text-secondary)",
+        opacity: disabled ? 0.55 : 1,
+        cursor: disabled ? "not-allowed" : "pointer",
       }}
     >
       {I && <I size={13} style={color ? { color } : undefined} />}

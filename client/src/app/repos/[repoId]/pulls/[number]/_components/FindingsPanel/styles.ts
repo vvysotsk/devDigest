@@ -4,17 +4,19 @@ import type { CSSProperties } from "react";
 export const s = {
   toolbar: {
     display: "flex",
-    alignItems: "center",
+    flexDirection: "column",
     gap: 10,
     marginBottom: 16,
+  } satisfies CSSProperties,
+  /** Row 1: severity counter pills (left) + hide-low-confidence toggle (right). */
+  pillsRow: {
+    display: "flex",
+    alignItems: "center",
+    gap: 10,
     flexWrap: "wrap",
   } satisfies CSSProperties,
-  divider: {
-    width: 1,
-    height: 18,
-    background: "var(--border)",
-    margin: "0 2px",
-  } satisfies CSSProperties,
+  /** Row 2: one filter chip per severity that actually occurs. */
+  filterRow: { display: "flex", gap: 8, flexWrap: "wrap" } satisfies CSSProperties,
   toggleGroup: {
     marginLeft: "auto",
     display: "flex",

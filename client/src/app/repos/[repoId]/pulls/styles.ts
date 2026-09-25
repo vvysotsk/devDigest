@@ -1,14 +1,14 @@
 import type { CSSProperties } from "react";
-import { GRID } from "./constants";
+import { GRID, GRID_NARROW } from "./constants";
 
 /** Co-located styles for the PR list page (extracted from inline styles). */
 export const s = {
   row: (hover: boolean): CSSProperties => ({
     display: "grid",
-    gridTemplateColumns: GRID,
+    gridTemplateColumns: `var(--pr-grid, ${GRID})`,
     alignItems: "center",
-    gap: 14,
-    padding: "12px 20px",
+    gap: "var(--pr-gap, 14px)",
+    padding: "12px var(--pr-pad-x, 20px)",
     borderBottom: "1px solid var(--border)",
     cursor: "pointer",
     background: hover ? "var(--bg-surface)" : "transparent",
@@ -37,9 +37,20 @@ export const s = {
     gap: 8,
     fontSize: 13,
     color: "var(--text-secondary)",
+    minWidth: 0,
+  } satisfies CSSProperties,
+  authorName: {
+    minWidth: 0,
+    overflow: "hidden",
+    textOverflow: "ellipsis",
+    whiteSpace: "nowrap",
   } satisfies CSSProperties,
   sizeBadgeBorder: (color: string): CSSProperties => ({ border: `1px solid ${color}` }),
   scoreCell: { display: "flex", alignItems: "center" } satisfies CSSProperties,
+  findingsCell: { display: "flex", alignItems: "center", minWidth: 0 } satisfies CSSProperties,
+  /** Narrow layout lets "Needs review" wrap onto two lines instead of overflowing. */
+  statusBadge: { whiteSpace: "var(--pr-status-wrap, nowrap)" as CSSProperties["whiteSpace"], textAlign: "left" } satisfies CSSProperties,
+  costCell: { textAlign: "right" } satisfies CSSProperties,
   updatedCell: {
     fontSize: 12,
     color: "var(--text-muted)",
@@ -62,7 +73,7 @@ export const s = {
     gap: 12,
   } satisfies CSSProperties,
   pageHeader: {
-    padding: "24px 32px 10px",
+    padding: "24px var(--pr-margin-x, 32px) 10px",
     display: "flex",
     alignItems: "flex-end",
     gap: 16,
@@ -83,8 +94,17 @@ export const s = {
     gap: 10,
     alignItems: "center",
   } satisfies CSSProperties,
+  /** Root of the list page (`.pr-list`). The two grid templates live HERE, on
+      the same element where globals.css resolves `--pr-grid` from them — a
+      custom property referenced by `var()` must be defined on (or above) the
+      element that computes it, otherwise `--pr-grid` becomes invalid and the
+      rows collapse into a single column. */
+  listRoot: {
+    "--pr-grid-wide": GRID,
+    "--pr-grid-narrow": GRID_NARROW,
+  } as CSSProperties,
   tableCard: {
-    margin: "14px 32px 44px",
+    margin: "14px var(--pr-margin-x, 32px) 44px",
     border: "1px solid var(--border)",
     borderRadius: 10,
     overflow: "hidden",
@@ -92,12 +112,12 @@ export const s = {
   } satisfies CSSProperties,
   headRow: {
     display: "grid",
-    gridTemplateColumns: GRID,
-    gap: 14,
-    padding: "10px 20px",
+    gridTemplateColumns: `var(--pr-grid, ${GRID})`,
+    gap: "var(--pr-gap, 14px)",
+    padding: "10px var(--pr-pad-x, 20px)",
     borderBottom: "1px solid var(--border)",
     background: "var(--bg-surface)",
-    fontSize: 12,
+    fontSize: "var(--pr-head-font, 12px)",
     fontWeight: 700,
     letterSpacing: "0.06em",
     color: "var(--text-muted)",

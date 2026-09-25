@@ -59,6 +59,7 @@ export async function listRunsForPull(
     duration_ms: run.durationMs,
     tokens_in: run.tokensIn,
     tokens_out: run.tokensOut,
+    cost_usd: run.costUsd,
     findings_count: run.findingsCount,
     grounding: run.grounding,
     ran_at: run.ranAt ? run.ranAt.toISOString() : null,
@@ -121,6 +122,8 @@ export async function createAgentRun(
     prId: string;
     provider: string | null;
     model: string | null;
+    /** Shared by every run queued in one "Run review" action. */
+    batchId: string | null;
   },
 ): Promise<string> {
   const [row] = await db
@@ -131,6 +134,7 @@ export async function createAgentRun(
       prId: values.prId,
       provider: values.provider,
       model: values.model,
+      batchId: values.batchId,
       status: 'running',
       source: 'local',
     })
@@ -152,6 +156,8 @@ export async function completeAgentRun(
     score?: number | null;
     /** Findings that tripped the agent's gate; 0 on failed/cancelled runs. */
     blockers?: number | null;
+    /** LLM spend in USD (provider-reported or estimated); null = unknown. */
+    costUsd?: number | null;
     /** Failure reason (status='failed') / cancellation note. Null clears it. */
     error?: string | null;
   },
@@ -163,6 +169,7 @@ export async function completeAgentRun(
       durationMs: values.durationMs,
       tokensIn: values.tokensIn,
       tokensOut: values.tokensOut,
+      costUsd: values.costUsd ?? null,
       findingsCount: values.findingsCount,
       grounding: values.grounding,
       score: values.score ?? null,
@@ -170,6 +177,15 @@ export async function completeAgentRun(
       error: values.error ?? null,
     })
     .where(eq(t.agentRuns.id, runId));
+}
+
+/** One agent_runs row by PK (used to backfill cost on old traces at read time). */
+export async function getAgentRun(
+  db: Db,
+  runId: string,
+): Promise<typeof t.agentRuns.$inferSelect | undefined> {
+  const [row] = await db.select().from(t.agentRuns).where(eq(t.agentRuns.id, runId));
+  return row;
 }
 
 /** Persist the WHOLE run log as ONE document. PK = runId → agent_runs. */

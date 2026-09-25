@@ -1,7 +1,7 @@
 /* FindingCard — ported from findings.jsx (createElement → TSX).
    Severity icon+label, category, file:line, confidence, markdown rationale +
-   suggestion, accept/dismiss actions. Accept/dismiss reflect persisted
-   timestamps. */
+   suggestion, accept/reject actions. The reject button is LABELLED "Reject"
+   (i18n) but still fires the API action `dismiss` / persists `dismissed_at`. */
 "use client";
 
 import React from "react";
@@ -95,6 +95,7 @@ export function FindingCard({
               icon="Check"
               disabled={pending}
               active={accepted}
+              aria-label={t("finding.accept")}
               onClick={() => onAction?.("accept")}
             >
               {t("finding.accept")}
@@ -105,6 +106,7 @@ export function FindingCard({
               icon="X"
               disabled={pending}
               active={dismissed}
+              aria-label={t("finding.dismiss")}
               onClick={() => onAction?.("dismiss")}
             >
               {t("finding.dismiss")}

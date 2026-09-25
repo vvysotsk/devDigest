@@ -295,8 +295,132 @@ d('A2 reviews + agents (Testcontainers pg)', () => {
     const body = (
       await app.inject({ method: 'POST', url: `/pulls/${pr.id}/review`, payload: { all: true } })
     ).json();
-    // seed has 2 enabled agents; we may have created more above in this PR's ws.
-    expect(body.runs.length).toBeGreaterThanOrEqual(2);
+    // seed has 3 enabled agents (src/db/seed.ts); we may have created more above in this PR's ws.
+    expect(body.runs.length).toBeGreaterThanOrEqual(3);
+
+    // L01 — every run queued by ONE "Run review" action shares one batch_id.
+    const ids = body.runs.map((r: { run_id: string }) => r.run_id);
+    const rows = await pg.handle.db.select().from(t.agentRuns).where(eq(t.agentRuns.prId, pr.id));
+    const batchIds = new Set(rows.filter((r) => ids.includes(r.id)).map((r) => r.batchId));
+    expect(batchIds.size).toBe(1);
+    expect([...batchIds][0]).not.toBeNull();
+
+    await app.close();
+  });
+
+  it('L01 run cost: persisted, surfaced on runs/trace/PR list, summed over every settled run, legacy estimated', async () => {
+    const app = await appWith(REVIEW_FIXTURE);
+    const { repo, pr } = await setupRepoAndPr(pg.handle.db, workspaceId);
+    const agent = (
+      await app.inject({
+        method: 'POST',
+        url: '/agents',
+        payload: { name: 'CostAgent', provider: 'openai', model: 'gpt-4.1', system_prompt: 's' },
+      })
+    ).json();
+
+    // ---- batch 1 ------------------------------------------------------------
+    const first = (
+      await app.inject({ method: 'POST', url: `/pulls/${pr.id}/review`, payload: { agentId: agent.id } })
+    ).json();
+    const runId1 = first.runs[0].run_id;
+    await waitForPrRuns(pg.handle.db, pr.id, { expected: 1 });
+
+    // cost + batch persisted on the agent_runs row (mock LLM yields costUsd 0.001/call)
+    const [row1] = await pg.handle.db.select().from(t.agentRuns).where(eq(t.agentRuns.id, runId1));
+    expect(row1!.costUsd).toBeCloseTo(0.001, 6);
+    expect(row1!.batchId).not.toBeNull();
+
+    // GET /pulls/:id/runs carries cost_usd
+    const runsList = (await app.inject({ method: 'GET', url: `/pulls/${pr.id}/runs` })).json();
+    expect(runsList[0].cost_usd).toBeCloseTo(0.001, 6);
+
+    // GET /runs/:id/trace carries stats.cost_usd
+    const trace = (await app.inject({ method: 'GET', url: `/runs/${runId1}/trace` })).json();
+    expect(trace.stats.cost_usd).toBeCloseTo(0.001, 6);
+
+    // ---- batch 2 (a re-run) — PR list sums BOTH settled runs (criterion 12) --
+    const second = (
+      await app.inject({ method: 'POST', url: `/pulls/${pr.id}/review`, payload: { agentId: agent.id } })
+    ).json();
+    const runId2 = second.runs[0].run_id;
+    await waitForPrRuns(pg.handle.db, pr.id, { expected: 2 });
+    const [row2] = await pg.handle.db.select().from(t.agentRuns).where(eq(t.agentRuns.id, runId2));
+    expect(row2!.batchId).not.toBe(row1!.batchId);
+
+    const pulls = (await app.inject({ method: 'GET', url: `/repos/${repo.id}/pulls` })).json();
+    const meta = pulls.find((p: { id: string }) => p.id === pr.id);
+    // Two settled runs at 0.001 each, in different batches → 0.002.
+    expect(meta.cost_usd).toBeCloseTo(0.002, 6);
+
+    // ---- legacy rows (persisted before cost_usd existed) ---------------------
+    // Null the stored cost: read paths fall back to tokens × PriceBook.
+    // Mock runs are gpt-4.1 with 100 in / 50 out ⇒ (100·2.0 + 50·8.0)/1M = 0.0006.
+    await pg.handle.db.update(t.agentRuns).set({ costUsd: null }).where(eq(t.agentRuns.prId, pr.id));
+    const legacyRuns = (await app.inject({ method: 'GET', url: `/pulls/${pr.id}/runs` })).json();
+    expect(legacyRuns[0].cost_usd).toBeCloseTo(0.0006, 6);
+    const legacyPulls = (await app.inject({ method: 'GET', url: `/repos/${repo.id}/pulls` })).json();
+    const legacyMeta = legacyPulls.find((p: { id: string }) => p.id === pr.id);
+    expect(legacyMeta.cost_usd).toBeCloseTo(0.0012, 6); // both settled runs estimated
+
+    // Old trace docs (persisted without stats.cost_usd) are backfilled on read.
+    const [traceRow] = await pg.handle.db
+      .select()
+      .from(t.runTraces)
+      .where(eq(t.runTraces.runId, runId1));
+    const doc = traceRow!.trace as { stats: Record<string, unknown> };
+    delete doc.stats['cost_usd'];
+    await pg.handle.db.update(t.runTraces).set({ trace: doc }).where(eq(t.runTraces.runId, runId1));
+    const legacyTrace = (await app.inject({ method: 'GET', url: `/runs/${runId1}/trace` })).json();
+    expect(legacyTrace.stats.cost_usd).toBeCloseTo(0.0006, 6);
+
+    await app.close();
+  });
+
+  it('L01 severity counts: PR list carries latest-batch run_ids + findings_by_severity', async () => {
+    const app = await appWith(REVIEW_FIXTURE);
+    const { repo, pr } = await setupRepoAndPr(pg.handle.db, workspaceId);
+    const agent = (
+      await app.inject({
+        method: 'POST',
+        url: '/agents',
+        payload: { name: 'SevAgent', provider: 'openai', model: 'gpt-4.1', system_prompt: 's' },
+      })
+    ).json();
+
+    // Never reviewed → no batch at all (the list shows a dash, not zeros).
+    const before = (await app.inject({ method: 'GET', url: `/repos/${repo.id}/pulls` })).json();
+    expect(before.find((p: { id: string }) => p.id === pr.id).latest_batch).toBeNull();
+
+    // ---- batch 1 ------------------------------------------------------------
+    const first = (
+      await app.inject({ method: 'POST', url: `/pulls/${pr.id}/review`, payload: { agentId: agent.id } })
+    ).json();
+    const runId1 = first.runs[0].run_id;
+    await waitForPrRuns(pg.handle.db, pr.id, { expected: 1 });
+
+    // Expected counts = a plain COUNT over the persisted findings of that run.
+    const reviews = (await app.inject({ method: 'GET', url: `/pulls/${pr.id}/reviews` })).json();
+    const persisted = reviews.find((r: { run_id: string }) => r.run_id === runId1).findings;
+    const expected = { CRITICAL: 0, WARNING: 0, SUGGESTION: 0 } as Record<string, number>;
+    for (const f of persisted) expected[f.severity] += 1;
+    expect(persisted.length).toBeGreaterThan(0);
+
+    const pulls1 = (await app.inject({ method: 'GET', url: `/repos/${repo.id}/pulls` })).json();
+    const meta1 = pulls1.find((p: { id: string }) => p.id === pr.id);
+    expect(meta1.latest_batch).toEqual({ run_ids: [runId1], findings_by_severity: expected });
+
+    // ---- batch 2 (a re-run) — ONLY the new run counts, numbers are not doubled
+    const second = (
+      await app.inject({ method: 'POST', url: `/pulls/${pr.id}/review`, payload: { agentId: agent.id } })
+    ).json();
+    const runId2 = second.runs[0].run_id;
+    await waitForPrRuns(pg.handle.db, pr.id, { expected: 2 });
+
+    const pulls2 = (await app.inject({ method: 'GET', url: `/repos/${repo.id}/pulls` })).json();
+    const meta2 = pulls2.find((p: { id: string }) => p.id === pr.id);
+    expect(meta2.latest_batch).toEqual({ run_ids: [runId2], findings_by_severity: expected });
+
     await app.close();
   });
 });

@@ -144,6 +144,8 @@ export class ReviewRepository {
     prId: string;
     provider: string | null;
     model: string | null;
+    /** Shared by every run queued in one "Run review" action. */
+    batchId: string | null;
   }): Promise<string> {
     return runRepo.createAgentRun(this.db, values);
   }
@@ -161,11 +163,18 @@ export class ReviewRepository {
       score?: number | null;
       /** Findings that tripped the agent's gate; 0 on failed/cancelled runs. */
       blockers?: number | null;
+      /** LLM spend in USD (provider-reported or estimated); null = unknown. */
+      costUsd?: number | null;
       /** Failure reason (status='failed') / cancellation note. Null clears it. */
       error?: string | null;
     },
   ): Promise<void> {
     return runRepo.completeAgentRun(this.db, runId, values);
+  }
+
+  /** One agent_runs row by PK (used to backfill cost on old traces at read time). */
+  getAgentRun(runId: string) {
+    return runRepo.getAgentRun(this.db, runId);
   }
 
   /** Record the head SHA a review ran against (PR-list freshness derivation). */

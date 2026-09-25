@@ -6,6 +6,12 @@ import { PrCommentInput } from '@devdigest/shared';
 import * as t from '../../db/schema.js';
 import { getContext } from '../_shared/context.js';
 import { IdParams } from '../_shared/schemas.js';
+import {
+  groupLatestBatches,
+  sumSettledRunCost,
+  countFindingsBySeverity,
+  emptyFindingsBySeverity,
+} from '../_shared/latest-batch.js';
 import { AppError, NotFoundError } from '../../platform/errors.js';
 import { deriveReviewStatus } from './status.js';
 
@@ -113,8 +119,7 @@ export default async function pullsRoutes(appBase: FastifyInstance) {
 
     // Latest-review SCORE per PR for the list's score ring. Computed on read
     // from reviews (no FK denorm); the list is small, so one IN-query + JS
-    // grouping is cheap. (The per-severity FINDINGS breakdown is intentionally
-    // not surfaced on the list — findings live on the PR detail page.)
+    // grouping is cheap.
     const prIds = rows.map((r) => r.id);
     const latestReviewByPr = new Map<string, { score: number | null }>();
     if (prIds.length > 0) {
@@ -129,9 +134,66 @@ export default async function pullsRoutes(appBase: FastifyInstance) {
       }
     }
 
+    // Two per-PR aggregations over agent_runs, one query:
+    //  - COST = the sum of EVERY settled (done) run's cost, any batch; null
+    //    when no run has usage data (criterion 12).
+    //  - FINDINGS = per-severity COUNT over the LATEST BATCH — the runs created
+    //    by the most recent "Run review" action (shared batch_id; legacy rows
+    //    degrade to "the latest run alone"). Runs still in flight belong to
+    //    the batch but have no review yet, so counts are partial until they
+    //    settle.
+    const costByPr = new Map<string, number>();
+    const latestBatchByPr = new Map<string, { runIds: string[] }>();
+    const findingsByPr = new Map<string, ReturnType<typeof emptyFindingsBySeverity>>();
+    if (prIds.length > 0) {
+      const runRows = await container.db
+        .select({
+          id: t.agentRuns.id,
+          prId: t.agentRuns.prId,
+          batchId: t.agentRuns.batchId,
+          status: t.agentRuns.status,
+          model: t.agentRuns.model,
+          costUsd: t.agentRuns.costUsd,
+          tokensIn: t.agentRuns.tokensIn,
+          tokensOut: t.agentRuns.tokensOut,
+        })
+        .from(t.agentRuns)
+        .where(inArray(t.agentRuns.prId, prIds))
+        .orderBy(desc(t.agentRuns.ranAt));
+      for (const [prId, cost] of sumSettledRunCost(runRows, (model, tokensIn, tokensOut) =>
+        container.priceBook.estimate(model, tokensIn, tokensOut),
+      )) {
+        costByPr.set(prId, cost);
+      }
+      for (const [prId, batch] of groupLatestBatches(runRows)) {
+        latestBatchByPr.set(prId, batch);
+      }
+
+      const batchRunIds = [...latestBatchByPr.values()].flatMap((b) => b.runIds);
+      if (batchRunIds.length > 0) {
+        const batchReviews = await container.db
+          .select({ id: t.reviews.id, prId: t.reviews.prId })
+          .from(t.reviews)
+          .where(and(inArray(t.reviews.runId, batchRunIds), eq(t.reviews.kind, 'review')));
+        if (batchReviews.length > 0) {
+          const prByReview = new Map(batchReviews.map((rv) => [rv.id, rv.prId]));
+          const findingRows = await container.db
+            .select({ reviewId: t.findings.reviewId, severity: t.findings.severity })
+            .from(t.findings)
+            .where(inArray(t.findings.reviewId, [...prByReview.keys()]));
+          for (const [prId, counts] of countFindingsBySeverity(
+            findingRows.map((f) => ({ prId: prByReview.get(f.reviewId)!, severity: f.severity })),
+          )) {
+            findingsByPr.set(prId, counts);
+          }
+        }
+      }
+    }
+
     const now = Date.now();
     return rows.map((r) => {
       const review = latestReviewByPr.get(r.id);
+      const batch = latestBatchByPr.get(r.id);
       return {
         id: r.id,
         number: r.number,
@@ -153,6 +215,13 @@ export default async function pullsRoutes(appBase: FastifyInstance) {
         opened_at: r.openedAt?.toISOString() ?? null,
         updated_at: r.updatedAt?.toISOString() ?? null,
         score: review ? review.score : null,
+        cost_usd: costByPr.get(r.id) ?? null,
+        latest_batch: batch
+          ? {
+              run_ids: batch.runIds,
+              findings_by_severity: findingsByPr.get(r.id) ?? emptyFindingsBySeverity(),
+            }
+          : null,
       };
     });
   });
