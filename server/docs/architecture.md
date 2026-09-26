@@ -232,6 +232,14 @@ when" condition appears.
 - 2026-09-26 — Response serialization: 0 of 37 routes declare
   `schema.response`, so the zod serializer never runs. Decision: required for
   new and changed routes together with a response-shape test; no bulk sweep.
+- 2026-09-27 — The two deferrals above are lifted: the user decided to
+  execute the "thin module → layered" trigger for `pulls` and `polling` and
+  the "transaction for a use case" trigger for the `pulls` detail sync now.
+  Work runs on branch `lesson-2` per `../specs/refactor-onion.md` (stages T,
+  a, b, b′, c, d, e), which also clears most of the dependency-cruiser
+  baseline. Also recorded, not fixed: the reviews module writes
+  `pull_requests` (`src/modules/reviews/repository/pull.repo.ts:40`
+  `markReviewed`) and reads `pr_files`/`repos` — a table-ownership leak.
 
 ## Open questions
 
