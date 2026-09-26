@@ -5,6 +5,13 @@
 - `npm install` (yes, npm — this package has package-lock.json, not pnpm)
 - `npm run e2e:hermetic` ← recommended: isolated stack on alt ports
   (Postgres :5433, API :3101, web :3100), auto-teardown
+- **Windows** (also when `pr-self-review` lists `[run] e2e: npm run e2e:hermetic`):
+  `npm run` goes through `cmd.exe` and cannot start the bash script, and the
+  runner cannot spawn the npm `.cmd` shim of agent-browser. Run the same
+  script from the repo root in Git Bash with the native binary, and record
+  the result under the command string `npm run e2e:hermetic`:
+  `AGENT_BROWSER_BIN="$APPDATA/npm/node_modules/agent-browser/bin/agent-browser-win32-x64.exe" bash scripts/e2e.sh`
+  (`npm ci` first if `node_modules/` is empty). See `INSIGHTS.md`.
 
 ## Before answering
 

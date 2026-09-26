@@ -97,6 +97,12 @@ Never rewrite existing entries — correct with a dated note.
   `pnpm exec tsx -e "import('./src/db/migrate.ts').then(m => m.runMigrations(process.env.DATABASE_URL))"`,
   then verify the columns actually exist (evidence: 0010 columns absent from
   information_schema after a "successful" `pnpm db:migrate`).
+  - 2026-09-27 correction: fixed in 653defa — `migrate.ts` and `seed.ts` use
+    `isEntryPoint()` (`src/db/cli.ts`, `pathToFileURL(resolve(argv1)).href`);
+    the `tsx -e` workaround is no longer needed. `./scripts/dev.sh --db-only`
+    in Git Bash now prints `✓ migrations applied` and `✓ seeded`;
+    `test/db-cli-entry.test.ts` guards the CLI branch (evidence:
+    `src/db/migrate.ts:38`, `src/db/seed.ts:228`).
 
 ## Session Notes
 

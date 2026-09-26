@@ -185,6 +185,15 @@ Baseline: unchanged (the Container cycles are type-only).
 ## 6. Out of scope (explicit)
 `OpenRouterProvider`; durable queue; separate domain types; response schemas for other routes; reviewer-core; executor transaction; repos/agents module refactors; D-5 fs port.
 
+## Open questions
+
+- Windows compatibility of the e2e runner itself — separate task AFTER this
+  refactor: `e2e/run.ts:40` spawns `agent-browser` with `execFile`, which
+  cannot start the npm `.cmd` shim on win32, and `npm run e2e:hermetic`
+  (`e2e/package.json:9`) runs the bash script through `cmd.exe`. Until then
+  the workaround in `e2e/CLAUDE.md` (Git Bash + `AGENT_BROWSER_BIN`) is used
+  for the per-stage `pr-self-review` gate.
+
 ## Verification (end to end)
 1. T suites green on `main`-equivalent code, then after each stage.
 2. `pnpm deps:check` → "no dependency violations"; baseline diff shows only removals; final baseline = 1 entry.

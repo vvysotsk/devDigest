@@ -34,7 +34,7 @@ workspace (`src/adapters/auth/local.ts`).
 | `src/modules/_shared/` | `context.ts` (tenancy), `schemas.ts` (`IdParams`), `run-cost.ts`, `latest-batch.ts` — helpers two modules need without importing each other. |
 | `src/modules/repo-intel/` | Facade `RepoIntel` (`src/modules/repo-intel/types.ts`) + indexer pipeline; see its `README.md`. |
 | `src/adapters/` | Real implementations of the interfaces in `src/vendor/shared/adapters.ts` (llm, github, git, codeindex, astgrep, depgraph, embedder, tokenizer, secrets, auth) and `mocks.ts` for tests. |
-| `src/db/` | `client.ts` (postgres-js + Drizzle), `schema.ts` barrel over `schema/*.ts` (13 domain files + `src/db/schema/_shared.ts`), `migrations/` (drizzle-kit output), `migrate.ts`, `seed.ts`, `rows.ts` (shared row types). |
+| `src/db/` | `client.ts` (postgres-js + Drizzle), `schema.ts` barrel over `schema/*.ts` (13 domain files + `src/db/schema/_shared.ts`), `migrations/` (drizzle-kit output), `migrate.ts`, `seed.ts` (CLI entry detected by `isEntryPoint()` in `cli.ts`, Windows-safe), `rows.ts` (shared row types). |
 | `src/vendor/shared/` | Master copy of `@devdigest/shared` (zod contracts + adapter interfaces), aliased via `tsconfig.json` `paths`. |
 | `test/` | Vitest suites; `helpers/pg.ts` starts Postgres via testcontainers, `helpers/runs.ts` waits for background runs. |
 
