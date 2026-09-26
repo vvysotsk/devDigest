@@ -2,6 +2,7 @@ import { and, desc, eq } from 'drizzle-orm';
 import type { Db } from '../../../db/client.js';
 import * as t from '../../../db/schema.js';
 import type { RunSummary, RunTrace } from '@devdigest/shared';
+import type { CostableRun } from '../../_shared/run-cost.js';
 
 // ---- in-flight / history --------------------------------------------------
 
@@ -179,12 +180,18 @@ export async function completeAgentRun(
     .where(eq(t.agentRuns.id, runId));
 }
 
-/** One agent_runs row by PK (used to backfill cost on old traces at read time). */
-export async function getAgentRun(
-  db: Db,
-  runId: string,
-): Promise<typeof t.agentRuns.$inferSelect | undefined> {
-  const [row] = await db.select().from(t.agentRuns).where(eq(t.agentRuns.id, runId));
+/** The cost inputs of one run by PK (used to backfill cost on old traces at read time). */
+export async function getCostableRun(db: Db, runId: string): Promise<CostableRun | undefined> {
+  const [row] = await db
+    .select({
+      costUsd: t.agentRuns.costUsd,
+      status: t.agentRuns.status,
+      model: t.agentRuns.model,
+      tokensIn: t.agentRuns.tokensIn,
+      tokensOut: t.agentRuns.tokensOut,
+    })
+    .from(t.agentRuns)
+    .where(eq(t.agentRuns.id, runId));
   return row;
 }
 

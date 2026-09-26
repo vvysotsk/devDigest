@@ -13,15 +13,6 @@ Never rewrite existing entries — correct with a dated note.
 
 ## What Doesn't Work
 
-- 2026-09-22: `test/indexer-pipeline.test.ts` (6 tests) fails on this Windows
-  box with ENOENT on temp-dir files — pre-existing environment issue, not
-  caused by unrelated diffs; don't chase it unless working on repo-intel
-  (evidence: `ENOENT: open 'C:\Users\...\Temp\repo-intel-full-*\src\util.ts'`
-  on a clean tree).
-- 2026-09-24: UPDATE to the 2026-09-22 entry — evidence lines: the temp clone
-  comes from `mkdtemp(join(tmpdir(), 'repo-intel-full-'))` at
-  `test/indexer-pipeline.test.ts:155` (`:267` for the incremental suite).
-
 ## Codebase Patterns
 
 - 2026-09-24: `POST /pulls/:id/review` ALWAYS answers `reviews: []` —
@@ -82,6 +73,13 @@ Never rewrite existing entries — correct with a dated note.
 
 ## Recurring Errors & Fixes
 
+- 2026-09-26: Path splitting on `'/'` breaks on Windows: `join()` yields
+  backslashes, so `full.lastIndexOf('/')` is -1. It made the 6
+  `test/indexer-pipeline.test.ts` tests fail with ENOENT (no `mkdir` for
+  `src\`) — wrongly logged on 2026-09-22 as an environment issue — and only
+  worked by accident in `test/indexer-walk.test.ts`. Use `dirname()` from
+  `node:path` (evidence: `test/indexer-pipeline.test.ts:140-145`,
+  `test/indexer-walk.test.ts:18-23`).
 - 2026-09-22: `pnpm db:migrate` exits 0 WITHOUT applying migrations on
   Windows — the CLI guard `import.meta.url === \`file://${process.argv[1]}\``
   in `src/db/migrate.ts:37` never matches (`file:///C:/...` vs `C:\...`).

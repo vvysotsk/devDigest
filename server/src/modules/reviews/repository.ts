@@ -172,9 +172,9 @@ export class ReviewRepository {
     return runRepo.completeAgentRun(this.db, runId, values);
   }
 
-  /** One agent_runs row by PK (used to backfill cost on old traces at read time). */
-  getAgentRun(runId: string) {
-    return runRepo.getAgentRun(this.db, runId);
+  /** The cost inputs of one run by PK (used to backfill cost on old traces at read time). */
+  getCostableRun(runId: string) {
+    return runRepo.getCostableRun(this.db, runId);
   }
 
   /** Record the head SHA a review ran against (PR-list freshness derivation). */

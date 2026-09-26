@@ -199,7 +199,7 @@ export class ReviewService {
     if (trace.stats.cost_usd != null) return trace;
     // Traces persisted before cost_usd existed: backfill on read from the
     // agent_runs row (stored cost, else tokens × PriceBook). Never re-persisted.
-    const run = await this.repo.getAgentRun(runId);
+    const run = await this.repo.getCostableRun(runId);
     const cost = run
       ? resolveRunCost(run, (model, tokensIn, tokensOut) =>
           this.container.priceBook.estimate(model, tokensIn, tokensOut),
