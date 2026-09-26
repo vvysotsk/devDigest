@@ -11,8 +11,8 @@ one PR at the end. Evidence: `.claude/skills/onion-architecture/` (SKILL.md,
 | Stage | Status | Commit | Baseline after |
 |---|---|---|---|
 | 0 docs | done | 53f4149 | 18 |
-| T characterization tests | done | this commit | 18 |
-| a pulls | pending | | 16 |
+| T characterization tests | done | 7879581 (+ fix 653defa, docs fbcd0e8) | 18 |
+| a pulls | done | this commit (+ test 2712a6e) | 16 |
 | b polling | pending | | 14 |
 | b′ polling `opened_at` fix | pending | | 14 |
 | c reviews rows | pending | | 10 |

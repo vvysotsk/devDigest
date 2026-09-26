@@ -141,3 +141,44 @@ export async function setFindingDismissed(
     .returning();
   return row;
 }
+
+// ---- PR-list aggregates (read by the pulls module via container.reviewRepo) --
+
+/**
+ * Score of every `review`-kind review of the given PRs, NEWEST FIRST — the
+ * first entry seen per PR is its latest review score. Summaries are excluded.
+ */
+export async function reviewScoresNewestFirst(
+  db: Db,
+  prIds: readonly string[],
+): Promise<{ prId: string; score: number | null }[]> {
+  if (prIds.length === 0) return [];
+  return db
+    .select({ prId: t.reviews.prId, score: t.reviews.score })
+    .from(t.reviews)
+    .where(and(inArray(t.reviews.prId, [...prIds]), eq(t.reviews.kind, 'review')))
+    .orderBy(desc(t.reviews.createdAt));
+}
+
+/**
+ * One `{ prId, severity }` per finding of the `review`-kind reviews produced
+ * by the given runs (the PR list's latest-batch findings). The counting rule
+ * itself lives in `modules/_shared/latest-batch.ts` (`countFindingsBySeverity`).
+ */
+export async function findingSeveritiesForRuns(
+  db: Db,
+  runIds: readonly string[],
+): Promise<{ prId: string; severity: string }[]> {
+  if (runIds.length === 0) return [];
+  const batchReviews = await db
+    .select({ id: t.reviews.id, prId: t.reviews.prId })
+    .from(t.reviews)
+    .where(and(inArray(t.reviews.runId, [...runIds]), eq(t.reviews.kind, 'review')));
+  if (batchReviews.length === 0) return [];
+  const prByReview = new Map(batchReviews.map((rv) => [rv.id, rv.prId]));
+  const rows = await db
+    .select({ reviewId: t.findings.reviewId, severity: t.findings.severity })
+    .from(t.findings)
+    .where(inArray(t.findings.reviewId, [...prByReview.keys()]));
+  return rows.map((f) => ({ prId: prByReview.get(f.reviewId)!, severity: f.severity }));
+}

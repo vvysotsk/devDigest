@@ -30,7 +30,7 @@ workspace (`src/adapters/auth/local.ts`).
 | `src/platform/resilience.ts` | `withTimeout` / `withRetry` used by adapters, jobs and the indexer. |
 | `src/platform/grounding.ts`, `prompt.ts`, `structured.ts` | Re-export shims over `@devdigest/reviewer-core` for older import paths. |
 | `src/modules/index.ts` | Static module registry (8 plugins). |
-| `src/modules/<name>/` | `routes.ts` (Fastify plugin + zod schemas) → `service.ts` → `repository.ts` (Drizzle). `pulls`, `polling`, `workspace`, `settings` query Drizzle from the route directly. |
+| `src/modules/<name>/` | `routes.ts` (Fastify plugin + zod schemas) → `service.ts` → `repository.ts` (Drizzle). `polling`, `workspace`, `settings` still query Drizzle from the route directly (`pulls` is layered since the onion refactor stage a: `pulls/service.ts` + `pulls/repository.ts`, see `../specs/refactor-onion.md`). |
 | `src/modules/_shared/` | `context.ts` (tenancy), `schemas.ts` (`IdParams`), `run-cost.ts`, `latest-batch.ts` — helpers two modules need without importing each other. |
 | `src/modules/repo-intel/` | Facade `RepoIntel` (`src/modules/repo-intel/types.ts`) + indexer pipeline; see its `README.md`. |
 | `src/adapters/` | Real implementations of the interfaces in `src/vendor/shared/adapters.ts` (llm, github, git, codeindex, astgrep, depgraph, embedder, tokenizer, secrets, auth) and `mocks.ts` for tests. |
@@ -46,8 +46,9 @@ workspace (`src/adapters/auth/local.ts`).
    off when `logLevel === 'silent'`); zod `validatorCompiler` +
    `serializerCompiler` are installed. The validator runs for every route
    schema; the serializer runs only for routes that declare
-   `schema.response` — today none of the 37 routes do (see "Architecture
-   decisions").
+   `schema.response` — today only the four `pulls` routes do
+   (`src/modules/pulls/routes.ts`); the rest go out through plain
+   `JSON.stringify` (see "Architecture decisions").
 3. `new Container(config, db, overrides)` is decorated as `app.container`.
 4. **Before any plugin**, `ReviewService.reapStaleRuns()` is awaited: every
    `agent_runs.status = 'running'` row is set to `failed` (orphans of a dead
@@ -129,7 +130,8 @@ jsonb document in `run_traces` (PK = `agent_runs.id`).
 | `repoIntel` | `RepoIntelService(this)` | `repoIntel` |
 | `depgraph`, `tokenizer` | `DepCruiseGraph`, `TiktokenTokenizer` (indexer only) | `depgraph`, `tokenizer` |
 | `priceBook` | `PriceBook(openrouter /models lister, estimateCost)` | — |
-| `agentsRepo`, `reviewRepo` | shared repositories for cross-module reads (`reviewRepo` has no consumer yet; `ReviewService` builds its own) | — |
+| `agentsRepo`, `reviewRepo` | shared repositories for cross-module reads (`reviewRepo` feeds the PR-list aggregates of `PullsService`; `ReviewService` still builds its own) | — |
+| `pullsRepo`, `reposRepo` | `PullsRepository` (owner of `pull_requests`, `pr_files`, `pr_commits`) and `RepoRepository` (owner of `repos`; other modules use `getRef`) | — |
 
 `invalidateSecretCaches()` drops the llm/github/embedder caches after
 `POST /settings/test-connection` stores a new key.
@@ -183,6 +185,10 @@ assumed (the boot reaper would misfire with replicas).
   `../client/src/vendor/shared` (see `CLAUDE.md` for the files that already
   drifted).
 - **Database.** Only repositories and the thin route modules touch Drizzle.
+- **Transactions.** A use case that writes several tables atomically owns
+  `db.transaction` in its service; the repository functions take a `DbOrTx`
+  executor (`src/db/client.ts`). Today: the PR-detail sync in
+  `PullsService.getDetail` (`src/modules/pulls/service.ts`).
   Schema edits go `src/db/schema/*` → `pnpm db:generate` → `pnpm db:migrate`;
   migration files are never edited.
 - **Tenancy.** `workspace_id` scoping is done per query using the id from

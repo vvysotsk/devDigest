@@ -17,7 +17,7 @@ Inside a section, short names resolve as follows: `routes.ts`, `service.ts`,
 `run-executor.ts`, `diff-loader.ts`, `helpers.ts`, `constants.ts` →
 `src/modules/reviews/`; `run.repo.ts`, `review.repo.ts`, `pull.repo.ts` →
 `src/modules/reviews/repository/`; `latest-batch.ts`, `run-cost.ts` →
-`src/modules/_shared/`; `pulls/routes.ts` → `src/modules/pulls/routes.ts`;
+`src/modules/_shared/`; `pulls/service.ts` → `src/modules/pulls/service.ts`;
 `container.ts`, `sse.ts` → `src/platform/`; `review-api.ts`, `platform.ts`,
 `trace.ts` → `src/vendor/shared/contracts/`. The two `findings.ts` files are
 always written in full.
@@ -177,18 +177,21 @@ always written in full.
 ### PR list — `GET /repos/:id/pulls` (`PrMeta[]`)
 
 Evidence for the whole section: the `score` / `cost_usd` / `latest_batch`
-aggregation in `src/modules/pulls/routes.ts:120-226`,
+aggregation in `src/modules/pulls/service.ts:99-147` (rows from the reviews
+module's `ReviewRepository` via `container.reviewRepo`: `review.repo.ts`
+`reviewScoresNewestFirst` / `findingSeveritiesForRuns`, `run.repo.ts`
+`batchRunsForPulls`),
 `src/modules/_shared/latest-batch.ts`, and the `PrMeta` contract
 `src/vendor/shared/contracts/platform.ts:158-199`.
 
 - `score` = `score` of the newest `reviews` row with `kind = 'review'` for the
-  PR, else null (`pulls/routes.ts:120-135`, `217`).
+  PR, else null (`pulls/service.ts:102-105`, `138`).
 - **`cost_usd` (COST column)** = the sum over **every** `agent_runs` row of the
   PR with `status = 'done'`, in any batch, of `resolveRunCost(run)` (stored
   cost first, incl. 0; else tokens × PriceBook; unresolvable runs are skipped).
   `running`, `failed` and `cancelled` runs never count, even with a stored
   cost. Null when no settled run resolved to a cost — never a fabricated 0
-  (`pulls/routes.ts:163-167`, `218`; `latest-batch.ts:65-77`;
+  (`pulls/service.ts:107-110`, `139`; `latest-batch.ts:65-77`;
   `run-cost.ts:21-30`; tests `test/latest-batch.test.ts:57-113`,
   `test/reviews.it.test.ts:311` expects 0.002 after two batches and 0.0012
   once both stored costs are nulled).
@@ -200,12 +203,12 @@ aggregation in `src/modules/pulls/routes.ts:120-226`,
 - `latest_batch.findings_by_severity` = plain COUNT of `findings.severity`
   over the reviews whose `run_id ∈ run_ids` and `kind = 'review'`; all-zero
   when the batch has no findings yet; severities outside
-  `CRITICAL | WARNING | SUGGESTION` are ignored (`pulls/routes.ts:172-190`,
-  `219-224`; `countFindingsBySeverity`, `latest-batch.ts:89-102`; tests
+  `CRITICAL | WARNING | SUGGESTION` are ignored (`pulls/service.ts:111-113`,
+  `140-145`; `countFindingsBySeverity`, `latest-batch.ts:89-102`; tests
   `test/latest-batch.test.ts:115-133`, `test/reviews.it.test.ts:380`).
 - `latest_batch` is null for a PR that never had a run — including the seeded
   PR #482, whose sample review is inserted into `t.reviews` with no run
-  (`pulls/routes.ts:219-224`, `src/db/seed.ts:136-148`; test
+  (`pulls/service.ts:140-145`, `src/db/seed.ts:136-148`; test
   `test/reviews.it.test.ts:392-393`).
 - `status`: `merged` / `closed` pass through from GitHub; otherwise
   `needs_review` when `last_reviewed_sha` is null or differs from `head_sha`,

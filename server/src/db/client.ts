@@ -4,6 +4,16 @@ import { schema } from './schema.js';
 
 export type Db = PostgresJsDatabase<typeof schema>;
 
+/** The transaction handle `db.transaction(async (tx) => …)` passes in; same query API as `Db`. */
+export type Tx = Parameters<Parameters<Db['transaction']>[0]>[0];
+
+/**
+ * Executor accepted by repository functions that may run inside a use-case
+ * transaction (onion skill R4): the service owns `db.transaction`, the
+ * repository just runs its statements on whatever it is given.
+ */
+export type DbOrTx = Db | Tx;
+
 export interface DbHandle {
   db: Db;
   sql: postgres.Sql;

@@ -14,6 +14,7 @@ import type { Finding, Intent, RunSummary, RunTrace } from '@devdigest/shared';
  */
 
 import type { FindingRow, PullRow } from '../../db/rows.js';
+import type { BatchRunRow } from '../_shared/latest-batch.js';
 export type { FindingRow, PullRow };
 
 export type ReviewRow = typeof t.reviews.$inferSelect;
@@ -189,5 +190,22 @@ export class ReviewRepository {
 
   getRunTrace(runId: string): Promise<RunTrace | undefined> {
     return runRepo.getRunTrace(this.db, runId);
+  }
+
+  // ---- PR-list aggregates (the pulls module reads them via container.reviewRepo)
+
+  /** `review`-kind scores of the PRs, newest first (first per PR = latest). */
+  reviewScoresNewestFirst(prIds: readonly string[]): Promise<{ prId: string; score: number | null }[]> {
+    return reviewRepo.reviewScoresNewestFirst(this.db, prIds);
+  }
+
+  /** Cost + batch inputs of every run of the PRs, newest first. */
+  batchRunsForPulls(prIds: readonly string[]): Promise<BatchRunRow[]> {
+    return runRepo.batchRunsForPulls(this.db, prIds);
+  }
+
+  /** `{ prId, severity }` per finding of the review-kind reviews of these runs. */
+  findingSeveritiesForRuns(runIds: readonly string[]): Promise<{ prId: string; severity: string }[]> {
+    return reviewRepo.findingSeveritiesForRuns(this.db, runIds);
   }
 }

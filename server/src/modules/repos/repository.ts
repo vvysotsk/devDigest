@@ -9,6 +9,13 @@ import * as t from '../../db/schema.js';
 
 export type RepoRow = typeof t.repos.$inferSelect;
 
+/** A repo's id + GitHub coordinates — what other modules need to call GitHub. */
+export interface RepoRef {
+  id: string;
+  owner: string;
+  name: string;
+}
+
 export interface InsertRepo {
   workspaceId: string;
   owner: string;
@@ -38,6 +45,23 @@ export class RepoRepository {
       .select()
       .from(t.repos)
       .where(and(eq(t.repos.workspaceId, workspaceId), eq(t.repos.id, id)));
+    return row;
+  }
+
+  /**
+   * The GitHub coordinates of a repo, for other modules (read via
+   * `container.reposRepo`). With `workspaceId` the lookup is tenancy-scoped;
+   * without it the repo is resolved by id alone (the caller already holds a
+   * workspace-scoped row that references it, e.g. a PR's `repo_id`).
+   */
+  async getRef(id: string, workspaceId?: string): Promise<RepoRef | undefined> {
+    const where = workspaceId
+      ? and(eq(t.repos.workspaceId, workspaceId), eq(t.repos.id, id))
+      : eq(t.repos.id, id);
+    const [row] = await this.db
+      .select({ id: t.repos.id, owner: t.repos.owner, name: t.repos.name })
+      .from(t.repos)
+      .where(where);
     return row;
   }
 

@@ -466,6 +466,41 @@ d('pulls sync — characterization (Testcontainers pg)', () => {
       await app.close();
     });
 
+    // Added in stage a (not a characterization): the detail sync is ONE
+    // transaction. Before stage a, pr_files were already replaced and
+    // pr_commits deleted when the commit insert failed, and the fallback then
+    // served that half-written state.
+    it('rolls the whole detail sync back when a write fails mid-way', async () => {
+      const { pr } = await prWithOldDetail();
+      const gh = new MockGitHubClient({
+        detail: {
+          body: 'new body',
+          additions: 50,
+          deletions: 60,
+          files_count: 70,
+          files: [{ path: 'new/x.ts', additions: 3, deletions: 0, patch: '@@ x' }],
+          // pr_commits.message is NOT NULL → the commit insert fails after files were replaced.
+          commits: [{ sha: 'c-bad', message: null as unknown as string, author: 'z', committed_at: null }],
+        },
+      });
+      const app = await appWith(gh);
+      const res = await app.inject({ method: 'GET', url: `/pulls/${pr.id}` });
+      expect(res.statusCode).toBe(200);
+      const body = PrDetailStrict.parse(res.json());
+      // The fallback serves the untouched, previously persisted detail:
+      expect(body.body).toBe('old body');
+      expect(body.files.map((f) => f.path).sort()).toEqual(['old/a.ts', 'old/b.ts']);
+      expect(body.commits.map((c) => c.sha).sort()).toEqual(['c-old-1', 'c-old-2']);
+
+      const files = await db.select().from(t.prFiles).where(eq(t.prFiles.prId, pr.id));
+      expect(files.map((f) => f.path).sort()).toEqual(['old/a.ts', 'old/b.ts']);
+      const commits = await db.select().from(t.prCommits).where(eq(t.prCommits.prId, pr.id));
+      expect(commits).toHaveLength(2);
+      const [row] = await db.select().from(t.pullRequests).where(eq(t.pullRequests.id, pr.id));
+      expect(row).toMatchObject({ body: 'old body', additions: 5, deletions: 6, filesCount: 7 });
+      await app.close();
+    });
+
     it('returns 404 for an unknown PR and for a PR in another workspace', async () => {
       const [other] = await db.insert(t.workspaces).values({ name: 'other-ws-detail' }).returning();
       const foreignRepo = await makeRepo(db, other!.id);

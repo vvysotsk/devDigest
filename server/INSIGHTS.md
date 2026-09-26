@@ -22,8 +22,23 @@ Never rewrite existing entries — correct with a dated note.
   (evidence: `test/reviews.it.test.ts:113-126` builds apps without a github
   override; `src/platform/container.ts:153-160`; the pattern to copy is
   `test/pulls-sync.it.test.ts` `appWith`).
+  - 2026-09-27 update: a real `OPENROUTER_API_KEY` has the same effect on
+    `container.priceBook` (live prices instead of the static table), and the
+    L01 run-cost test in `reviews.it` failed once under full-suite load
+    (4 later full runs green). Fixed in 2712a6e: `reviews.it` `appWith` now
+    passes `secrets: new MockSecretsProvider({})`
+    (evidence: `test/reviews.it.test.ts:117-121`).
 
 ## Codebase Patterns
+
+- 2026-09-27: A service that needs another module's repository types it as
+  `Container['reposRepo']` / `Container['reviewRepo']`, never with
+  `import type { RepoRepository } from '../repos/repository.js'`: the
+  advisory `no-cross-module` rule runs with `tsPreCompilationDeps: true`, so a
+  type-only import of another module's folder is a new violation too. The
+  instance comes from the container in the route (evidence:
+  `src/modules/pulls/service.ts:27`, `:29`; `src/modules/pulls/routes.ts:26`;
+  `.dependency-cruiser.cjs` `options.tsPreCompilationDeps`).
 
 - 2026-09-24: `POST /pulls/:id/review` ALWAYS answers `reviews: []` —
   `runReview` starts `executeRuns` un-awaited and returns before any review
