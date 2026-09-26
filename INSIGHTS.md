@@ -88,3 +88,13 @@ Never rewrite existing entries — correct with a dated note.
   stash/pnpm-workspace quirks recorded above.
 
 ## Open Questions
+
+- 2026-09-27: pr-self-review keeps a skill finding open while ITS file is
+  unchanged, even when the fix landed in a related file (e.g. an onion R3
+  "no shape test" finding on a route, fixed by a test): open findings are
+  rebuilt per (skill, rev, path, blob) from the journal and the pair is not
+  re-run, so only a user dismissal clears it. Recorded as an open question in
+  the skill's plan, not fixed (evidence:
+  `.claude/skills/pr-self-review/scripts/self-review.mjs:787-805`, `:530-533`;
+  `.claude/skills/pr-self-review/references/plan.md` §12; findings b01dbdca,
+  ef6bc205 on `server/src/modules/pulls/routes.ts:46`, `:55`).

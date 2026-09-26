@@ -397,3 +397,21 @@ the rest reported as "not checked", (c) split the PR. Concurrency cap 6
 | D10 | Large-diff threshold | batches > 12 / > 600k tokens | as proposed; tune after first real runs → **as proposed** |
 | D11 | e2e has no checker skill | (a) accept (typecheck + flow contract); (b) write an e2e-flows skill later | (a) now, listed as a gap → **(a)**, the e2e gap is shown in every report |
 | D12 | Dismissal after the file changed but the line is the same | (a) re-blocks (strict, as specified); (b) shown as "previously dismissed", non-blocking | (a) strict for CRITICAL, (b) for WARNING → **as proposed** |
+
+## 12. Open questions
+
+- 2026-09-27 — **A finding is not invalidated when a related file changes.**
+  A skill finding stays open as long as its own file keeps the same blob:
+  the report rebuilds open findings from the latest journal `check` of every
+  current (skill, rev, path, blob) pair and its `finding_ids`
+  (`scripts/self-review.mjs:787-805`), and `plan` serves that pair from the
+  journal without re-running it (`scripts/self-review.mjs:530-533`). When the
+  fix lives in ANOTHER file — e.g. an onion R3 finding on
+  `server/src/modules/pulls/routes.ts:46` / `:55` ("route has a response
+  schema but no shape test"), fixed by adding the shape test in
+  `server/test/pulls-comments.it.test.ts:85`, `:108` (ed642df) — nothing
+  re-checks the route and the finding keeps showing until the user dismisses
+  it. Options to decide later: (a) let a checker declare "related paths" per
+  finding and invalidate on their blob change; (b) re-run a pair whenever any
+  file in the same batch changed; (c) keep manual dismissal (current). Not
+  fixed yet.
