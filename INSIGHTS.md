@@ -61,6 +61,8 @@ Never rewrite existing entries — correct with a dated note.
 
 ## Session Notes
 
+- 2026-09-26: Added `.claude/skills/onion-architecture` (SKILL.md v1.0.0, README with sources per rule, `references/` with the 104-source research, inventory and plan); root `CLAUDE.md` Verification now names the advisory `pnpm deps:check`.
+
 - 2026-09-26: Added `.claude/skills/frontend-architecture` (SKILL.md with the
   settled placement rules R1–R7, review signals and architecture-change
   triggers; `references/research.md` + `references/sources.md` hold the

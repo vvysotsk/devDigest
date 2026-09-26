@@ -43,7 +43,11 @@ workspace: each has its own package.json and lockfile; install per package.
 | e2e | `npm run typecheck` | `npm run e2e:hermetic` |
 
 No linter is configured (no ESLint/Prettier in any package): typecheck + tests
-are the gate. Do not add a linter unprompted.
+are the gate. Do not add a linter unprompted. The one extra check is
+advisory: `cd server && pnpm deps:check` runs dependency-cruiser over
+`server/src` and `reviewer-core/src` against the layer rules of the
+`onion-architecture` skill; it prints only violations that are not in
+`server/.dependency-cruiser-known-violations.json` and never fails.
 
 ## Naming conventions
 

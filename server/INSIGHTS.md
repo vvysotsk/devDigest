@@ -37,8 +37,39 @@ Never rewrite existing entries — correct with a dated note.
   `status === 'done'` itself, as `sumSettledRunCost` does (evidence:
   `src/modules/_shared/run-cost.ts:25`, `:28`;
   `src/modules/_shared/latest-batch.ts:71`; `test/latest-batch.test.ts:70`).
+- 2026-09-26: `polling` is not a read-only "thin" module: its route inserts
+  into `pull_requests` and updates `repos` — tables owned by `pulls` and
+  `repos` — as two separate statements with no transaction. Do not treat it
+  as covered by the thin-module exception; new write paths go through a
+  service (evidence: `src/modules/polling/routes.ts:33`, `:61`;
+  `docs/architecture.md` "Architecture decisions").
+- 2026-09-26: No route declares `schema.response` (0 of 37), so the zod
+  `serializerCompiler` installed in `app.ts` never runs and responses go out
+  via plain `JSON.stringify` — nothing strips fields a service adds. The docs
+  claimed "serializes every response" until today. When you add a response
+  schema, add a shape test (`Contract.strict().parse(res.json())`): the
+  serializer (`fastify-type-provider-zod` 4.0.2) drops unknown keys and turns a
+  mismatch into a 500 (evidence: `src/app.ts:64-65`;
+  `node_modules/fastify-type-provider-zod/dist/src/core.js:85-92`;
+  grep `response:` over `src/modules/**/routes.ts` → 0).
 
 ## Tool & Library Notes
+
+- 2026-09-26: To ignore type-only cycles in dependency-cruiser, put the
+  filter in `to.viaOnly.dependencyTypesNot: ['type-only']`, not in
+  `to.dependencyTypesNot`: the top-level one checks only the single edge a
+  cycle is reported from, so `platform/container.ts` → `repo-intel/service.ts`
+  (a runtime import) kept reporting a cycle that is closed by
+  `import type { Container }`. All five cycles in the first run were
+  type-only (evidence: `.dependency-cruiser.cjs` rule `no-circular`;
+  `node_modules/dependency-cruiser/src/validate/matchers.mjs:186-191`;
+  `src/modules/repo-intel/service.ts:21`, `src/modules/agents/helpers.ts:3`).
+- 2026-09-26: dependency-cruiser 17.4.3 rejects `enhancedResolveOptions.extensionAlias`
+  ("must NOT have additional properties"); it is not needed — with
+  `tsConfig` set, `.js` specifiers resolve to `.ts` files (466 of 466
+  dependencies resolved). Keep `tsPreCompilationDeps: true`, otherwise
+  `import type` row leaks are invisible (evidence: `.dependency-cruiser.cjs`
+  options; first `pnpm deps:check` run).
 
 - 2026-09-24: Starting the API from WSL via `/mnt/c/...` crashes at boot with
   `Error: unable to determine transport target for "pino-pretty"`
@@ -66,5 +97,12 @@ Never rewrite existing entries — correct with a dated note.
   `review-api.ts` response comment (mirrored to the client copy) and the
   "seed has 2 enabled agents" comment in `test/reviews.it.test.ts:298`
   (seed creates three).
+- 2026-09-26: Added the `onion-architecture` skill and the advisory
+  `pnpm deps:check` (`.dependency-cruiser.cjs`, `--ignore-known` against
+  `.dependency-cruiser-known-violations.json`, 18 known violations);
+  `docs/architecture.md` gained "Architecture decisions" (pulls/polling
+  deferred, pulls sync without a transaction at
+  `src/modules/pulls/routes.ts:251-285`) and a corrected serialization
+  description.
 
 ## Open Questions

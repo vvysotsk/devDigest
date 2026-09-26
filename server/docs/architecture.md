@@ -1,6 +1,6 @@
 # server — architecture
 
-Last verified: 2026-09-24 against c03665a
+Last verified: 2026-09-26 against dfd7ab8
 
 ## Purpose
 
@@ -44,8 +44,10 @@ workspace (`src/adapters/auth/local.ts`).
    opens the postgres-js pool unless a `db` was injected.
 2. Fastify is created with a 1 MB body limit and pino (pretty in development,
    off when `logLevel === 'silent'`); zod `validatorCompiler` +
-   `serializerCompiler` are installed so route schemas validate requests and
-   serialize responses.
+   `serializerCompiler` are installed. The validator runs for every route
+   schema; the serializer runs only for routes that declare
+   `schema.response` — today none of the 37 routes do (see "Architecture
+   decisions").
 3. `new Container(config, db, overrides)` is decorated as `app.container`.
 4. **Before any plugin**, `ReviewService.reapStaleRuns()` is awaited: every
    `agent_runs.status = 'running'` row is set to `failed` (orphans of a dead
@@ -74,7 +76,12 @@ separate step, also reused by `test/helpers/pg.ts`.
    `default` workspace and `you@local` user, so every query is workspace-scoped
    the same way.
 3. The handler delegates to the module service (or queries Drizzle directly
-   in the thin modules) and returns a plain object; the zod serializer emits it.
+   in the thin modules) and returns a plain object. Without a
+   `schema.response` Fastify sends it with plain `JSON.stringify` — nothing
+   filters extra fields. With one, the zod serializer
+   (`fastify-type-provider-zod` 4.x) runs `schema.safeParse(data)` and sends
+   `result.data`: keys outside the schema are dropped (unless the schema uses
+   `.passthrough()`, e.g. `Settings`) and a mismatch becomes a 500.
 4. Errors reach the handler in `src/app.ts:116-164`: type-provider validation →
    422 `validation_error`; response-serialization failure → 500 without the
    payload; any `ZodError` (matched by shape, not `instanceof`, because two zod
@@ -150,8 +157,13 @@ assumed (the boot reaper would misfire with replicas).
 - **Modules never import another module's folder.** Cross-module data goes
   through `container.agentsRepo` / `container.reviewRepo` /
   `container.repoIntel` or a helper in `src/modules/_shared/` (e.g. `pulls`
-  uses `_shared/latest-batch.ts` instead of `modules/reviews`). Convention
-  only — no linter enforces it.
+  uses `_shared/latest-batch.ts` instead of `modules/reviews`). Checked by
+  the advisory `pnpm deps:check` (dependency-cruiser,
+  `.dependency-cruiser.cjs`, all rules `warn`), not enforced. It runs with
+  `--ignore-known`, so it prints only violations absent from
+  `.dependency-cruiser-known-violations.json` (rewritten by
+  `pnpm deps:baseline` after a known violation is fixed). The layer rules
+  it reports on are in `.claude/skills/onion-architecture/SKILL.md`.
 - **Services never construct I/O.** Adapters implement the interfaces in
   `src/vendor/shared/adapters.ts`; tests replace them with
   `src/adapters/mocks.ts` via `buildApp({ overrides })`.
@@ -193,6 +205,33 @@ assumed (the boot reaper would misfire with replicas).
 - **New table / column:** edit `src/db/schema/<domain>.ts`, generate and
   apply a migration, add row types to `src/db/rows.ts` if other modules need
   them.
+
+## Architecture decisions
+
+Dated log of the `onion-architecture` skill's triggers that fired and what
+was decided. A deferred trigger is not proposed again until its "revisit
+when" condition appears.
+
+- 2026-09-26 — Trigger "thin module → layered" fired for `pulls` and
+  `polling`: both query Drizzle from routes and write tables owned by other
+  modules. `pulls/routes.ts` (393 lines) syncs PR detail from GitHub and
+  reads the reviews module's tables (`src/modules/pulls/routes.ts:126-180`);
+  `polling/routes.ts` inserts `pull_requests` (`src/modules/polling/routes.ts:33`)
+  and updates `repos` (`:61`). Decision: refactor deferred by the user; the
+  thin-module exception (own tables + read-only access to others) covers
+  only `settings` and `workspace`. New routes in `pulls`/`polling` go through
+  a service. Revisit when either module gains a new write path or its logic
+  is needed outside HTTP.
+- 2026-09-26 — Risk recorded with the entry above: the `pulls` detail sync
+  replaces `pr_files` and `pr_commits` by delete → insert and then updates
+  `pull_requests` as five independent statements without a transaction
+  (`src/modules/pulls/routes.ts:251-285`). A failure between them leaves a PR
+  with no files or commits until the next successful sync. It is the first
+  candidate for the "transaction for a use case" trigger (use-case
+  `db.transaction` + `Db | Tx` executor); not scheduled.
+- 2026-09-26 — Response serialization: 0 of 37 routes declare
+  `schema.response`, so the zod serializer never runs. Decision: required for
+  new and changed routes together with a response-shape test; no bulk sweep.
 
 ## Open questions
 

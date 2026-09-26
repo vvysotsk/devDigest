@@ -3,6 +3,9 @@
 ## Commands
 
 - `pnpm dev` · `pnpm typecheck` · `pnpm db:migrate` · `pnpm db:generate` · `pnpm db:seed`
+- `pnpm deps:check` — advisory layer check (dependency-cruiser, never fails);
+  shows only violations missing from `.dependency-cruiser-known-violations.json`.
+  `pnpm deps:baseline` rewrites that file — only after fixing a known one.
 - Unit tests (hermetic): `pnpm exec vitest run --exclude '**/*.it.test.ts'`
 - Integration (Docker): `pnpm exec vitest run .it.test`
 
@@ -21,8 +24,11 @@ Cross-module access ONLY through the DI container (`container.agentsRepo`,
 
 ## Non-default conventions
 
-- zod type-provider validates every request AND serializes every response;
-  errors use the envelope `{ error: { code, message, details } }`.
+- zod type-provider validates every request schema; it serializes a response
+  ONLY when the route declares `schema.response` (none of the 37 routes do
+  yet — plain `JSON.stringify` otherwise). New and changed routes declare one
+  plus a response-shape test (`onion-architecture` skill, R3). Errors use the
+  envelope `{ error: { code, message, details } }`.
 - Tests swap dependencies via ContainerOverrides; services never construct
   their own I/O (that is what `adapters/` are for).
 - `*.it.test.ts` = DB-backed (testcontainers); all other tests must stay hermetic.
@@ -50,6 +56,8 @@ Cross-module access ONLY through the DI container (`container.agentsRepo`,
 
 ## Read when
 
+- Where backend code lives, import direction, transactions, response schemas,
+  when to add a port → use the `onion-architecture` skill (`.claude/skills/onion-architecture/SKILL.md`)
 - DI container, modules/adapters, request flow → read `docs/architecture.md`
 - Review run end to end (what must stay true) → read `specs/review-flow.md`
 - API surface, DI/request flow → read `README.md`

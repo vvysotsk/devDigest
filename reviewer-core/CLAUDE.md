@@ -17,6 +17,12 @@ This package is PURE: no DB, no fs, no GitHub, no HTTP — the only side effect
 is the injected LLMProvider. Do not add imports that break this; persistence,
 SSE, cancellation and cost live in `server/src/modules/reviews/run-executor.ts`.
 
+One documented exception: `src/llm/openrouter.ts` (`OpenRouterProvider`,
+OpenAI SDK + `fetch`) is an LLM adapter that lives here because the server
+and the CI runner share it. No other network code belongs here; the trigger
+to move it out is in the `onion-architecture` skill. `src/llm/structured.ts`
+imports only the pure `openai/helpers/zod` converter.
+
 ## Do not touch
 
 - `package-lock.json` — never edit by hand or regenerate unprompted; it
@@ -36,6 +42,8 @@ SSE, cancellation and cost live in `server/src/modules/reviews/run-executor.ts`.
 
 ## Read when
 
+- This package's place in the backend layers (domain core, the one port,
+  what may import what) → use the `onion-architecture` skill (`.claude/skills/onion-architecture/SKILL.md`)
 - Pipeline stages and data flow → read `docs/pipeline.md`
 - Grounding gate rules (what must stay true) → read `specs/grounding-gate.md`
 - Pipeline details, public API → read `README.md`

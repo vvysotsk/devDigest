@@ -1,6 +1,6 @@
 # reviewer-core — pipeline
 
-Last verified: 2026-09-24 against c03665a
+Last verified: 2026-09-26 against dfd7ab8
 
 ## Purpose
 
@@ -9,7 +9,11 @@ inputs into a grounded `Review`: it assembles the prompt, calls the injected
 `LLMProvider` for structured output, merges partial reviews, drops findings
 that do not cite a real diff line, and recomputes the score from what
 survived. It has no database, filesystem, GitHub or HTTP access of its own —
-the single side effect is the injected provider (`src/index.ts:2-11`). The
+the single side effect is the injected provider (`src/index.ts:2-11`) — with
+one documented exception: `OpenRouterProvider` (`src/llm/openrouter.ts`)
+is an LLM adapter that makes HTTP calls and is exported for the server and
+the CI runner to inject. In onion terms the package is the domain core of
+the review pipeline and `LLMProvider` its one port. The
 server calls `reviewPullRequest()` from
 `../server/src/modules/reviews/run-executor.ts` and owns persistence, SSE,
 cancellation semantics and cost books.
@@ -75,10 +79,15 @@ to SSE, `test/run.test.ts:69` asserts the grounding line.
 
 ## Boundaries & dependencies
 
-- **Pure.** No import may touch DB, fs, network or process state; the only
-  runtime dependencies are `openai` (SDK + zod helper) and `zod`
-  (`package.json`). Persistence, SSE, cancellation errors and price books are
-  the caller's (`src/review/run.ts:19-23`, `:87-92`).
+- **Pure — no DB, fs, process state or HTTP.** The only runtime dependencies
+  are `openai` (SDK + zod helper) and `zod` (`package.json`). Persistence,
+  SSE, cancellation errors and price books are the caller's
+  (`src/review/run.ts:19-23`, `:87-92`). **Exception:** `src/llm/openrouter.ts`
+  is an HTTP adapter (OpenAI SDK + `fetch` for `/models`, `:1`, `:124`);
+  `src/llm/structured.ts` imports only the pure `openai/helpers/zod`. The
+  server's advisory `pnpm deps:check` rule `reviewer-core-pure` and the
+  `onion-architecture` skill (R9, trigger "OpenRouter adapter out of the
+  core") track it.
 - **Provider-agnostic.** The engine only needs `LLMProvider.completeStructured`;
   `OpenRouterProvider` lives here because both the studio server and the CI
   runner need the same guarded implementation (`src/llm/openrouter.ts:12-23`);
