@@ -2,8 +2,9 @@
 name: onion-architecture
 description: "Where backend code lives in server/ and reviewer-core/ and which way imports may point (onion / ports and adapters). Use when adding or changing a route, service, repository, adapter, job or port, moving code between modules, touching reviewer-core's public API, or deciding whether a use case needs a transaction, a port, a response schema or a separate type."
 metadata:
-  version: 1.0.0
-  applies_to: [server/**, reviewer-core/**]
+  version: 1.0.1
+  applies_to: "server/src/**, reviewer-core/src/**, server/.dependency-cruiser.cjs, !**/*.test.ts, !**/*.it.test.ts"
+  blocking: "true"
 ---
 
 # Onion architecture (server/ + reviewer-core/)

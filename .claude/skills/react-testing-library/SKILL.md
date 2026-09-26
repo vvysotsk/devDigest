@@ -1,6 +1,8 @@
 ---
 name: react-testing-library
 description: "General-purpose React Testing Library guide with Vitest. Use when writing, reviewing, or setting up React component and hook tests. Covers project setup from scratch, RTL query priority, userEvent, async patterns, mocking strategies, and common anti-patterns. Applicable to any Vite + React project."
+metadata:
+  applies_to: "client/**/*.test.ts, client/**/*.test.tsx, client/src/test/**, client/vitest.config.*"
 ---
 
 # React Testing Library

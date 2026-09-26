@@ -1,6 +1,8 @@
 ---
 name: postgresql-table-design
 description: Use this skill when designing or reviewing a PostgreSQL-specific schema. Covers best-practices, data types, indexing, constraints, performance patterns, and advanced features
+metadata:
+  applies_to: "server/src/db/schema/**, server/src/db/migrations/*.sql"
 ---
 
 # PostgreSQL Table Design

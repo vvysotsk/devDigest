@@ -19,6 +19,7 @@ Reusable AI skills that provide specialized knowledge and workflows. Canonical l
 | [security](security/SKILL.md) | Full-stack | OWASP Top 10:2025, auth, injection, uploads, secrets |
 | [mermaid-diagram](mermaid-diagram/SKILL.md) | Shared | Mermaid diagrams in markdown (flowcharts, sequence, ERD, …) |
 | [engineering-insights](engineering-insights/SKILL.md) | Process | Captures non-obvious lessons into per-module INSIGHTS.md (append-only learnings loop) |
+| [pr-self-review](pr-self-review/SKILL.md) (v1.0.0) | Process | Gate before `gh pr create`: routes changed files to skills by `metadata.applies_to`, re-checks only what its journal has not seen at the current content, runs Do-not-touch guards and typecheck/tests of touched packages, blocks the PR on any open CRITICAL (design and decisions in `references/plan.md`) |
 | [devdigest-demo](devdigest-demo/SKILL.md) | Process | Project rules for demo videos filmed with the `screencast-demo-maker` plugin (URLs, data PR, never-click list) |
 
 ## What Are Skills?

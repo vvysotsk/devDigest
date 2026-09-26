@@ -2,7 +2,9 @@
 name: frontend-architecture
 description: "Where frontend code lives in client/ and how it is split. Use when creating, moving or splitting a component, hook, helper or constant in client/, adding a route, or deciding where code should live. Covers folder placement, the index.ts component boundary, helpers vs lib, hooks by domain, Next.js route boundaries, API contract types, review signals with thresholds, and the triggers that would change this architecture."
 metadata:
-  version: 1.0.0
+  version: 1.0.1
+  applies_to: "client/src/**, client/messages/**, !client/src/vendor/**"
+  blocking: "true"
 ---
 
 # Frontend architecture (client/)
