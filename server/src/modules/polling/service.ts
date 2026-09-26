@@ -36,8 +36,7 @@ export class PollingService {
 
     await this.deps.db.transaction(async (tx) => {
       for (const pr of pulls) {
-        // Kept from the pre-refactor route: poll does not record opened_at.
-        await this.repos.pulls.upsertFromGitHub(tx, workspaceId, repo.id, { ...pr, opened_at: null });
+        await this.repos.pulls.upsertFromGitHub(tx, workspaceId, repo.id, pr);
       }
       await this.repos.repos.markPolled(tx, repo.id);
     });

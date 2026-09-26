@@ -1,4 +1,4 @@
-import { and, eq } from 'drizzle-orm';
+import { and, eq, sql } from 'drizzle-orm';
 import type { PrCommit, PrFile, PrMeta } from '@devdigest/shared';
 import type { Db, DbOrTx } from '../../db/client.js';
 import * as t from '../../db/schema.js';
@@ -80,8 +80,9 @@ export class PullsRepository {
 
   /**
    * Insert a PR from the GitHub list payload, or on (repo_id, number) conflict
-   * update only title / head_sha / status / updated_at — author, branch,
-   * stats and opened_at of an existing row are kept.
+   * update only title / head_sha / status / updated_at — author, branch and
+   * stats of an existing row are kept. `opened_at` is filled only when the
+   * stored value is null (coalesce): a known date is never overwritten.
    */
   async upsertFromGitHub(exec: DbOrTx, workspaceId: string, repoId: string, pr: PrMeta): Promise<void> {
     await exec
@@ -109,6 +110,7 @@ export class PullsRepository {
           headSha: pr.head_sha,
           status: pr.status,
           updatedAt: pr.updated_at ? new Date(pr.updated_at) : null,
+          openedAt: sql`coalesce(${t.pullRequests.openedAt}, excluded.opened_at)`,
         },
       });
   }

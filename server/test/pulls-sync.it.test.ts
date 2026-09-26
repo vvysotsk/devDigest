@@ -221,6 +221,39 @@ d('pulls sync — characterization (Testcontainers pg)', () => {
       await app.close();
     });
 
+    // Stage b′ (deliberate change): the shared upsert fills a stored null
+    // opened_at — e.g. a PR first imported by the old poll — on the PR-list path
+    // too. A known date is never overwritten (see the conflict test above).
+    it('fills a stored null opened_at from the GitHub list (stage b′)', async () => {
+      const repo = await makeRepo(db, workspaceId);
+      await makePr(db, workspaceId, repo.id, { openedAt: null });
+      const gh = new MockGitHubClient({
+        pulls: [
+          {
+            number: 7,
+            title: 'Old title',
+            author: 'old.author',
+            branch: 'old/branch',
+            base: 'main',
+            head_sha: 'oldsha',
+            additions: 5,
+            deletions: 6,
+            files_count: 7,
+            status: 'open',
+            opened_at: '2026-04-04T00:00:00.000Z',
+            updated_at: null,
+          },
+        ],
+      });
+      const app = await appWith(gh);
+      const res = await app.inject({ method: 'GET', url: `/repos/${repo.id}/pulls` });
+      const [pr] = PrList.parse(res.json());
+      expect(pr!.opened_at).toBe('2026-04-04T00:00:00.000Z');
+      const [row] = await db.select().from(t.pullRequests).where(eq(t.pullRequests.repoId, repo.id));
+      expect(row!.openedAt?.toISOString()).toBe('2026-04-04T00:00:00.000Z');
+      await app.close();
+    });
+
     it('backfills zero diff stats from the detail endpoint, at most 10 PRs per request', async () => {
       const repo = await makeRepo(db, workspaceId);
       for (let n = 1; n <= 12; n++) {

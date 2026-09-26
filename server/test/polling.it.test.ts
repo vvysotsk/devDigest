@@ -6,9 +6,9 @@
  * PR-list route). The response is parsed with the strict `PollResult`
  * contract (added in stage b) — the R3 response-shape test.
  *
- * NOTE (pinned on purpose): a PR first seen by poll is stored with
- * `opened_at = null` even when GitHub sends it. Stage b′ changes this in its
- * own commit and updates the assertion explicitly.
+ * Stage b′ (deliberate behaviour change, own commit): a PR first seen by poll
+ * now stores GitHub's `opened_at` (before: always null), and a stored null is
+ * filled on the next sync; a known date is never overwritten.
  */
 import { describe, it, expect, beforeAll, afterAll } from 'vitest';
 import { eq } from 'drizzle-orm';
@@ -150,8 +150,8 @@ d('POST /repos/:id/poll — characterization (Testcontainers pg)', () => {
       status: 'open',
     });
     expect(created.updatedAt?.toISOString()).toBe('2026-05-04T00:00:00.000Z');
-    // Pinned current behaviour (changed deliberately in stage b′):
-    expect(created.openedAt).toBeNull();
+    // Stage b′: poll records opened_at for a PR it sees first (was null before).
+    expect(created.openedAt?.toISOString()).toBe('2026-05-03T00:00:00.000Z');
 
     const [repoRow] = await db.select().from(t.repos).where(eq(t.repos.id, repo.id));
     expect(repoRow!.lastPolledAt).not.toBeNull();
@@ -159,6 +159,36 @@ d('POST /repos/:id/poll — characterization (Testcontainers pg)', () => {
 
     const runs = await db.select().from(t.agentRuns);
     expect(runs.filter((r) => rows.some((p) => p.id === r.prId))).toHaveLength(0);
+    await app.close();
+  });
+
+  it('fills a stored null opened_at on poll and never overwrites a known one (stage b′)', async () => {
+    const repo = await makeRepo(db, workspaceId);
+    const base = { workspaceId, repoId: repo.id, author: 'a', branch: 'b', base: 'main', status: 'open' };
+    await db.insert(t.pullRequests).values([
+      { ...base, number: 1, title: 'Null date', headSha: 'x1', openedAt: null },
+      { ...base, number: 2, title: 'Known date', headSha: 'x2', openedAt: new Date('2026-01-01T00:00:00.000Z') },
+    ]);
+    const gh = (n: number) => ({
+      number: n,
+      title: `PR ${n}`,
+      author: 'a',
+      branch: 'b',
+      base: 'main',
+      head_sha: `y${n}`,
+      additions: 0,
+      deletions: 0,
+      files_count: 0,
+      status: 'open' as const,
+      opened_at: '2026-07-07T00:00:00.000Z',
+      updated_at: null,
+    });
+    const app = await appWith(new MockGitHubClient({ pulls: [gh(1), gh(2)] }));
+    const res = await app.inject({ method: 'POST', url: `/repos/${repo.id}/poll` });
+    expect(res.statusCode).toBe(200);
+    const rows = await db.select().from(t.pullRequests).where(eq(t.pullRequests.repoId, repo.id));
+    expect(rows.find((r) => r.number === 1)!.openedAt?.toISOString()).toBe('2026-07-07T00:00:00.000Z');
+    expect(rows.find((r) => r.number === 2)!.openedAt?.toISOString()).toBe('2026-01-01T00:00:00.000Z');
     await app.close();
   });
 

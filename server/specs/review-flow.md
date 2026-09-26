@@ -210,6 +210,12 @@ module's `ReviewRepository` via `container.reviewRepo`: `review.repo.ts`
   PR #482, whose sample review is inserted into `t.reviews` with no run
   (`pulls/service.ts:140-145`, `src/db/seed.ts:136-148`; test
   `test/reviews.it.test.ts:392-393`).
+- `opened_at` comes from GitHub on first import — through the PR list AND
+  through `POST /repos/:id/poll` — and a stored null is filled on any later
+  sync; a known date is never overwritten (`coalesce` in
+  `src/modules/pulls/repository.ts:113`; tests
+  `test/pulls-sync.it.test.ts` "fills a stored null opened_at…",
+  `test/polling.it.test.ts` "fills a stored null opened_at on poll…").
 - `status`: `merged` / `closed` pass through from GitHub; otherwise
   `needs_review` when `last_reviewed_sha` is null or differs from `head_sha`,
   `stale` when the current head was reviewed but `updated_at` is older than 7
