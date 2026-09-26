@@ -35,6 +35,7 @@ read code.
 
 ## Read when
 
+- Where a component, hook, helper or constant should live; when to split; review signals → use the `frontend-architecture` skill (`.claude/skills/frontend-architecture/SKILL.md`)
 - Server vs Client Components, data fetching, UI kit, i18n → read `docs/ui-architecture.md`
 - Routes and the data each page loads (what must stay true) → read `specs/pages.md`
 - Page/route structure → read `README.md` (UI route map)

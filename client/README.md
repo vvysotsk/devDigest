@@ -37,8 +37,11 @@ flowchart TD
 ```
 
 Cross-cutting chrome lives in `src/components/app-shell` (nav, breadcrumbs,
-`g`-then-key shortcuts). Pages are thin; feature logic sits in colocated
-`_components/<Name>/` folders, each with its own `*.test.tsx`.
+`g`-then-key shortcuts). Pages are thin route entries; feature logic sits in
+colocated `_components/<Name>/` folders, each with its own `*.test.tsx`. The
+one exception is `src/app/repos/[repoId]/pulls/[number]/page.tsx`, which still
+owns tab state, run invalidation and the trace-drawer wiring (a listed refactor
+candidate, see `INSIGHTS.md`).
 
 ## Testing
 

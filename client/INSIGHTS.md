@@ -72,7 +72,22 @@ Never rewrite existing entries — correct with a dated note.
 
 ## Recurring Errors & Fixes
 
+- 2026-09-26: When deleting a barrel, grep for its RELATIVE spellings too —
+  the alias grep (`lib/hooks"`) found 7 importers of `src/lib/hooks/index.ts`
+  but missed `import { useRepos } from "./hooks"` inside `lib/` itself; only
+  `pnpm typecheck` caught it (`TS2307: Cannot find module './hooks'`), while
+  `pnpm test` stayed green because no test loads `repo-context.tsx`. Run
+  typecheck before tests after any module move (evidence:
+  `src/lib/repo-context.tsx:7`).
+
 ## Session Notes
+
+- 2026-09-26: Added the `frontend-architecture` skill (placement map, R1–R7,
+  review signals, architecture-change triggers; research in
+  `.claude/skills/frontend-architecture/references/`), removed the
+  `src/lib/hooks/index.ts` barrel (8 importers → `@/lib/hooks/core`),
+  turned the 200-lines/5–7-props caps in `react-best-practices` into review
+  signals; `pnpm typecheck` + 76 tests green.
 
 - 2026-09-24: Seeded `docs/ui-architecture.md` + `specs/pages.md` (line refs
   verified by script); mirrored the `review-api.ts` response-comment fix from
@@ -80,3 +95,23 @@ Never rewrite existing entries — correct with a dated note.
 - 2026-09-24: L01 severity counters end-to-end (`severity-summary`, `findings-preview`, FindingsPanel pills+filter, PR-list FINDINGS column + popover with 1024-1185px narrow layout, timeline icons, trace-drawer previews); spec `specs/L01-severity-counts.md`.
 
 ## Open Questions
+
+- 2026-09-26: Files already past the `frontend-architecture` review signals,
+  kept as refactor candidates — do NOT split them unless a task asks:
+  `RunHistory.tsx` at 263 lines (evidence:
+  `src/app/repos/[repoId]/pulls/[number]/_components/RunHistory/RunHistory.tsx:94`),
+  `Showcase.tsx` at 262 lines (evidence: `src/components/showcase/Showcase.tsx:1`),
+  and `pulls/[number]/page.tsx` at 185 lines, which is not a thin route entry:
+  it owns tab state from search params, query invalidation after runs and the
+  trace-drawer wiring (evidence:
+  `src/app/repos/[repoId]/pulls/[number]/page.tsx:26`, `:52-57`, `:175`).
+- 2026-09-26: The `reviews` domain is the first candidate for a
+  `features/reviews/` layer: its UI already spans three domain widgets in
+  `components/` (`severity-summary`, `findings-preview`, `run-cost-badge`) and
+  its hooks live in `lib/hooks/reviews.ts`, which on paper meets the skill's
+  "≥3 domain widgets of one domain in `components/`" trigger. The move is a
+  user decision recorded in `docs/ui-architecture.md`, never done unprompted
+  (evidence: `src/components/severity-summary/SeveritySummary.tsx:1`,
+  `src/components/findings-preview/FindingsHoverCard.tsx:1`,
+  `src/components/run-cost-badge/RunCostBadge.tsx:1`,
+  `src/lib/hooks/reviews.ts:28`).

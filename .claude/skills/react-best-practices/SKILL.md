@@ -23,8 +23,7 @@ Each rule is tagged with a severity for use by consuming agents:
 - Business logic in hooks/helpers, NOT in component bodies
 - Container components fetch data; presentational components receive props and render UI
 - Helper functions extracted OUTSIDE the component body
-- Max 200 lines per component — split if larger
-- Max 5-7 props — more suggests the component does too much
+- Size is a review signal, not a cap: >200 lines or >7 props means "justify or split by responsibility" — thresholds and the `Signals:` report line are defined in `frontend-architecture` (`.claude/skills/frontend-architecture/SKILL.md`, "Review signals")
 - One component per file (small colocated internal helpers are fine)
 
 ### Composition Patterns

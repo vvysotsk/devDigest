@@ -1,6 +1,6 @@
 # client — ui-architecture
 
-Last verified: 2026-09-24 against c03665a
+Last verified: 2026-09-26 against 8ae46a9 (+ hooks barrel removal in the working tree)
 
 ## Purpose
 
@@ -21,7 +21,7 @@ browser.
 | `src/app/**/_components/<Name>/` | Route-private components: `<Name>.tsx` + `constants.ts`, `helpers.ts`, `styles.ts`, `index.ts`, tests beside the source. |
 | `src/components/<kebab>/` | Shared components (`app-shell`, `diff-viewer`, `findings-preview`, `severity-summary`, `run-cost-badge`, `page-shell`, `repo-not-found`, `mermaid-diagram`, `showcase`). |
 | `src/lib/api.ts` | `apiFetch` + `api.get/post/put/patch/del`; base URL from `NEXT_PUBLIC_API_BASE`; every failure becomes `ApiError { status, code, details }`. |
-| `src/lib/hooks/<domain>.ts` | All TanStack Query hooks (`core`, `agents`, `reviews`, `trace`, `repo-intel`), re-exported by `src/lib/hooks/index.ts`. |
+| `src/lib/hooks/<domain>.ts` | All TanStack Query hooks (`core`, `agents`, `reviews`, `trace`, `repo-intel`). Imported from the domain file (`@/lib/hooks/core`); there is no `hooks/index.ts` barrel (see `.claude/skills/frontend-architecture`, R1). |
 | `src/lib/providers.tsx` | `QueryClient` (retry 1, staleTime 30 s, no refetch on focus, global error toasts) → `ThemeProvider` → `ToastProvider` → `RepoProvider`. |
 | `src/lib/repo-context.tsx` | Active repo: URL `:repoId` > `localStorage("dd-repo")` > first repo; `useRepoNotFound`. |
 | `src/lib/theme.tsx`, `src/lib/toast.tsx` | `data-theme` on `<html>` + `localStorage("dd-theme")`; toast context plus the module-level `notify` bridge used outside React. |
@@ -120,6 +120,19 @@ Path aliases (`tsconfig.json:22-28`): `@/*` → `src/*`, `@devdigest/shared` →
   (`findings-preview/test-fixtures.ts`).
 - **New strings:** add to the namespace JSON under `messages/en/`; camelCase
   nested keys.
+
+## Architecture decisions
+
+Dated log of the `frontend-architecture` skill's triggers that fired and what
+was decided. A deferred trigger is not proposed again until its "revisit
+when" condition appears.
+
+- 2026-09-26 — Trigger `features/reviews/` fired: `components/` holds three
+  domain widgets of the `reviews` domain (`severity-summary`,
+  `findings-preview`, `run-cost-badge`) plus `lib/hooks/reviews.ts`.
+  Decision: deferred by the user; the layout stays `_components/` +
+  `components/` + `lib/hooks/<domain>.ts`. Revisit when a fourth `reviews`
+  widget lands in `components/` or the trigger fires for a second domain.
 
 ## Open questions
 

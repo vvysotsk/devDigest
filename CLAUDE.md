@@ -47,11 +47,9 @@ are the gate. Do not add a linter unprompted.
 
 ## Naming conventions
 
-- Client components: folder = component name in PascalCase
-  (`FindingsPanel/FindingsPanel.tsx`) with siblings `helpers.ts`,
-  `constants.ts`, `styles.ts`, `index.ts` and tests next to the source.
-  Route-private components live in `_components/`; shared ones in
-  `client/src/components/<kebab-case>/` (e.g. `severity-summary/`).
+- Client components: where they live and how they split (PascalCase
+  component folders, `_components/` vs `components/<kebab-case>/`,
+  `index.ts` boundary) → the `frontend-architecture` skill.
 - Hooks: `useXxx`, grouped by domain in `client/src/lib/hooks/<domain>.ts`.
 - Server modules: `server/src/modules/<name>/{routes,service,repository}.ts`;
   cross-module helpers in `modules/_shared/<kebab-case>.ts`.

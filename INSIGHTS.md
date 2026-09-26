@@ -61,6 +61,11 @@ Never rewrite existing entries — correct with a dated note.
 
 ## Session Notes
 
+- 2026-09-26: Added `.claude/skills/frontend-architecture` (SKILL.md with the
+  settled placement rules R1–R7, review signals and architecture-change
+  triggers; `references/research.md` + `references/sources.md` hold the
+  275-source research it was distilled from). `react-best-practices` now
+  defers its size thresholds to it; `.claude/skills/README.md` catalog updated.
 - 2026-09-24: Rewrote the `engineering-insights` skill (path:line + date
   mandatory, routing by evidence file), added the `package-docs` skill, and
   seeded real docs/specs for server, client, reviewer-core and e2e; the
