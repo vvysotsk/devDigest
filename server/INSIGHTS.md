@@ -13,6 +13,16 @@ Never rewrite existing entries — correct with a dated note.
 
 ## What Doesn't Work
 
+- 2026-09-27: An it-test that calls a route touching GitHub without
+  `overrides.github` is machine-dependent: `container.github()` then reads a
+  real token from `~/.devdigest/secrets.json` / `GITHUB_TOKEN` and calls the
+  real API for the test's fake `acme/*` repos (the route swallows the error,
+  so it passes by accident). Always inject `MockGitHubClient`, or force the
+  offline path with `overrides.secrets: new MockSecretsProvider({})`
+  (evidence: `test/reviews.it.test.ts:113-126` builds apps without a github
+  override; `src/platform/container.ts:153-160`; the pattern to copy is
+  `test/pulls-sync.it.test.ts` `appWith`).
+
 ## Codebase Patterns
 
 - 2026-09-24: `POST /pulls/:id/review` ALWAYS answers `reviews: []` —
