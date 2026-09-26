@@ -1,9 +1,9 @@
 import { and, asc, desc, eq } from 'drizzle-orm';
 import type { Db } from '../../db/client.js';
 import * as t from '../../db/schema.js';
-import type { CiFailOn, Provider, ReviewStrategy } from '@devdigest/shared';
+import type { Agent, CiFailOn, Provider, ReviewStrategy } from '@devdigest/shared';
 import { DEFAULT_AGENT_DESCRIPTION, INITIAL_AGENT_VERSION } from './constants.js';
-import { isConfigChange } from './helpers.js';
+import { isConfigChange, toAgentDto } from './helpers.js';
 
 /**
  * A2 — agents data-access. Owns `agents`, `agent_versions`, and the
@@ -60,6 +60,17 @@ export class AgentsRepository {
       .select()
       .from(t.agents)
       .where(and(eq(t.agents.workspaceId, workspaceId), eq(t.agents.enabled, true)));
+  }
+
+  /** Enabled agents as the `Agent` contract — for other modules (reviews). */
+  async listEnabledAgents(workspaceId: string): Promise<Agent[]> {
+    return (await this.listEnabled(workspaceId)).map(toAgentDto);
+  }
+
+  /** One agent as the `Agent` contract — for other modules (reviews). */
+  async getAgent(workspaceId: string, id: string): Promise<Agent | undefined> {
+    const row = await this.getById(workspaceId, id);
+    return row ? toAgentDto(row) : undefined;
   }
 
   async getById(workspaceId: string, id: string): Promise<AgentRow | undefined> {

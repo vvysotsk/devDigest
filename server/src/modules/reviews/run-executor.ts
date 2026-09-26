@@ -1,10 +1,9 @@
 import type { Container } from '../../platform/container.js';
-import type { Provider, Review, RunTrace, UnifiedDiff } from '@devdigest/shared';
+import type { Agent, Provider, Review, RunTrace, UnifiedDiff } from '@devdigest/shared';
 import { reviewPullRequest, countBlockers } from '@devdigest/reviewer-core';
 import { RunLogger } from '../../platform/run-logger.js';
-import * as schema from '../../db/schema.js';
-import type { AgentRow } from '../../db/rows.js';
-import type { ReviewRepository, FindingRow, PullRow, ReviewRow } from './repository.js';
+import type { ReviewRepository } from './repository.js';
+import type { PullForReview, ReviewRepoRef } from './types.js';
 import { REVIEW_STRATEGY } from './constants.js';
 import { taskLine } from './helpers.js';
 import { loadDiff } from './diff-loader.js';
@@ -28,8 +27,8 @@ export type Logger = {
 // A reduced "Review per file" — same schema as Review (the model returns a small
 // Review per file; we merge findings + take the worst verdict / mean score).
 export type RunOutcome = {
-  review: ReviewRow;
-  findings: FindingRow[];
+  reviewId: string;
+  findingsCount: number;
   grounding: string;
   raw: Review;
 };
@@ -54,9 +53,9 @@ export class ReviewRunExecutor {
    */
   async executeRuns(
     workspaceId: string,
-    pull: PullRow,
-    repo: typeof schema.repos.$inferSelect,
-    jobs: { agent: AgentRow; runId: string }[],
+    pull: PullForReview,
+    repo: ReviewRepoRef,
+    jobs: { agent: Agent; runId: string }[],
     logger?: Logger,
   ): Promise<void> {
     // ONE logger fanned out over every queued run: shared pre-work (diff +
@@ -117,11 +116,11 @@ export class ReviewRunExecutor {
           {
             runId,
             agent: agent.name,
-            findings: outcome.findings.length,
+            findings: outcome.findingsCount,
             grounding: outcome.grounding,
             durationMs: Date.now() - agentStart,
           },
-          `review: agent "${agent.name}" done — ${outcome.findings.length} finding(s)`,
+          `review: agent "${agent.name}" done — ${outcome.findingsCount} finding(s)`,
         );
       } catch (err) {
         // runOneAgent already persisted the failure/cancel (status + error +
@@ -138,10 +137,10 @@ export class ReviewRunExecutor {
   /** Execute a single agent's review against a PR, streaming progress. */
   private async runOneAgent(
     workspaceId: string,
-    pull: PullRow,
-    repo: typeof schema.repos.$inferSelect,
+    pull: PullForReview,
+    repo: ReviewRepoRef,
     diff: UnifiedDiff,
-    agent: AgentRow,
+    agent: Agent,
     runId: string,
     parentLog: RunLogger,
   ): Promise<RunOutcome> {
@@ -166,7 +165,7 @@ export class ReviewRunExecutor {
       // skip all enrichment entirely so its prompt is identical to the
       // repo-intel-off baseline — independent of the global REPO_INTEL_ENABLED
       // flag, which still gates the facade internally.
-      const repoIntelOn = agent.repoIntel !== false;
+      const repoIntelOn = agent.repo_intel !== false;
       if (!repoIntelOn) runLog.info('Repo intel disabled for this agent — skipping context enrichment');
 
       // T1.3 — callers-in-prompt. Best-effort: when repo-intel is off the facade
@@ -189,7 +188,7 @@ export class ReviewRunExecutor {
       // the CI runner). The service owns only I/O: repo-intel context resolution
       // above, and persistence + observability below.
       const outcome = await reviewPullRequest({
-        systemPrompt: agent.systemPrompt,
+        systemPrompt: agent.system_prompt,
         model: agent.model,
         diff,
         llm,
@@ -227,8 +226,8 @@ export class ReviewRunExecutor {
         score: outcome.review.score,
         model: agent.model,
       });
-      const findingRows = await this.repo.insertFindings(review.id, keptFindings);
-      runLog.result(`Persisted review ${review.id} with ${findingRows.length} finding(s)`);
+      const findingsCount = await this.repo.insertFindings(review.id, keptFindings);
+      runLog.result(`Persisted review ${review.id} with ${findingsCount} finding(s)`);
 
       // Mark the commit this review ran against so the PR list can tell
       // reviewed / needs-review (head moved) / stale apart.
@@ -238,7 +237,7 @@ export class ReviewRunExecutor {
 
       // Deterministic blocker count (severity ≥ the agent's gate) — the signal
       // the timeline colors on, NOT the model's self-reported verdict.
-      const blockers = countBlockers(keptFindings, agent.ciFailOn);
+      const blockers = countBlockers(keptFindings, agent.ci_fail_on);
 
       // ---- Observability: agent_runs + ONE run_traces document --------------
       await this.repo.completeAgentRun(runId, {
@@ -250,7 +249,7 @@ export class ReviewRunExecutor {
         // injected estimate; null when any chunk had no cost — the read path
         // falls back to tokens × PriceBook in that case.
         costUsd,
-        findingsCount: findingRows.length,
+        findingsCount,
         grounding,
         score: outcome.review.score,
         blockers,
@@ -271,7 +270,7 @@ export class ReviewRunExecutor {
           tokens_in: tokensIn,
           tokens_out: tokensOut,
           cost_usd: costUsd,
-          findings: findingRows.length,
+          findings: findingsCount,
           grounding,
         },
         prompt_assembly: outcome.assembly,
@@ -292,7 +291,7 @@ export class ReviewRunExecutor {
       await this.repo.saveRunTrace(runId, trace);
       this.container.runBus.complete(runId);
 
-      return { review, findings: findingRows, grounding, raw: outcome.review };
+      return { reviewId: review.id, findingsCount, grounding, raw: outcome.review };
     } catch (err) {
       // Failure/cancel: persist status + the error text + the log-so-far so the
       // run (and WHY it failed) is visible on the UI after a reload.
@@ -414,8 +413,8 @@ export class ReviewRunExecutor {
    */
   private traceFromBuffer(
     runId: string,
-    pull: PullRow,
-    agent: AgentRow,
+    pull: PullForReview,
+    agent: Agent,
     grounding: string,
     durationMs = 0,
   ): RunTrace {
@@ -429,7 +428,7 @@ export class ReviewRunExecutor {
         source: 'local',
       },
       stats: { duration_ms: durationMs, tokens_in: 0, tokens_out: 0, cost_usd: null, findings: 0, grounding },
-      prompt_assembly: { system: agent.systemPrompt, skills: null, memory: null, specs: null, user: '' },
+      prompt_assembly: { system: agent.system_prompt, skills: null, memory: null, specs: null, user: '' },
       tool_calls: [],
       raw_output: '',
       memory_pulled: [],

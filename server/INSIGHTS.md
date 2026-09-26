@@ -96,6 +96,17 @@ Never rewrite existing entries — correct with a dated note.
   stack on 2026-09-22 ended in
   `at buildApp (/mnt/c/OSPanel/home/devDigest/server/src/app.ts:46:15)`).
 
+- 2026-09-27: A snapshot of `GET /runs/:id/trace` is not stable after
+  normalizing ids and ISO timestamps: log entries carry a wall-clock number
+  `t`, stage durations sit in `ms` / `duration_ms`, and messages embed
+  `(Nms)` ("Loading PR diff done (0ms)"). Normalize all three, as
+  `test/reviews-golden.it.test.ts:75-95` does, or the snapshot flakes on
+  timing only.
+- 2026-09-27: `MockGitClient.diff()` ignores its arguments and records no
+  calls (`src/adapters/mocks.ts:281`), so no test can assert which
+  `base` / `head_sha` the review diff was requested for; only typecheck
+  guards that wiring. Add call recording to the mock before relying on it.
+
 ## Recurring Errors & Fixes
 
 - 2026-09-26: Path splitting on `'/'` breaks on Windows: `join()` yields
@@ -119,6 +130,15 @@ Never rewrite existing entries — correct with a dated note.
     `test/db-cli-entry.test.ts` guards the CLI branch (evidence:
     `src/db/migrate.ts:38`, `src/db/seed.ts:228`).
 
+- 2026-09-27: `waitForPrRuns` does not make `GET /runs/:id/trace` safe: the
+  executor writes `agent_runs.status = done` (`completeAgentRun`) before
+  `saveRunTrace` (`src/modules/reviews/run-executor.ts:243`, `:289`), so a
+  trace read right after the wait intermittently 404s ("Cannot read properties
+  of undefined (reading map)" on `trace.tool_calls`, about 1 run in 4 under
+  the full .it suite; it predates the onion refactor and also hit
+  `test/reviews.it.test.ts:344` L01 on the old code). Also wait with `waitForRunTrace`
+  (`test/helpers/runs.ts`) before reading a trace.
+
 ## Session Notes
 
 - 2026-09-24: Seeded `docs/architecture.md` + `specs/review-flow.md` (every
@@ -133,5 +153,11 @@ Never rewrite existing entries — correct with a dated note.
   deferred, pulls sync without a transaction at
   `src/modules/pulls/routes.ts:251-285`) and a corrected serialization
   description.
+- 2026-09-27: Onion stage c: the reviews service/executor no longer see
+  Drizzle rows (agents arrive as the `Agent` contract from
+  `container.agentsRepo`, PRs/repos as narrow types in
+  `src/modules/reviews/types.ts`); golden responses pinned before the change
+  (`test/reviews-golden.it.test.ts`) match unchanged; non-default agent fields
+  covered by `test/reviews-row-fields.it.test.ts`.
 
 ## Open Questions

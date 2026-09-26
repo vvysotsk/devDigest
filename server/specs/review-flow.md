@@ -57,7 +57,8 @@ always written in full.
 
 - The diff is loaded once per batch: `git diff base..head_sha` through
   `container.git`; when that throws or yields zero files, a unified diff is
-  rebuilt from `pr_files.patch` (`src/modules/reviews/diff-loader.ts:12-44`).
+  rebuilt from `pr_files.patch` (`src/modules/reviews/diff-loader.ts:12-44`; test
+  `test/reviews-row-fields.it.test.ts` "falls back to the persisted pr_files").
   A diff-load failure marks **every** queued run `failed` with the error,
   persists a trace built from the event buffer and completes the bus
   (`run-executor.ts:75-105`).
@@ -66,21 +67,23 @@ always written in full.
 - The provider comes from `container.llm(agent.provider)`; a missing key is a
   `ConfigError` and the run is persisted as `failed` with that message
   (`run-executor.ts:159-163`, `buildLlm` in `src/platform/container.ts:173-193`).
-- Repo-intel enrichment runs only when `agent.repoIntel !== false`: callers
+- Repo-intel enrichment runs only when `agent.repo_intel !== false`: callers
   digest (≤10 signatures), cached repo map, and a rank note when any changed
   file is in the top 5 % by rank. Each is best-effort: on error or a degraded
   facade the section is omitted and the run continues
-  (`run-executor.ts:169-185`, `334-408`; facade gate `getRepoMap` in
+  (`run-executor.ts:168-182`, `334-408`; facade gate `getRepoMap` in
   `src/modules/repo-intel/service.ts:398-414`).
 - The task line always names the PR and tells the model to review the entire
   diff and never withhold a security/correctness finding
-  (`taskLine`, `src/modules/reviews/helpers.ts:82-92`; test
+  (`taskLine`, `src/modules/reviews/helpers.ts:41-51`; test
   `test/reviews-helpers.test.ts:19-22`).
 - The engine is called with `strategy = agent.strategy ?? 'single-pass'`,
   `prDescription` only when the PR has a body, `sessionId =
   "<owner>/<repo>#<number>:<agent name>"`, `onEvent` bound to the run logger and
   `checkCancelled` throwing `RunCancelledError`
-  (`run-executor.ts:191-213`, `src/modules/reviews/constants.ts:12`).
+  (`run-executor.ts:191-213`, `src/modules/reviews/constants.ts:12`; test
+  `test/reviews-row-fields.it.test.ts` for map-reduce, `repo_intel: false`,
+  `ci_fail_on: never`, `sessionId` and `last_reviewed_sha`).
 - Persisted findings are exactly the engine's grounded set and the persisted
   score is `scoreFromFindings(kept)`, never the model's self-reported score
   (`run-executor.ts:216-229`; `../reviewer-core/src/review/run.ts:196-208`,
@@ -138,12 +141,13 @@ always written in full.
 - `GET /pulls/:id/reviews` → `ReviewRecord[]`, newest first, each with its
   findings and `agent_name` resolved from the agents table; 404 when the PR is
   not in the workspace. `grounding` is not populated by this route
-  (`reviewsForPull`, `service.ts:180-194`; `review.repo.ts:58-74`;
-  `reviewToDto`, `helpers.ts:55-74`; `review-api.ts:23-38`).
+  (`reviewsForPull`, `service.ts:177-192`; row → DTO mapping `toReviewDto` /
+  `toFindingDto` in `review.repo.ts:12-49`, `97-112`; `review-api.ts:23-38`;
+  golden test `test/reviews-golden.it.test.ts`).
 - `GET /pulls/:id/runs` → `RunSummary[]`, newest first, every status. `cost_usd`
   = stored `agent_runs.cost_usd` (a stored 0 counts) else, for `done` runs with
   a model and tokens, `PriceBook.estimate(model, tokens_in, tokens_out)`; else
-  null (`listRuns`, `service.ts:71-88`; `run.repo.ts:40-69`,
+  null (`listRuns`, `service.ts:68-85`; `run.repo.ts:40-69`,
   `src/modules/_shared/run-cost.ts:21-30`,
   `src/vendor/shared/contracts/trace.ts:97-119`; tests `test/run-cost.test.ts`,
   `test/reviews.it.test.ts:311`).
@@ -152,7 +156,7 @@ always written in full.
 - `GET /runs/:id/trace` → the stored `RunTrace` or 404 `not_found`. When the
   document predates `stats.cost_usd`, the value is filled on read from the
   `agent_runs` row with the same rule as above and never written back
-  (`routes.ts:121-126`; `getRunTrace`, `service.ts:196-209`; test
+  (`routes.ts:121-126`; `getRunTrace`, `service.ts:194-207`; test
   `test/reviews.it.test.ts:363-372`).
 - `DELETE /runs/:id` deletes the review rows with that `run_id` (findings
   cascade), then the run (trace cascades); returns `{ ok }` where `ok` is
@@ -160,7 +164,7 @@ always written in full.
   `run.repo.ts:71-91`).
 - `DELETE /reviews/:id` deletes one review (+ findings) scoped to the
   workspace; 404 when absent (`routes.ts:135-140`; `deleteReview`,
-  `review.repo.ts:83-93`).
+  `review.repo.ts:116-126`).
 
 ### Finding actions — `POST /findings/:id/accept` · `/dismiss`
 
@@ -168,10 +172,11 @@ always written in full.
   `FindingActionKind` but have no route (`routes.ts:18`, `143-149`,
   `src/vendor/shared/contracts/findings.ts:82`).
 - The finding must resolve (finding → review → PR) to the caller's workspace,
-  else 404 (`findingContext` check, `src/modules/reviews/findings.ts:17-20`).
+  else 404 (`findingWorkspace` check, `src/modules/reviews/findings.ts:26-29`;
+  test `test/reviews-row-fields.it.test.ts` "finding actions").
 - `accept` sets `accepted_at = now()` and clears `dismissed_at`; `dismiss` is
   the mirror. Response `{ finding: FindingRecord }`
-  (`setFindingAccepted` / `setFindingDismissed`, `review.repo.ts:119-143`;
+  (`setFindingAccepted` / `setFindingDismissed`, `review.repo.ts:153-177`;
   test `test/reviews.it.test.ts:235`).
 
 ### PR list — `GET /repos/:id/pulls` (`PrMeta[]`)

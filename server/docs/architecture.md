@@ -130,7 +130,7 @@ jsonb document in `run_traces` (PK = `agent_runs.id`).
 | `repoIntel` | `RepoIntelService(this)` | `repoIntel` |
 | `depgraph`, `tokenizer` | `DepCruiseGraph`, `TiktokenTokenizer` (indexer only) | `depgraph`, `tokenizer` |
 | `priceBook` | `PriceBook(openrouter /models lister, estimateCost)` | — |
-| `agentsRepo`, `reviewRepo` | shared repositories for cross-module reads (`reviewRepo` feeds the PR-list aggregates of `PullsService`; `ReviewService` still builds its own) | — |
+| `agentsRepo`, `reviewRepo` | shared repositories for cross-module reads (`reviewRepo` is the one `ReviewRepository`: `ReviewService` uses it, and it feeds the PR-list aggregates of `PullsService`; `agentsRepo` gives `ReviewService` its targets as the `Agent` contract via `listEnabledAgents` / `getAgent`) | — |
 | `pullsRepo`, `reposRepo` | `PullsRepository` (owner of `pull_requests`, `pr_files`, `pr_commits`) and `RepoRepository` (owner of `repos`; other modules use `getRef`) | — |
 
 `invalidateSecretCaches()` drops the llm/github/embedder caches after

@@ -32,3 +32,25 @@ export async function waitForPrRuns(
     await new Promise((r) => setTimeout(r, 25));
   }
 }
+
+/**
+ * The executor marks a run `done` (`completeAgentRun`) BEFORE it writes the
+ * trace (`saveRunTrace`), so `waitForPrRuns` alone races `GET /runs/:id/trace`.
+ * Poll `run_traces` until the document for `runId` exists.
+ */
+export async function waitForRunTrace(
+  db: PgFixture['handle']['db'],
+  runId: string,
+  timeoutMs = 10_000,
+): Promise<boolean> {
+  const start = Date.now();
+  for (;;) {
+    const rows = await db
+      .select({ runId: t.runTraces.runId })
+      .from(t.runTraces)
+      .where(eq(t.runTraces.runId, runId));
+    if (rows.length > 0) return true;
+    if (Date.now() - start > timeoutMs) return false;
+    await new Promise((r) => setTimeout(r, 25));
+  }
+}

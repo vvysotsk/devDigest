@@ -1,17 +1,13 @@
 import type { Container } from '../../platform/container.js';
-import type { FindingActionKind, RunEventKind, RunTrace } from '@devdigest/shared';
+import type { Agent, FindingActionKind, RunEventKind, RunTrace } from '@devdigest/shared';
 import { AppError, NotFoundError } from '../../platform/errors.js';
-import type { AgentRow } from '../../db/rows.js';
-import { ReviewRepository } from './repository.js';
-import { type ReviewDto, type ReviewDtoFinding } from './helpers.js';
+import type { ReviewRepository } from './repository.js';
+import type { ReviewDto, ReviewDtoFinding } from './helpers.js';
 import { ReviewRunExecutor, type Logger } from './run-executor.js';
 import { actOnFinding as actOnFindingImpl } from './findings.js';
-import { reviewToDto } from './helpers.js';
 import { resolveRunCost } from '../_shared/run-cost.js';
 
-// Re-export DTO types + converters for backward-compatible imports from
-// './service.js' (these previously lived here; logic now in ./helpers.ts).
-export { findingRowToDto, reviewToDto } from './helpers.js';
+// Re-export the DTO types for backward-compatible imports from './service.js'.
 export type { ReviewDto, ReviewDtoFinding } from './helpers.js';
 
 /**
@@ -32,7 +28,8 @@ export class ReviewService {
   private executor: ReviewRunExecutor;
 
   constructor(private container: Container) {
-    this.repo = new ReviewRepository(container.db);
+    // Shared instances from the composition root (onion skill R5).
+    this.repo = container.reviewRepo;
     this.agents = container.agentsRepo;
     this.executor = new ReviewRunExecutor(container, this.repo, this.agents);
   }
@@ -47,10 +44,10 @@ export class ReviewService {
   async resolveTargets(
     workspaceId: string,
     opts: { agentId?: string; all?: boolean },
-  ): Promise<AgentRow[]> {
-    if (opts.all) return this.agents.listEnabled(workspaceId);
+  ): Promise<Agent[]> {
+    if (opts.all) return this.agents.listEnabledAgents(workspaceId);
     if (opts.agentId) {
-      const agent = await this.agents.getById(workspaceId, opts.agentId);
+      const agent = await this.agents.getAgent(workspaceId, opts.agentId);
       if (!agent) throw new NotFoundError('Agent not found');
       return [agent];
     }
@@ -119,7 +116,7 @@ export class ReviewService {
   async runReview(
     workspaceId: string,
     prId: string,
-    targets: AgentRow[],
+    targets: Agent[],
     logger?: Logger,
   ): Promise<{ runs: { run_id: string; agent_id: string; agent_name: string }[]; reviews: ReviewDto[] }> {
     const pull = await this.repo.getPull(workspaceId, prId);
@@ -131,7 +128,7 @@ export class ReviewService {
     // the client persists these in global state and subscribes to the SSE
     // stream. The actual (slow) review runs in the background below.
     const runs: { run_id: string; agent_id: string; agent_name: string }[] = [];
-    const jobs: { agent: AgentRow; runId: string }[] = [];
+    const jobs: { agent: Agent; runId: string }[] = [];
     // ONE batch id per "Run review" action — the PR list sums the latest
     // batch's cost, so every run queued here must share it.
     const batchId = crypto.randomUUID();
@@ -180,17 +177,18 @@ export class ReviewService {
   async reviewsForPull(workspaceId: string, prId: string): Promise<ReviewDto[]> {
     const pull = await this.repo.getPull(workspaceId, prId);
     if (!pull) throw new NotFoundError('Pull request not found');
-    const rows = await this.repo.reviewsForPull(prId);
+    const reviews = await this.repo.reviewsForPull(prId);
     const names = new Map<string, string>();
-    for (const { review } of rows) {
-      if (review.agentId && !names.has(review.agentId)) {
-        const a = await this.agents.getById(workspaceId, review.agentId);
-        if (a) names.set(review.agentId, a.name);
+    for (const review of reviews) {
+      if (review.agent_id && !names.has(review.agent_id)) {
+        const a = await this.agents.getAgent(workspaceId, review.agent_id);
+        if (a) names.set(review.agent_id, a.name);
       }
     }
-    return rows.map(({ review, findings }) =>
-      reviewToDto(review, findings, review.agentId ? names.get(review.agentId) : null),
-    );
+    return reviews.map((review) => ({
+      ...review,
+      agent_name: (review.agent_id ? names.get(review.agent_id) : null) ?? null,
+    }));
   }
 
   async getRunTrace(runId: string): Promise<RunTrace | undefined> {

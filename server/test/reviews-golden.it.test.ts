@@ -15,7 +15,7 @@
  */
 import { describe, it, expect, beforeAll, afterAll } from 'vitest';
 import { startPg, dockerAvailable, type PgFixture } from './helpers/pg.js';
-import { waitForPrRuns } from './helpers/runs.js';
+import { waitForPrRuns, waitForRunTrace } from './helpers/runs.js';
 import { buildApp } from '../src/app.js';
 import { loadConfig } from '../src/platform/config.js';
 import { seed } from '../src/db/seed.js';
@@ -171,6 +171,7 @@ d('review read paths — golden responses (Testcontainers pg)', () => {
     expect(started.statusCode).toBe(200);
     const runId: string = started.json().runs[0].run_id;
     await waitForPrRuns(db, pr!.id, { expected: 1 });
+    expect(await waitForRunTrace(db, runId)).toBe(true);
 
     expect(norm(started.json())).toMatchInlineSnapshot(`
       {
