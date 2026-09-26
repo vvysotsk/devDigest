@@ -15,34 +15,6 @@
   },
   {
     "type": "dependency",
-    "from": "src/modules/polling/routes.ts",
-    "to": "node_modules/.pnpm/drizzle-orm@0.38.4_postgres@3.4.9/node_modules/drizzle-orm/index.d.ts",
-    "unresolvedTo": "drizzle-orm",
-    "dependencyTypes": [
-      "npm",
-      "import"
-    ],
-    "rule": {
-      "severity": "warn",
-      "name": "no-drizzle-outside-persistence"
-    }
-  },
-  {
-    "type": "dependency",
-    "from": "src/modules/polling/routes.ts",
-    "to": "src/db/schema.ts",
-    "unresolvedTo": "../../db/schema.js",
-    "dependencyTypes": [
-      "local",
-      "import"
-    ],
-    "rule": {
-      "severity": "warn",
-      "name": "no-drizzle-outside-persistence"
-    }
-  },
-  {
-    "type": "dependency",
     "from": "src/modules/repos/helpers.ts",
     "to": "src/db/schema.ts",
     "unresolvedTo": "../../db/schema.js",

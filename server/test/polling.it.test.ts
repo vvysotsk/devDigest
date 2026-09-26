@@ -3,8 +3,8 @@
  * `specs/refactor-onion.md`). Pins the CURRENT behaviour: upsert of the PR
  * list, `synced` count, `last_polled_at` bump, no review triggered, and the
  * error paths (no token / GitHub failure are NOT swallowed here, unlike the
- * PR-list route). The response is parsed with a strict schema — the contract
- * `PollResult` does not exist yet; stage b introduces it and swaps it in.
+ * PR-list route). The response is parsed with the strict `PollResult`
+ * contract (added in stage b) — the R3 response-shape test.
  *
  * NOTE (pinned on purpose): a PR first seen by poll is stored with
  * `opened_at = null` even when GitHub sends it. Stage b′ changes this in its
@@ -12,8 +12,7 @@
  */
 import { describe, it, expect, beforeAll, afterAll } from 'vitest';
 import { eq } from 'drizzle-orm';
-import { z } from 'zod';
-import type { RepoRef } from '@devdigest/shared';
+import { PollResult, type RepoRef } from '@devdigest/shared';
 import { startPg, dockerAvailable, type PgFixture } from './helpers/pg.js';
 import { buildApp } from '../src/app.js';
 import { loadConfig } from '../src/platform/config.js';
@@ -25,7 +24,7 @@ const hasDocker = await dockerAvailable();
 const d = hasDocker ? describe : describe.skip;
 
 const config = () => loadConfig({ ...process.env, NODE_ENV: 'test' } as NodeJS.ProcessEnv);
-const PollResponse = z.object({ synced: z.number().int(), reviewTriggered: z.boolean() }).strict();
+const PollResponse = PollResult.strict();
 
 type Db = PgFixture['handle']['db'];
 
@@ -193,6 +192,36 @@ d('POST /repos/:id/poll — characterization (Testcontainers pg)', () => {
     const [repoRow] = await db.select().from(t.repos).where(eq(t.repos.id, repo.id));
     expect(repoRow!.lastPolledAt).toBeNull();
     expect(await db.select().from(t.pullRequests).where(eq(t.pullRequests.repoId, repo.id))).toHaveLength(0);
+    await app.close();
+  });
+
+  // Added in stage b (not a characterization): all upserts + last_polled_at
+  // run in ONE transaction. Before stage b the first PR stayed inserted when a
+  // later insert failed.
+  it('rolls every write back when one upsert fails', async () => {
+    const repo = await makeRepo(db, workspaceId);
+    const ok = {
+      number: 1,
+      title: 'Fine',
+      author: 'a',
+      branch: 'b',
+      base: 'main',
+      head_sha: 's1',
+      additions: 1,
+      deletions: 1,
+      files_count: 1,
+      status: 'open' as const,
+      opened_at: null,
+      updated_at: null,
+    };
+    // pull_requests.title is NOT NULL → the second upsert fails.
+    const bad = { ...ok, number: 2, head_sha: 's2', title: null as unknown as string };
+    const app = await appWith(new MockGitHubClient({ pulls: [ok, bad] }));
+    const res = await app.inject({ method: 'POST', url: `/repos/${repo.id}/poll` });
+    expect(res.statusCode).toBe(500);
+    expect(await db.select().from(t.pullRequests).where(eq(t.pullRequests.repoId, repo.id))).toHaveLength(0);
+    const [repoRow] = await db.select().from(t.repos).where(eq(t.repos.id, repo.id));
+    expect(repoRow!.lastPolledAt).toBeNull();
     await app.close();
   });
 

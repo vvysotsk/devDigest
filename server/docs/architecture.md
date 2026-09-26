@@ -30,7 +30,7 @@ workspace (`src/adapters/auth/local.ts`).
 | `src/platform/resilience.ts` | `withTimeout` / `withRetry` used by adapters, jobs and the indexer. |
 | `src/platform/grounding.ts`, `prompt.ts`, `structured.ts` | Re-export shims over `@devdigest/reviewer-core` for older import paths. |
 | `src/modules/index.ts` | Static module registry (8 plugins). |
-| `src/modules/<name>/` | `routes.ts` (Fastify plugin + zod schemas) → `service.ts` → `repository.ts` (Drizzle). `polling`, `workspace`, `settings` still query Drizzle from the route directly (`pulls` is layered since the onion refactor stage a: `pulls/service.ts` + `pulls/repository.ts`, see `../specs/refactor-onion.md`). |
+| `src/modules/<name>/` | `routes.ts` (Fastify plugin + zod schemas) → `service.ts` → `repository.ts` (Drizzle). `workspace`, `settings` still query Drizzle from the route directly (the thin-module exception). `pulls` (service + repository) and `polling` (service only — it owns no table and writes through `container.pullsRepo` / `container.reposRepo`) are layered since the onion refactor, see `../specs/refactor-onion.md`. |
 | `src/modules/_shared/` | `context.ts` (tenancy), `schemas.ts` (`IdParams`), `run-cost.ts`, `latest-batch.ts` — helpers two modules need without importing each other. |
 | `src/modules/repo-intel/` | Facade `RepoIntel` (`src/modules/repo-intel/types.ts`) + indexer pipeline; see its `README.md`. |
 | `src/adapters/` | Real implementations of the interfaces in `src/vendor/shared/adapters.ts` (llm, github, git, codeindex, astgrep, depgraph, embedder, tokenizer, secrets, auth) and `mocks.ts` for tests. |
@@ -46,8 +46,8 @@ workspace (`src/adapters/auth/local.ts`).
    off when `logLevel === 'silent'`); zod `validatorCompiler` +
    `serializerCompiler` are installed. The validator runs for every route
    schema; the serializer runs only for routes that declare
-   `schema.response` — today only the four `pulls` routes do
-   (`src/modules/pulls/routes.ts`); the rest go out through plain
+   `schema.response` — today the four `pulls` routes and
+   `POST /repos/:id/poll` do (`src/modules/pulls/routes.ts`, `src/modules/polling/routes.ts`); the rest go out through plain
    `JSON.stringify` (see "Architecture decisions").
 3. `new Container(config, db, overrides)` is decorated as `app.container`.
 4. **Before any plugin**, `ReviewService.reapStaleRuns()` is awaited: every
@@ -188,7 +188,9 @@ assumed (the boot reaper would misfire with replicas).
 - **Transactions.** A use case that writes several tables atomically owns
   `db.transaction` in its service; the repository functions take a `DbOrTx`
   executor (`src/db/client.ts`). Today: the PR-detail sync in
-  `PullsService.getDetail` (`src/modules/pulls/service.ts`).
+  `PullsService.getDetail` (`src/modules/pulls/service.ts`) and the PR-list
+  poll in `PollingService.poll` (`src/modules/polling/service.ts`: every upsert
+  plus `last_polled_at`, after the GitHub fetch).
   Schema edits go `src/db/schema/*` → `pnpm db:generate` → `pnpm db:migrate`;
   migration files are never edited.
 - **Tenancy.** `workspace_id` scoping is done per query using the id from

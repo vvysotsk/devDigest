@@ -26,7 +26,7 @@ Cross-module access ONLY through the DI container (`container.agentsRepo`,
 
 - zod type-provider validates every request schema; it serializes a response
   ONLY when the route declares `schema.response` (so far only the `pulls`
-  routes do — plain `JSON.stringify` otherwise). New and changed routes declare one
+  and `polling` routes do — plain `JSON.stringify` otherwise). New and changed routes declare one
   plus a response-shape test (`onion-architecture` skill, R3). Errors use the
   envelope `{ error: { code, message, details } }`.
 - Tests swap dependencies via ContainerOverrides; services never construct

@@ -264,6 +264,15 @@ export const PrCommentInput = z.object({
 });
 export type PrCommentInput = z.infer<typeof PrCommentInput>;
 
+/** Response of POST /repos/:id/poll — a manual PR-list sync; never triggers a review. */
+export const PollResult = z.object({
+  /** PRs returned by GitHub and upserted. */
+  synced: z.number().int(),
+  /** Always false: reviews are started manually. */
+  reviewTriggered: z.boolean(),
+});
+export type PollResult = z.infer<typeof PollResult>;
+
 // ---- Project Context ----
 export const SpecFile = z.object({
   path: z.string(),

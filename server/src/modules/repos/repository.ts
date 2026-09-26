@@ -1,5 +1,5 @@
 import { and, eq } from 'drizzle-orm';
-import type { Db } from '../../db/client.js';
+import type { Db, DbOrTx } from '../../db/client.js';
 import * as t from '../../db/schema.js';
 
 /**
@@ -99,6 +99,11 @@ export class RepoRepository {
       .update(t.repos)
       .set({ clonePath, lastPolledAt: new Date() })
       .where(eq(t.repos.id, repoId));
+  }
+
+  /** Stamp `last_polled_at` (manual PR-list poll); runs inside the caller's transaction. */
+  async markPolled(exec: DbOrTx, repoId: string): Promise<void> {
+    await exec.update(t.repos).set({ lastPolledAt: new Date() }).where(eq(t.repos.id, repoId));
   }
 
   async remove(workspaceId: string, id: string): Promise<boolean> {
