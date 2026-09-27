@@ -280,6 +280,17 @@ when" condition appears.
   writes after a run and their done → trace order
   (`src/modules/reviews/run-executor.ts`). Revisit the leak when a second
   module needs to change `last_reviewed_sha`.
+- 2026-09-27 — `agent_runs.cost_usd` stays `double precision`
+  (`src/db/schema/runs.ts:22`, migration
+  `src/db/migrations/0010_chubby_psylocke.sql:1`), although
+  `postgresql-table-design` asks for `NUMERIC` for money (pr-self-review
+  WARNING on `runs.ts:22`). The value is an estimate of LLM spend for display
+  (token counts × PriceBook prices, summed per PR in
+  `src/modules/_shared/run-cost.ts`), not an accounting record; float
+  rounding at that scale does not change what the UI shows. Moving to
+  `NUMERIC` needs a separate decision and a new migration (0010 is applied
+  and never edited), plus string ↔ number mapping in the repositories.
+  Revisit when costs are billed, reconciled or exported for accounting.
 
 ## Open questions
 
