@@ -36,7 +36,11 @@ browser.
 
 Path aliases (`tsconfig.json:22-28`): `@/*` → `src/*`, `@devdigest/shared` →
 `src/vendor/shared/index.ts`, `@devdigest/ui` → `src/vendor/ui/index.ts`.
-`vitest.config.ts` repeats the same three aliases.
+`vitest.config.ts` repeats the same three aliases. `next.config.mjs` maps `.js`
+import specifiers to `.ts` / `.tsx` (webpack `resolve.extensionAlias`) because
+`src/vendor/shared` re-exports with `.js` specifiers; without it any RUNTIME
+import from `@devdigest/shared` (a zod schema, an enum, a constant) fails the
+Next build, while type-only imports and vitest are unaffected.
 
 ## Data flow — rendering the PR list
 

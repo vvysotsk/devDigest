@@ -108,6 +108,17 @@ Never rewrite existing entries — correct with a dated note.
 
 ## Recurring Errors & Fixes
 
+- 2026-09-27: Next.js (webpack) failed with `Module not found: Can't resolve
+  './contracts/findings.js'` in `src/vendor/shared/index.ts` as soon as a page
+  imported a runtime VALUE from `@devdigest/shared` (L02 skills:
+  `SkillErrorCode`, `SkillName`, `SkillType`, `SKILL_IMPORT_MAX_BYTES`). Every
+  earlier import was type-only (erased), and vitest resolves `.js` → `.ts` by
+  itself, so typecheck + all unit tests stayed green; only the e2e run (Next
+  dev) caught it. Fix: `resolve.extensionAlias` in `next.config.mjs`. After
+  adding a runtime import from the shared contracts, run `pnpm build` or the
+  e2e suite (evidence: `next.config.mjs:11-21`,
+  `src/app/skills/helpers.ts:2`; `../e2e/test-results/08-skills-fail.snapshot.txt`).
+
 - 2026-09-27: `findByRole("status")` fails with "multiple elements" once a
   success toast is on screen — `ToastProvider` renders `role="status"` too.
   Query an inline status note by its text (evidence: `src/lib/toast.tsx:90`;
