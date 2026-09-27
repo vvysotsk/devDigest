@@ -54,3 +54,73 @@ export function pairsFromJournal(pairs, journal, revBySkill, blobByPath) {
   const done = checkedKeys(journal);
   return pairs.filter((p) => done.has(checkKey(p.skill, revBySkill[p.skill], p.path, blobByPath(p.path))));
 }
+
+// ---------- finding identity (plan.md D13) ----------
+//
+// A checker words the same rule differently from run to run ("R3 — response
+// schema + shape test" vs "R3"), so the raw `rule` is never hashed. `ruleKey`
+// reduces it to the rule's id or its heading; the finding id and the
+// dismissal match are built from that key.
+
+const RULE_ID = String.raw`(?:r\d+|a\d\d|check \d+|§ ?\d+(?:\.\d+)*)`;
+const RULE_SEP = String.raw`\s*[/,&+]\s*`;
+const ONLY_IDS = new RegExp(`^${RULE_ID}(?:${RULE_SEP}${RULE_ID})*$`);
+const LEADING_ID = new RegExp(`^${RULE_ID}(?![a-z0-9])`);
+const ID_PRIORITY = [/^r\d+$/, /^a\d\d$/, /^check \d+$/, /^§/];
+
+/**
+ * Stable key of a rule as a checker named it:
+ *   - head = text before the first " — " (" - ", " – ", " -- " count too),
+ *     lowercased, `(…)` groups removed;
+ *   - head made only of ids ("check 5 / R5") → the id by priority R > A > check > §;
+ *   - head starting with an id ("R3", "check 7: …", "A05 Injection") → that id;
+ *   - otherwise the head up to the first ":".
+ */
+export function ruleKey(rule) {
+  const s = String(rule ?? '')
+    .toLowerCase()
+    .replace(/\s+/g, ' ')
+    .trim()
+    .replace(/ (?:–|-|—|--) /g, ' — ');
+  const head = s.split(' — ')[0].replace(/\([^)]*\)?/g, ' ').replace(/\s+/g, ' ').trim();
+  const tidy = (id) => id.replace(/^§ /, '§');
+  if (ONLY_IDS.test(head)) {
+    const ids = head.split(new RegExp(RULE_SEP)).map(tidy);
+    for (const re of ID_PRIORITY) {
+      const hit = ids.find((id) => re.test(id));
+      if (hit) return hit;
+    }
+  }
+  const lead = head.match(LEADING_ID);
+  if (lead) return tidy(lead[0]);
+  return head.split(':')[0].trim();
+}
+
+/** Content key of a finding: the same issue on the same line text, whatever the wording. */
+export function contentKey(skill, rule_key, path, line_hash) {
+  return `${skill}|${rule_key}|${path}|${line_hash}`;
+}
+
+/**
+ * Stable id of a finding record (old or new format: both store skill, rule,
+ * path and line_hash). The stored `id` of an old record may differ; check
+ * records keep referencing that stored id.
+ */
+export function stableFindingId(f) {
+  const key = contentKey(f.skill, f.rule_key ?? ruleKey(f.rule), f.path, f.line_hash);
+  return crypto.createHash('sha1').update(key).digest('hex').slice(0, 8);
+}
+
+/**
+ * What a dismissal record dismisses: `{ key, blob }`.
+ *   - new format (skill, rule_key, path, line_hash) → read directly;
+ *   - old format (finding_id, blob, line_hash only) → resolved through the
+ *     journal finding record with that stored id (`findingById`);
+ * `null` when an old dismissal's finding record is missing.
+ */
+export function dismissalKeyOf(d, findingById) {
+  if (d.skill && d.rule_key && d.path) return { key: contentKey(d.skill, d.rule_key, d.path, d.line_hash), blob: d.blob };
+  const f = findingById.get(d.finding_id);
+  if (!f) return null;
+  return { key: contentKey(f.skill, f.rule_key ?? ruleKey(f.rule), f.path, d.line_hash ?? f.line_hash), blob: d.blob };
+}

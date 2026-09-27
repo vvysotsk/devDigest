@@ -56,8 +56,10 @@ why a second run after a small fix checks only what changed.
 
 **Accepting a finding.** Only a person can dismiss a skill finding, with
 `node .claude/skills/pr-self-review/scripts/self-review.mjs dismiss <id> --reason "<why>"`.
-The dismissal holds only while the file content stays the same. After the
-file changes, a dismissed CRITICAL blocks again. Mechanical findings cannot
+The dismissal holds only while the file content stays the same. It matches
+the finding by content (skill, rule id or heading, path, line), so a re-check
+that words the rule differently keeps it. After the file changes, a
+dismissed CRITICAL blocks again. Mechanical findings cannot
 be dismissed. You must fix them.
 
 **Known limit.** A finding on a file is not re-checked when only a
@@ -76,12 +78,12 @@ Files:
   (run it after changing either script).
 - `../../agents/skill-checker.md` — read-only checker agent type (loaded at
   session start; the skill falls back to `general-purpose`).
-- `references/plan.md` — design, options and decisions D1–D12;
+- `references/plan.md` — design, options and decisions D1–D13;
   `references/sources.md` — every source.
 
 ## Version
 
-**2.0.1** — see `metadata.version` in `SKILL.md` and the row in
+**2.1.0** — see `metadata.version` in `SKILL.md` and the row in
 `.claude/skills/README.md`.
 
 When you change `SKILL.md`, `checker.md` or the script, bump the version
@@ -89,10 +91,19 @@ and add a Changelog line:
 - **patch** — wording, report layout, estimator constants;
 - **minor** — a new guard, mechanical check or report section;
 - **major** — the CRITICAL list, the "checked" definition (journal key) or a
-  decision D1–D12 changes.
+  decision D1–D13 changes.
 
 ## Changelog
 
+- **2.1.0 — 2026-09-27** — stable finding ids (plan.md D13): the id is
+  sha1 of skill | `ruleKey(rule)` | path | line hash, where `ruleKey` keeps
+  only the rule's id (`R3`, `check 7`, `A05`, `§12`) or its heading, so a
+  re-check that words the rule differently keeps the id; findings with the
+  same id in one file are merged. Dismissals match by content (skill, rule
+  key, path, line hash) per blob; old dismissal records resolve through
+  their finding record, and `dismiss` accepts old ids. `checker.md` asks for
+  the rule id or heading alone. Helpers and tests in
+  `scripts/journal-keys.{mjs,test.mjs}`.
 - **2.0.1 — 2026-09-27** — procedure only, no rule or key changes: SKILL.md
   "A fix that lands in another file" — re-run the skill with
   `plan --full --skills <skill>` instead of dismissing; plan.md §12 resolved

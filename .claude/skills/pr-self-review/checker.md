@@ -15,10 +15,16 @@ when a rule needs more.
    (`added_lines`). Read the whole file or its neighbours when a rule needs
    context (imports, folder placement, the route's test). Existing code on
    unchanged lines is out of scope even if it breaks a rule.
-4. Report only violations of a rule the skill actually states. Name the
-   rule by its id or heading (`R4`, `check 7`, `Component Design`). No rule
+4. Report only violations of a rule the skill actually states. No rule
    → no finding. Anything the skill calls a "signal", "consider" or a
-   threshold is at most `SUGGESTION`.
+   threshold is at most `SUGGESTION`. The `rule` field is the rule's name
+   ONLY, so the same finding keeps its id when checked again:
+   - the id alone when the skill numbers its rules: `R3`, `check 7`, `A05`.
+     When a rule has both (onion: `R3` / `check 2`), use `R<n>`;
+   - otherwise the exact section heading from the skill's SKILL.md:
+     `Component Design`, `Review signals`, `Map`.
+   The specific sub-rule (a signal name, a Map row) and the reasoning go in
+   `title` and `explanation`, never in `rule`.
 5. Severity:
    - `CRITICAL` — only (a) a must/never rule of a skill marked blocking
      (frontend-architecture, onion-architecture), (b) `security` at HIGH
@@ -40,7 +46,7 @@ when a rule needs more.
   "rules_applied": ["R2", "R3", "check 7"],
   "findings": [{
     "severity": "WARNING",
-    "rule": "R3 — response schema + shape test",
+    "rule": "R3",
     "path": "server/src/modules/pulls/routes.ts",
     "start_line": 88, "end_line": 88,
     "evidence": "app.get('/pulls/:id/meta', async (req) => {",

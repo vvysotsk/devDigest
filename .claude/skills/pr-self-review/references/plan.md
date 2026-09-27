@@ -1,6 +1,6 @@
 # pr-self-review — skill plan
 
-Status: implemented as `SKILL.md` v1.0.0 on 2026-09-26; decisions D1–D12 are in §11 ("Decided" column). This file keeps the reasoning. Sources: `sources.md`
+Status: implemented as `SKILL.md` v1.0.0 on 2026-09-26; decisions D1–D12 are in §11 ("Decided" column); D13 (finding identity) was added on 2026-09-27 with 2.1.0. This file keeps the reasoning. Sources: `sources.md`
 (ids C = Claude Code docs, R = review practice, L = local evidence).
 
 Settled (not revisited here): (1) the skill itself blocks — on an open
@@ -116,12 +116,16 @@ clone. (Alternative in D4.)
 |---|---|---|
 | `check` | `skill`, `skill_rev` (hash of the skill's `SKILL.md`), `path`, `blob`, `base`, `head`, `at`, `result: clean \| findings`, `finding_ids[]` | a checker subagent returned for this pair |
 | `mech` | `package`, `command`, `fingerprint` (sha1 of sorted `path:blob` of every changed file in the package and its dependents), `result: pass \| fail`, `summary`, `at` | a typecheck/test command ran |
-| `finding` | `id`, `severity`, `skill`, `rule`, `path`, `start_line`, `end_line`, `line_hash`, `blob`, `title`, `at` | a grounded finding was kept |
-| `dismissal` | `finding_id`, `blob`, `line_hash`, `reason`, `by` (git `user.name`), `at` | the user dismissed a finding |
+| `finding` | `id`, `severity`, `skill`, `rule` (raw, for display), `rule_key` (since 2.1.0), `path`, `start_line`, `end_line`, `line_hash`, `blob`, `title`, `at` | a grounded finding was kept |
+| `dismissal` | `finding_id`, `skill`, `rule_key`, `path` (the last three since 2.1.0), `blob`, `line_hash`, `reason`, `by` (git `user.name`), `at` | the user dismissed a finding |
 | `run` | `base`, `head`, `tree` (`git write-tree` of index or hash of all blobs), `verdict: pass \| blocked`, `counts`, `at` | end of every run |
 
-`finding.id = sha1(skill | rule | path | normalized line text)` — stable when
-the line moves, changes when the line text changes.
+`finding.id = sha1(skill | ruleKey(rule) | path | line_hash)` (since 2.1.0,
+D13; before: the raw `rule` and the line text) — stable when the line moves
+or the checker words the rule differently, changes when the line text
+changes. `ruleKey` and the id are computed from any `finding` record, so
+records written before 2.1.0 get the same stable id in the report; `check`
+records keep referencing the id stored at the time.
 
 **A pair is checked** iff a `check` record exists with the same `skill`,
 `skill_rev`, `path` and `blob`. Consequences:
@@ -301,8 +305,11 @@ returned at all); `confidence: medium` from any source other than §4.
   disprove it (read the line, the rule, the surrounding code). Not disproved
   → stays CRITICAL; disproved → downgraded to WARNING with the reason shown.
 - **Dismissal**: the user says `dismiss <id>: <reason>`. Recorded as a
-  `dismissal` with `blob` and `line_hash`. It suppresses the finding while
-  `finding_id` and `blob` both match (same line, same file content).
+  `dismissal` with `skill`, `rule_key`, `path`, `line_hash` and `blob`. It
+  suppresses the finding while its content key (skill | rule key | path |
+  line hash) and `blob` both match (same rule, same line, same file content)
+  — D13. An old record with only `finding_id` resolves through the finding
+  record with that id.
   If the file changed but the same line text still exists, the finding
   returns marked "previously dismissed: <reason>" (D12 decides whether it
   blocks). Dismissals are allowed for skill findings only; §4 failures are
@@ -399,6 +406,7 @@ the rest reported as "not checked", (c) split the PR. Concurrency cap 6
 | D10 | Large-diff threshold | batches > 12 / > 600k tokens | as proposed; tune after first real runs → **as proposed** |
 | D11 | e2e has no checker skill | (a) accept (typecheck + flow contract); (b) write an e2e-flows skill later | (a) now, listed as a gap → **(a)**, the e2e gap is shown in every report |
 | D12 | Dismissal after the file changed but the line is the same | (a) re-blocks (strict, as specified); (b) shown as "previously dismissed", non-blocking | (a) strict for CRITICAL, (b) for WARNING → **as proposed** |
+| D13 | Finding identity (added 2026-09-27, 2.1.0) | (a) hash the raw `rule` from the checker (as before); (b) hash a normalized rule key; (c) keep (a) and fuzzy-match dismissals | (b) → **(b)**: `ruleKey` = the rule id when the head (text before " — ", `(…)` removed) starts with one or is only ids (priority R > A > check > §), else the head up to ":"; id = sha1(skill \| rule key \| path \| line hash); dismissals match by that content per blob; old records resolve through their finding record. Why: re-checks are routine (`--full --skills`, minor bumps) and a checker words the same rule differently per run, which gave new ids — dismissed findings came back and one issue showed twice (journal: `b4faee06` / `1a435fbc`, same line of `FindingsHoverCard.tsx`). Residual risks: onion `check N` vs `R<n>` wording still gives two keys (only `checker.md`, "prefer `R<n>`", mitigates it); a head-level key merges two rules under one heading on the same line, so dismissing one hides the other; citing another line of a range still changes `line_hash` (unchanged) |
 
 ## 12. Open questions
 

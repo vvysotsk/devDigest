@@ -17,6 +17,19 @@ Never rewrite existing entries — correct with a dated note.
 
 ## What Doesn't Work
 
+- 2026-09-27: Hashing text copied verbatim from an LLM reply does not give a
+  stable id. pr-self-review hashed the checker's `rule` string into the
+  finding id, and checkers word the same rule differently per run ("R3 —
+  response schema + shape test" vs "… for every new or changed route (check
+  2)"), so a re-check produced new ids: dismissals (matched by id) stopped
+  applying and one issue showed twice (journal: `b4faee06` / `1a435fbc`).
+  Normalize LLM-provided fields to a key before hashing (`ruleKey`), hash
+  fields the script computed itself (`line_hash`), and tell the model the
+  exact form to emit (evidence:
+  `.claude/skills/pr-self-review/scripts/self-review.mjs:763`,
+  `.claude/skills/pr-self-review/scripts/journal-keys.mjs` `ruleKey`,
+  `.claude/skills/pr-self-review/checker.md:49`).
+
 ## Codebase Patterns
 
 ## Tool & Library Notes

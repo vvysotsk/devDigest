@@ -16,7 +16,7 @@ import fs from 'node:fs';
 import os from 'node:os';
 import path from 'node:path';
 import crypto from 'node:crypto';
-import { skillRev, checkKey, pairsFromJournal } from './journal-keys.mjs';
+import { skillRev, checkKey, pairsFromJournal, ruleKey, contentKey, stableFindingId, dismissalKeyOf } from './journal-keys.mjs';
 
 // ---------- basics ----------
 
@@ -80,6 +80,10 @@ function compactJournal() {
   const recs = readJournal();
   const keep = new Map();
   const cutoff = Date.now() - 90 * 864e5;
+  // Only dismissals age out (90 days). Finding records are never dropped by age — only a
+  // duplicate of the same id + blob is replaced — because old-format dismissals (finding_id
+  // only) resolve through the finding record with that stored id (D13). An age cutoff for
+  // findings would need a "still referenced by a kept dismissal" exception.
   const keyOf = (r) =>
     r.kind === 'check' ? `c|${checkKey(r.skill, r.skill_rev, r.path, r.blob)}`
     : r.kind === 'mech' ? `m|${r.package}|${r.command}|${r.fingerprint}`
@@ -713,7 +717,7 @@ function cmdGround(a) {
       records.push({ kind: 'check', skill: b.skill, skill_rev: skills[b.skill]?.rev || b.skill_rev, path: p, blob: file.blob, base: base.mb, head: base.head, result: list.length ? 'findings' : 'clean', finding_ids: list.map((x) => x.id), rules_applied: rules });
       for (const x of list) {
         kept.push(x);
-        records.push({ kind: 'finding', id: x.id, severity: x.severity, skill: x.skill, rule: x.rule, path: x.path, start_line: x.start_line, end_line: x.end_line, line_hash: x.line_hash, blob: file.blob, title: x.title, explanation: x.explanation || '', fix: x.fix || '' });
+        records.push({ kind: 'finding', id: x.id, severity: x.severity, skill: x.skill, rule: x.rule, rule_key: x.rule_key, path: x.path, start_line: x.start_line, end_line: x.end_line, line_hash: x.line_hash, blob: file.blob, title: x.title, explanation: x.explanation || '', fix: x.fix || '' });
       }
     }
   }
@@ -753,8 +757,19 @@ function groundOne(f, skill, byPath, perFile) {
       return anyAdded ? 'evidence not found on the cited added lines' : `lines ${s}-${e} do not intersect any added line in '${f.path}'`;
     }
   }
-  const id = sha1(`${skill}|${f.rule}|${f.path}|${lineText}`).slice(0, 8);
-  perFile.get(f.path).push({ ...f, skill, start_line: s, end_line: e, id, line_hash: sha1(lineText).slice(0, 12) });
+  // The id never hashes the raw `rule` (a checker words it differently per run) — D13.
+  const line_hash = sha1(lineText).slice(0, 12);
+  const rule_key = ruleKey(f.rule);
+  const id = stableFindingId({ skill, rule_key, path: f.path, line_hash });
+  const list = perFile.get(f.path);
+  const dup = list.find((x) => x.id === id);
+  if (dup) {
+    // Same rule key on the same line text: one finding, higher severity, both titles.
+    if (SEVS.indexOf(f.severity) < SEVS.indexOf(dup.severity)) dup.severity = f.severity;
+    if (f.title && !String(dup.title).split(' / ').includes(f.title)) dup.title = `${dup.title} / ${f.title}`;
+    return null;
+  }
+  list.push({ ...f, skill, start_line: s, end_line: e, id, rule_key, line_hash });
   return null;
 }
 
@@ -803,16 +818,42 @@ function cmdReport(a) {
       }
     }
   }
+  // Dismissals match by content (D13): skill | rule key | path | line hash, per blob (D12).
+  // Old-format records (finding_id only) resolve through the finding record with that stored id.
+  const findingById = new Map();
+  for (const r of journal) if (r.kind === 'finding') findingById.set(r.id, r);
+  const dismissalKeys = [];
+  const unresolved = [];
+  for (const d of dismissals) {
+    const k = dismissalKeyOf(d, findingById);
+    if (k) dismissalKeys.push({ ...k, d });
+    else unresolved.push(d.finding_id);
+  }
+  // One entry per stable id and file: a re-check that worded the rule differently, or two
+  // findings under one heading on one line, collapse into one (higher severity, both titles).
+  const byStable = new Map();
   for (const f0 of skillFindings) {
-    const f = { ...f0, source: 'skill', dismissible: true };
-    const v = vmap.get(f.id);
+    const id = stableFindingId(f0);
+    const k = `${id}|${f0.path}`;
+    const prev = byStable.get(k);
+    if (!prev) {
+      byStable.set(k, { ...f0, stored_id: f0.id, id });
+      continue;
+    }
+    if (SEVS.indexOf(f0.severity) < SEVS.indexOf(prev.severity)) prev.severity = f0.severity;
+    if (f0.title && !String(prev.title).split(' / ').includes(f0.title)) prev.title = `${prev.title} / ${f0.title}`;
+  }
+  for (const f1 of byStable.values()) {
+    const f = { ...f1, source: 'skill', dismissible: true };
+    const v = vmap.get(f.id) || vmap.get(f.stored_id);
     if (f.severity === 'CRITICAL' && v?.verdict === 'disproved') {
       f.severity = 'WARNING';
       f.note = `downgraded by verify: ${v.reason}`;
     }
     const blob = scopeBlob.get(f.path);
-    const exact = dismissals.find((d) => d.finding_id === f.id && d.blob === blob);
-    const earlier = dismissals.find((d) => d.finding_id === f.id && d.blob !== blob);
+    const key = contentKey(f.skill, f.rule_key ?? ruleKey(f.rule), f.path, f.line_hash);
+    const exact = dismissalKeys.find((x) => x.key === key && x.blob === blob)?.d;
+    const earlier = dismissalKeys.find((x) => x.key === key && x.blob !== blob)?.d;
     if (exact) {
       dismissedList.push({ ...f, reason: exact.reason, by: exact.by });
       continue;
@@ -835,6 +876,7 @@ function cmdReport(a) {
   L.push(`Checks: ${plan.skills.active.length} skill(s) · ${plan.pairs.total} pairs · ${plan.pairs.from_journal} from journal · ${plan.pairs.todo} run now (${plan.pairs.likely_checked} likely checked in transcripts)${plan.pairs.skipped_by_mode ? ` · ${plan.pairs.skipped_by_mode} not checked in this mode` : ''}`);
   L.push(`Mechanical: ${plan.commands.map((c) => `${c.package} ${c.label} ${statusOf(journal, c)}`).join(' · ') || 'no package code changed'} · guards ${plan.guards.filter((x) => x.severity === 'CRITICAL').length ? '✗' : '✓'}`);
   L.push(`Findings: ${counts.CRITICAL} CRITICAL · ${counts.WARNING} WARNING · ${counts.SUGGESTION} SUGGESTION · ${dismissedList.length} dismissed · ${g.dropped.length} dropped by grounding`);
+  if (unresolved.length) L.push(`Note: ${unresolved.length} old dismissal(s) have no finding record in the journal and match nothing: ${unresolved.join(', ')}`);
   L.push(`Not routed: ${plan.skills.not_routed.join(', ') || '—'}`);
   L.push(`Not covered by any skill: ${plan.uncovered.code.length} code file(s)${plan.uncovered.code.length ? ' (' + plan.uncovered.code.slice(0, 8).join(', ') + (plan.uncovered.code.length > 8 ? ', …' : '') + ')' : ''}, ${plan.uncovered.markdown} Markdown${plan.uncovered.e2e_gap ? ' · e2e/: no checker skill (D11)' : ''}`);
   for (const sev of SEVS) {
@@ -880,12 +922,17 @@ function cmdDismiss(a) {
   const id = a._[1];
   if (!id || typeof a.reason !== 'string' || !a.reason.trim()) throw new Error('usage: dismiss <finding-id> --reason "<why>"');
   if (id.startsWith('m-')) throw new Error('mechanical findings cannot be dismissed (D2): fix them');
-  const f = [...readJournal()].reverse().find((r) => r.kind === 'finding' && r.id === id);
+  // Accept the id a report shows (stable, D13) or an id stored by an older version.
+  const f = [...readJournal()].reverse().find((r) => r.kind === 'finding' && (r.id === id || stableFindingId(r) === id));
   if (!f) throw new Error(`finding ${id} not found in the journal`);
   const blob = fs.existsSync(f.path) ? git(['hash-object', '--', f.path]).trim() : null;
   const by = (tryGit(['config', 'user.name']) || 'unknown').trim();
-  append([{ kind: 'dismissal', finding_id: id, blob, line_hash: f.line_hash, severity: f.severity, reason: a.reason.trim(), by }]);
-  console.log(`dismissed ${id} (${f.severity} ${f.skill} ${f.path}:${f.start_line}) for blob ${blob?.slice(0, 7)}`);
+  const stable = stableFindingId(f);
+  append([{
+    kind: 'dismissal', finding_id: stable, skill: f.skill, rule_key: f.rule_key ?? ruleKey(f.rule), path: f.path,
+    blob, line_hash: f.line_hash, severity: f.severity, reason: a.reason.trim(), by,
+  }]);
+  console.log(`dismissed ${stable} (${f.severity} ${f.skill} ${f.path}:${f.start_line}) for blob ${blob?.slice(0, 7)}`);
 }
 
 // ---------- main ----------

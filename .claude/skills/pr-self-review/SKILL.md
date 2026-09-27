@@ -3,7 +3,7 @@ name: pr-self-review
 description: "Self-review gate before a pull request. Use BEFORE running gh pr create or pushing a branch for review, and when the user says /pr-self-review, self-review, 'check before PR' or 'ready for PR?'. Routes every changed file to the skills whose metadata.applies_to matches it, re-checks only what the journal has not seen at the current content, runs typecheck/tests of touched packages and the Do-not-touch guards, and refuses to create the PR while any CRITICAL finding is open."
 argument-hint: "[--mode full|blocking] [--skills a,b] [--full] [--base <ref>]"
 metadata:
-  version: 2.0.1
+  version: 2.1.0
 ---
 
 # PR self-review
@@ -195,6 +195,12 @@ never dismiss on your own.
 ```
 node $S dismiss <id> --reason "<why this is not a problem here>"
 ```
+
+A finding's id is stable across re-checks: it is built from the skill, the
+rule's id or heading (not the checker's wording of it), the path and the
+cited line's text. A dismissal matches the finding by that content, so a
+`--full` re-check or a skill bump that words the rule differently does not
+bring it back. `dismiss` also accepts an id printed by an older version.
 
 The dismissal holds while the file content (blob) is unchanged. After the
 file changes, a finding with the same id comes back as "previously
