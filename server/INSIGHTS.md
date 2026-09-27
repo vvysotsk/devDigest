@@ -13,6 +13,15 @@ Never rewrite existing entries — correct with a dated note.
 
 ## What Doesn't Work
 
+- 2026-09-27: Updating `specs/review-flow.md` only for the sections a change
+  "touches" lets its `path:line` evidence rot: after the onion stages a–e,
+  63 of ~135 references were off by 1–10 lines (new imports / types at the
+  top of `run-executor.ts`, `reviews/service.ts`, `container.ts`, new tests
+  in `test/reviews.it.test.ts`), though no claim was wrong. Any edit that
+  adds or removes lines above cited code shifts every later reference: after
+  such an edit, re-check all references into that file (a read-only agent
+  pass took ~2.5 min) and bump the "Last verified" line
+  (evidence: `specs/review-flow.md:3`).
 - 2026-09-27: An it-test that calls a route touching GitHub without
   `overrides.github` is machine-dependent: `container.github()` then reads a
   real token from `~/.devdigest/secrets.json` / `GITHUB_TOKEN` and calls the

@@ -2,7 +2,7 @@
 name: onion-architecture
 description: "Where backend code lives in server/ and reviewer-core/ and which way imports may point (onion / ports and adapters). Use when adding or changing a route, service, repository, adapter, job or port, moving code between modules, touching reviewer-core's public API, or deciding whether a use case needs a transaction, a port, a response schema or a separate type."
 metadata:
-  version: 1.1.0
+  version: 1.1.1
   applies_to: "server/src/**, reviewer-core/src/**, server/.dependency-cruiser.cjs, !**/*.test.ts, !**/*.it.test.ts"
   blocking: "true"
 ---
@@ -75,10 +75,9 @@ packages (and the client copy) consume. Its mirroring rule lives in
   logic.
 - **Thin-module exception:** a module may query Drizzle from its routes only
   for its own tables plus read-only access to another module's tables.
-  Qualifying today: `settings`, `workspace`. `pulls` and `polling` do NOT
-  qualify; their trigger has fired and the refactor is deferred (see
-  `server/docs/architecture.md` "Architecture decisions"). New routes in
-  those two modules go through a service.
+  Qualifying today: `settings`, `workspace`. `pulls` and `polling` are
+  layered (route → service → repository) since the onion refactor
+  (`specs/refactor-onion.md`); they do not use the exception.
 
 ### R3 — Response schema + shape test for every new or changed route
 - Declare `schema.response` with the contract, e.g.
@@ -100,8 +99,10 @@ packages (and the client copy) consume. Its mirroring rule lives in
   involved take an executor parameter typed `Db | Tx`
   (`type Tx = Parameters<Parameters<Db['transaction']>[0]>[0]`).
 - No unit-of-work class, no AsyncLocalStorage transaction context.
-- Introduced only by the transaction trigger. First candidate: the `pulls`
-  sync delete→insert (`server/src/modules/pulls/routes.ts:251-285`).
+- Introduced only by the transaction trigger. Done for the `pulls` detail
+  sync and the `polling` upserts (`PullsService`, `PollingService`). Next
+  candidate: the five writes of `ReviewRunExecutor` after a run
+  (`server/src/modules/reviews/run-executor.ts`), not decided.
 - Map PG error codes (`23505` …) to `AppError` subclasses inside the
   repository.
 
@@ -180,14 +181,14 @@ violation on purpose goes through a trigger and an "Architecture decisions"
 entry first, never through `deps:baseline` alone.
 
 **Known violations** (the baseline file is the source of truth; this is the
-explanation, 18 entries on 2026-09-26) — do not fix in passing:
-- `no-module-to-adapter` ×8: `reviews/diff-loader.ts` → `adapters/git/diff-parser`;
-  `repo-intel` service and pipeline → `adapters/{codeindex/extract,astgrep,tokenizer}`.
-- `no-drizzle-outside-persistence` ×9: row/schema types in `reviews/{service,run-executor,diff-loader}.ts`,
-  `repos/helpers.ts`; Drizzle in `pulls/routes.ts`, `polling/routes.ts`.
-- `no-cross-module` ×1: `repos/service.ts` → `repo-intel/constants.ts`.
+explanation, 1 entry on 2026-09-27, down from 18 after `specs/refactor-onion.md`)
+— do not fix in passing:
+- `no-drizzle-outside-persistence` ×1: `repos/helpers.ts` imports the `repos`
+  row type for `toRepoDto` (R1 "fix when touched"; the `repos` module was
+  out of the refactor's scope).
 - Not covered by rules: `repo-intel` reads clones with `node:fs`
-  (`modules/repo-intel/service.ts:29`, `pipeline/{full,incremental,walk}.ts`).
+  (`modules/repo-intel/service.ts`, `pipeline/{full,incremental,walk}.ts`;
+  trigger "Port for clone file access" not fired).
 
 `no-circular` reports runtime cycles only (`viaOnly.dependencyTypesNot:
 ['type-only']`): a cycle with any `import type` edge is erased at compile
@@ -232,8 +233,8 @@ report instead.
 
 | Trigger | Fires when | Change |
 |---|---|---|
-| Transaction for a use case | A use case writes ≥2 tables whose partial state is visible or breaks an invariant, or a bug traces to a partial write. First candidate: `pulls` sync. | R4: `db.transaction` in the service, `Db | Tx` executor on the involved repository functions. |
-| Thin module → layered | A thin module writes to another module's tables, grows past ~150 lines of data code, or its logic is needed outside HTTP. Fired for `pulls`, `polling`. | Extract `service.ts` + `repository.ts` for that module. |
+| Transaction for a use case | A use case writes ≥2 tables whose partial state is visible or breaks an invariant, or a bug traces to a partial write. Fired and done for the `pulls` sync and `polling`; next candidate: the executor's five writes. | R4: `db.transaction` in the service, `Db | Tx` executor on the involved repository functions. |
+| Thin module → layered | A thin module writes to another module's tables, grows past ~150 lines of data code, or its logic is needed outside HTTP. Fired and done for `pulls`, `polling`. | Extract `service.ts` + `repository.ts` for that module. |
 | Separate domain types | A contract change for the client forces changes in service logic that does not care, or a service needs invariants the wire DTO cannot express. | Application types for that aggregate only, mapped in the repository and at the route. |
 | Durable queue | Runs or jobs must survive a restart, or a second API instance per database is planned. | A `JobQueue` port with a Postgres-backed adapter (pg-boss). |
 | OpenRouter adapter out of the core | reviewer-core gets a consumer that must not ship the OpenAI SDK, or a second provider is added to the core. | Move `OpenRouterProvider` to `server/src/adapters/llm/` and a runner-side adapter. |

@@ -161,7 +161,7 @@ the registered handler under `withTimeout` + `withRetry`, updating
 
 Review runs are **not** jobs: `ReviewService.runReview` starts
 `executeRuns()` as an un-awaited promise in the request process
-(`src/modules/reviews/service.ts:153`). One API instance per database is
+(`src/modules/reviews/service.ts:157`). One API instance per database is
 assumed (the boot reaper would misfire with replicas).
 
 ## Boundaries & dependencies
@@ -261,6 +261,24 @@ when" condition appears.
   baseline. Also recorded, not fixed: the reviews module writes
   `pull_requests` (`src/modules/reviews/repository/pull.repo.ts:40`
   `markReviewed`) and reads `pr_files`/`repos` — a table-ownership leak.
+- 2026-09-27 — Done: the onion refactor of `../specs/refactor-onion.md`
+  (stages T, a, b, b′, c, d, e) is complete on `lesson-2`. `pulls` and
+  `polling` are layered; the `pulls` detail sync and the `polling` upserts run
+  in one `db.transaction` each (`Db | Tx` executors in `PullsRepository` /
+  `RepoRepository`); the reviews service and executor see no Drizzle rows;
+  pure helpers moved inward (`src/modules/_shared/{diff-parser,job-kinds}.ts`,
+  `src/modules/repo-intel/extract.ts`); repo-intel owns its ports
+  `CodeParser` / `Tokenizer` / `DepGraph` (`src/modules/repo-intel/types.ts`);
+  one `RepoIntelService` per container (`container.repoIntelService`), and
+  `RepoIntelService`, the index pipelines and `ReviewService` take
+  `Pick<Container, …>`. The dependency-cruiser baseline went from 18 entries
+  to 1 (`src/modules/repos/helpers.ts`, out of scope). Still recorded, not
+  fixed: the reviews → `pull_requests` ownership leak
+  (`src/modules/reviews/repository/pull.repo.ts` `markReviewed`, entry
+  above). Next transaction candidate, not decided: the executor's five
+  writes after a run and their done → trace order
+  (`src/modules/reviews/run-executor.ts`). Revisit the leak when a second
+  module needs to change `last_reviewed_sha`.
 
 ## Open questions
 

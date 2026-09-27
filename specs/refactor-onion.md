@@ -1,6 +1,6 @@
 # Onion refactor of server/ (pulls, polling, reviews, repo-intel)
 
-Status: in-progress
+Status: done
 
 Approved by the user on 2026-09-27. Branch `lesson-2`, one commit per stage,
 one PR at the end. Evidence: `.claude/skills/onion-architecture/` (SKILL.md,
@@ -18,7 +18,7 @@ one PR at the end. Evidence: `.claude/skills/onion-architecture/` (SKILL.md,
 | c reviews rows | done | 649250a (+ golden test d0dd9ce) | 10 |
 | d adapters + cross-module + skill 1.1.0 | done | 6fef5fe (d1 pure moves + job kinds, baseline 5), this commit (d2 `CodeParser` port, `Tokenizer`/`DepGraph` interfaces, skill 1.1.0) | 1 |
 | e `Pick<Container>` (registration design approved first) | done | this commit (+ c964c73 barrel, 74d50cc NUL escape, a9b4760 e2e note) | 1 |
-| docs wrap-up | pending | | 1 |
+| docs wrap-up | done | this commit | 1 |
 
 ## Context
 
