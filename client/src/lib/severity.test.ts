@@ -4,7 +4,7 @@
  */
 import { describe, it, expect } from "vitest";
 import { countBySeverity, presentSeverities, totalFindings, emptyCounts, sortBySeverity } from "./severity";
-import { finding } from "@/components/findings-preview/test-fixtures";
+import { finding } from "@/test/fixtures";
 
 const sev = (s: string) => ({ severity: s as "CRITICAL" | "WARNING" | "SUGGESTION" });
 

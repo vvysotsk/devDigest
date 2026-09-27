@@ -11,6 +11,7 @@ import { describe, it, expect, afterEach, vi } from "vitest";
 import { render, screen, cleanup, fireEvent } from "@testing-library/react";
 import { NextIntlClientProvider } from "next-intl";
 import type { RunSummary, ReviewRecord, FindingRecord } from "@devdigest/shared";
+import { finding as findingRecord, review as reviewRecord } from "@/test/fixtures";
 import messages from "../../../../../../../../messages/en/prReview.json";
 import { RunHistory } from "./RunHistory";
 
@@ -38,44 +39,23 @@ function run(o: Partial<RunSummary>): RunSummary {
   };
 }
 
-function finding(id: string, severity: FindingRecord["severity"], title: string): FindingRecord {
-  return {
+/** RunHistory's findings: security, src/config.ts:12, confidence 0.9, review rv-1. */
+const finding = (id: string, severity: FindingRecord["severity"], title: string) =>
+  findingRecord({
     id,
     severity,
-    category: "security",
     title,
+    category: "security",
     file: "src/config.ts",
     start_line: 12,
     end_line: 12,
     rationale: "Because.",
-    suggestion: null,
     confidence: 0.9,
-    kind: "finding",
-    trifecta_components: null,
-    evidence: null,
     review_id: "rv-1",
-    accepted_at: null,
-    dismissed_at: null,
-  };
-}
+  });
 
-function review(run_id: string | null, findings: FindingRecord[]): ReviewRecord {
-  return {
-    id: `rv-${run_id}`,
-    pr_id: "pr-1",
-    agent_id: "a1",
-    run_id,
-    agent_name: "Security Reviewer",
-    kind: "review",
-    verdict: "request_changes",
-    summary: null,
-    score: 40,
-    model: "m",
-    grounding: null,
-    created_at: "2026-06-11T18:44:40.000Z",
-    findings,
-  };
-}
+const review = (run_id: string | null, findings: FindingRecord[]) =>
+  reviewRecord({ id: `rv-${run_id}`, run_id, score: 40, created_at: "2026-06-11T18:44:40.000Z", findings });
 
 function renderRuns(
   runs: RunSummary[],

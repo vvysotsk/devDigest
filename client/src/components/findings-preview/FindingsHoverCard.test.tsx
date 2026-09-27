@@ -6,7 +6,7 @@
 import { describe, it, expect, afterEach, beforeEach, vi } from "vitest";
 import { render, screen, cleanup, fireEvent, act } from "@testing-library/react";
 import { FindingsHoverCard } from "./FindingsHoverCard";
-import { finding } from "./test-fixtures";
+import { finding } from "@/test/fixtures";
 
 afterEach(cleanup);
 beforeEach(() => vi.useFakeTimers());

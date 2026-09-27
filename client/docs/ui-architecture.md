@@ -117,8 +117,10 @@ Path aliases (`tsconfig.json:22-28`): `@/*` → `src/*`, `@devdigest/shared` →
   `queryKey` that starts with the entity name and the id; invalidate that key
   from mutations that change it.
 - **New shared component:** `src/components/<kebab-case>/<Name>.tsx` +
-  `index.ts`, tests beside it; keep fixtures in a non-test file
-  (`findings-preview/test-fixtures.ts`).
+  `index.ts`, tests beside it; build contract objects with the shared
+  factories in `src/test/fixtures.ts` (`finding`, `pr`, `review`) and pass
+  overrides; component-specific fixtures go in a non-test file beside the
+  test.
 - **New strings:** add to the namespace JSON under `messages/en/`; camelCase
   nested keys.
 
@@ -141,6 +143,15 @@ when" condition appears.
   only components (R1). When `features/reviews/` is introduced, these files
   move there. This does not change the deferred trigger's revisit condition
   above.
+- 2026-09-27 — Shared test factories live in `src/test/fixtures.ts`, one per
+  contract type (`finding` → `FindingRecord`, `pr` → `PrMeta`, `review` →
+  `ReviewRecord`), beside `src/test/setup.ts`. Tests only: vitest collects
+  `src/**/*.test.{ts,tsx}` (`vitest.config.ts`), so the file is never run as a
+  test and no app code imports it. Replaces the per-test copies in `PRRow`,
+  `FindingsPanel`, `RunHistory` and `findings-preview/test-fixtures.ts`.
+  Rejected: keeping it in a component folder (route tests would import a
+  component's internals) and `src/lib/` (app code). Recorded as a Map row in
+  the `frontend-architecture` skill (1.1.0).
 
 ## Open questions
 

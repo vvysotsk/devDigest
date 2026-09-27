@@ -4,7 +4,7 @@
  */
 import { describe, it, expect, afterEach } from "vitest";
 import { render, screen, cleanup } from "@testing-library/react";
-import { finding } from "./test-fixtures";
+import { finding } from "@/test/fixtures";
 import { FindingsPopover } from "./FindingsPopover";
 
 afterEach(cleanup);

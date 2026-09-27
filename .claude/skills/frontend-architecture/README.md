@@ -40,7 +40,7 @@ is CRITICAL. A signal is at most a SUGGESTION.
 
 ## Version
 
-**1.0.1** — see `metadata.version` in `SKILL.md` and the row in
+**1.1.0** — see `metadata.version` in `SKILL.md` and the row in
 `.claude/skills/README.md`.
 
 When you change `SKILL.md`, bump the version and add a Changelog line:
@@ -50,6 +50,11 @@ When you change `SKILL.md`, bump the version and add a Changelog line:
 
 ## Changelog
 
+- **1.1.0 — 2026-09-27** — new Map row "Shared test factories":
+  `src/test/fixtures.ts` holds one factory per contract type (`finding`,
+  `pr`, `review`); tests pass overrides instead of copying the shape. Minor
+  (a new placement rule); it re-checks every client file for this skill in
+  the next self-review.
 - **1.0.1 — 2026-09-26** — metadata only, no rule changes: `applies_to`: `client/src/**, client/messages/**, !client/src/vendor/**` and `blocking: "true"`, read by `pr-self-review` for routing (comma-separated string, as Agent Skills metadata values are strings).
 - **1.0.0 — 2026-09-26** — first version: decisions R1–R7, review signals,
   architecture-change triggers, and the deferred `features/reviews/`

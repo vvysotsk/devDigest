@@ -72,6 +72,10 @@ Never rewrite existing entries — correct with a dated note.
   `src/components/findings-preview/FindingsHoverCard.test.tsx:9` and
   `src/components/findings-preview/FindingsPopover.test.tsx:7` import `finding`
   from `./test-fixtures`.
+  - 2026-09-27 correction: `findings-preview/test-fixtures.ts` was replaced by
+    the shared `src/test/fixtures.ts` (`finding`, `pr`, `review`); the rule
+    (fixtures in a non-test file) stands (evidence: `src/test/fixtures.ts:9`,
+    `.claude/skills/frontend-architecture/SKILL.md` Map "Shared test factories").
 - 2026-09-24: `pnpm exec vitest run <path>` silently matches nothing when the path contains `[repoId]`/`[number]` brackets (glob chars); filter by file name instead, e.g. `vitest run FindingsPanel` (evidence: FindingsPanel run showed only 2 unrelated files until the filter was changed).
 - 2026-09-24: UPDATE to the vitest bracket-path entry — evidence:
   `package.json:10` (`"test": "vitest run"`) with the bracketed path

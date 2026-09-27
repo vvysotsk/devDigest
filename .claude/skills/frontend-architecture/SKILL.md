@@ -2,7 +2,7 @@
 name: frontend-architecture
 description: "Where frontend code lives in client/ and how it is split. Use when creating, moving or splitting a component, hook, helper or constant in client/, adding a route, or deciding where code should live. Covers folder placement, the index.ts component boundary, helpers vs lib, hooks by domain, Next.js route boundaries, API contract types, review signals with thresholds, and the triggers that would change this architecture."
 metadata:
-  version: 1.0.1
+  version: 1.1.0
   applies_to: "client/src/**, client/messages/**, !client/src/vendor/**"
   blocking: "true"
 ---
@@ -42,6 +42,7 @@ on demand; section pointers below are to `research.md`.
 | Types | Contract types via `src/lib/types.ts` → `@devdigest/shared`; local UI-only types in the file that uses them | No local API response shapes (R7). |
 | Strings | `messages/en/<namespace>.json` | Never hard-coded user-facing text. |
 | Tests | `<Name>.test.tsx` / `helpers.test.ts` beside the source | Fixtures in a non-test file. |
+| Shared test factories | `src/test/fixtures.ts` — one factory per contract type (`finding`, `pr`, `review`) | Tests only; a test that needs other defaults passes overrides, never a copy of the whole shape. Not collected by vitest (only `*.test.ts(x)`). |
 
 Component folder anatomy (`_components/<Name>/` and `components/<kebab>/`):
 `<Name>.tsx` + optional `constants.ts`, `helpers.ts`, `styles.ts`,

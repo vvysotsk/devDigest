@@ -205,16 +205,16 @@ for the PR page (`FindingsPanel/FindingsPanel.tsx`, `RunHistory/RunHistory.tsx`,
 
 | Rule | Test |
 |---|---|
-| Never-reviewed PR shows a dash and never fetches reviews | `src/app/repos/[repoId]/pulls/_components/PRRow/PRRow.test.tsx:102` |
-| Icon + count per severity of the latest batch | `PRRow/PRRow.test.tsx:109` |
-| Quick sweep opens nothing and fetches nothing; settling opens + fetches + filters by `run_ids` | `PRRow/PRRow.test.tsx:116`, `:127` |
-| Keyboard focus opens immediately; fetch error replaces the loading note | `PRRow/PRRow.test.tsx:150`, `:158` |
+| Never-reviewed PR shows a dash and never fetches reviews | `src/app/repos/[repoId]/pulls/_components/PRRow/PRRow.test.tsx:57` |
+| Icon + count per severity of the latest batch | `PRRow/PRRow.test.tsx:64` |
+| Quick sweep opens nothing and fetches nothing; settling opens + fetches + filters by `run_ids` | `PRRow/PRRow.test.tsx:71`, `:82` |
+| Keyboard focus opens immediately; fetch error replaces the loading note | `PRRow/PRRow.test.tsx:105`, `:113` |
 | Hover card: delay, grace, Escape, blur, outer scroll closes / inner scroll does not | `src/components/findings-preview/FindingsHoverCard.test.tsx:38-108` |
-| Popover: sorted previews, loading / empty / error precedence, `position: fixed` | `src/components/findings-preview/FindingsPopover.test.tsx:29-64` |
-| Pills count after hide-low-confidence; three chips always, zero-count chip disabled; vanished filter dropped | `src/app/repos/[repoId]/pulls/[number]/_components/FindingsPanel/FindingsPanel.test.tsx:72-138` |
+| Popover: sorted previews, loading / empty / error precedence, `position: fixed` | `src/components/findings-preview/FindingsPopover.test.tsx:14-55` |
+| Pills count after hide-low-confidence; three chips always, zero-count chip disabled; vanished filter dropped | `src/app/repos/[repoId]/pulls/[number]/_components/FindingsPanel/FindingsPanel.test.tsx:74-141` |
 | `visibleFindings` applies hideLow before the severity filter and sorts by severity | `FindingsPanel/helpers.test.ts:33-46` |
 | Second finding action reads "Reject" and dispatches `dismiss` | `FindingCard/FindingCard.test.tsx:52` |
-| Timeline badge outcome (rejected / approved / reviewed / error / running), cost line, severity icons + "N findings in this run" hover | `RunHistory/RunHistory.test.tsx:92-180` |
+| Timeline badge outcome (rejected / approved / reviewed / error / running), cost line, severity icons + "N findings in this run" hover | `RunHistory/RunHistory.test.tsx:71-165` |
 | Trace drawer stats, COST stat, Findings section, live-log tab | `RunTraceDrawer/RunTraceDrawer.test.tsx:42-95` |
 | Verdict banner label + score + counts | `VerdictBanner/VerdictBanner.test.tsx:18` |
 | `formatCost` dash vs `$0.00` vs scaled decimals; token compaction | `src/lib/cost-format.test.ts:9-24`, `src/components/run-cost-badge/RunCostBadge.test.tsx:13-42` |

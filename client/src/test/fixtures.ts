@@ -1,0 +1,70 @@
+/**
+ * Shared test factories — one per contract type, so a new contract field is
+ * added in one place. Not a test file (vitest collects only `*.test.ts(x)`),
+ * imported by tests only. A test that needs other defaults passes overrides;
+ * it never copies the whole shape.
+ */
+import type { FindingRecord, PrMeta, ReviewRecord } from "@devdigest/shared";
+
+export function finding(o: Partial<FindingRecord> & { id: string }): FindingRecord {
+  return {
+    severity: "WARNING",
+    category: "perf",
+    title: `Finding ${o.id}`,
+    file: "src/api/users.ts",
+    start_line: 45,
+    end_line: 52,
+    rationale: "The loop on line 46 calls db.posts.findMany once per user.",
+    suggestion: null,
+    confidence: 0.86,
+    kind: "finding",
+    trifecta_components: null,
+    evidence: null,
+    review_id: "r1",
+    accepted_at: null,
+    dismissed_at: null,
+    ...o,
+  };
+}
+
+export function pr(o: Partial<PrMeta> = {}): PrMeta {
+  return {
+    id: "pr-1",
+    number: 482,
+    title: "Add rate limiting to public API endpoints",
+    author: "marisa.koch",
+    branch: "feat/rate-limit",
+    base: "main",
+    head_sha: "abc",
+    additions: 247,
+    deletions: 38,
+    files_count: 4,
+    status: "needs_review",
+    opened_at: null,
+    updated_at: null,
+    score: 61,
+    cost_usd: 0.014,
+    latest_batch: {
+      run_ids: ["run-new"],
+      findings_by_severity: { CRITICAL: 2, WARNING: 2, SUGGESTION: 2 },
+    },
+    ...o,
+  };
+}
+
+export function review(o: Partial<ReviewRecord> & { id: string; run_id: string | null }): ReviewRecord {
+  return {
+    pr_id: "pr-1",
+    agent_id: "a1",
+    agent_name: "Security Reviewer",
+    kind: "review",
+    verdict: "request_changes",
+    summary: null,
+    score: 61,
+    model: "m",
+    grounding: null,
+    created_at: "2026-06-13T08:52:51.000Z",
+    findings: [],
+    ...o,
+  };
+}

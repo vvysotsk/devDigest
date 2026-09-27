@@ -6,7 +6,8 @@
 import { describe, it, expect, afterEach, beforeEach, vi } from "vitest";
 import { render, screen, cleanup, fireEvent, act } from "@testing-library/react";
 import { NextIntlClientProvider } from "next-intl";
-import type { PrMeta, ReviewRecord } from "@devdigest/shared";
+import type { FindingRecord, PrMeta } from "@devdigest/shared";
+import { finding, pr, review } from "@/test/fixtures";
 import messages from "../../../../../../../messages/en/prReview.json";
 
 const push = vi.fn();
@@ -27,66 +28,20 @@ beforeEach(() => {
 });
 afterEach(() => vi.useRealTimers());
 
-function pr(o: Partial<PrMeta> = {}): PrMeta {
-  return {
-    id: "pr-1",
-    number: 482,
-    title: "Add rate limiting to public API endpoints",
-    author: "marisa.koch",
-    branch: "feat/rate-limit",
-    base: "main",
-    head_sha: "abc",
-    additions: 247,
-    deletions: 38,
-    files_count: 4,
-    status: "needs_review",
-    opened_at: null,
-    updated_at: null,
-    score: 61,
-    cost_usd: 0.014,
-    latest_batch: {
-      run_ids: ["run-new"],
-      findings_by_severity: { CRITICAL: 2, WARNING: 2, SUGGESTION: 2 },
-    },
-    ...o,
-  };
-}
-
-function review(o: Partial<ReviewRecord> & { id: string; run_id: string | null }): ReviewRecord {
-  return {
-    pr_id: "pr-1",
-    agent_id: "a1",
-    agent_name: "Security Reviewer",
-    kind: "review",
-    verdict: "request_changes",
-    summary: null,
-    score: 61,
-    model: "m",
-    grounding: null,
-    created_at: "2026-06-13T08:52:51.000Z",
-    findings: [],
-    ...o,
-  };
-}
-
-const f = (id: string, review_id: string, severity: "CRITICAL" | "WARNING" | "SUGGESTION", title: string) => ({
-  id,
-  review_id,
-  severity,
-  category: "security" as const,
-  title,
-  file: "src/config.ts",
-  start_line: 12,
-  end_line: 12,
-  rationale: "Because.",
-  suggestion: null,
-  confidence: 0.98,
-  kind: "finding" as const,
-  trifecta_components: null,
-  evidence: null,
-  accepted_at: null,
-  dismissed_at: null,
-});
+/** PRRow's findings: security, src/config.ts:12, confidence 0.98. */
+const f = (id: string, review_id: string, severity: FindingRecord["severity"], title: string) =>
+  finding({
+    id,
+    review_id,
+    severity,
+    title,
+    category: "security",
+    file: "src/config.ts",
+    start_line: 12,
+    end_line: 12,
+    rationale: "Because.",
+    confidence: 0.98,
+  });
 
 function renderRow(p: PrMeta) {
   return render(

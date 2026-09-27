@@ -8,6 +8,7 @@ import { describe, it, expect, afterEach, vi } from "vitest";
 import { render, screen, cleanup, fireEvent } from "@testing-library/react";
 import { NextIntlClientProvider } from "next-intl";
 import type { FindingRecord } from "@devdigest/shared";
+import { finding as findingRecord } from "@/test/fixtures";
 import messages from "../../../../../../../../messages/en/prReview.json";
 
 vi.mock("../../../../../../../lib/hooks/reviews", () => ({
@@ -18,26 +19,17 @@ import { FindingsPanel } from "./FindingsPanel";
 
 afterEach(cleanup);
 
-function finding(o: Partial<FindingRecord> & { id: string }): FindingRecord {
-  return {
-    severity: "WARNING",
+/** FindingsPanel's findings: bug, src/a.ts:1, confidence 0.9 (above the low-confidence cut). */
+const finding = (o: Partial<FindingRecord> & { id: string }) =>
+  findingRecord({
     category: "bug",
-    title: `Finding ${o.id}`,
     file: "src/a.ts",
     start_line: 1,
     end_line: 1,
     rationale: "Because.",
-    suggestion: null,
     confidence: 0.9,
-    kind: "finding",
-    trifecta_components: null,
-    evidence: null,
-    review_id: "r1",
-    accepted_at: null,
-    dismissed_at: null,
     ...o,
-  };
-}
+  });
 
 const FINDINGS: FindingRecord[] = [
   finding({ id: "c1", severity: "CRITICAL", title: "Hardcoded secret", category: "security" }),
