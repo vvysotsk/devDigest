@@ -83,7 +83,7 @@ Files:
 
 ## Version
 
-**2.1.1** — see `metadata.version` in `SKILL.md` and the row in
+**2.2.0** — see `metadata.version` in `SKILL.md` and the row in
 `.claude/skills/README.md`.
 
 When you change `SKILL.md`, `checker.md` or the script, bump the version
@@ -94,6 +94,17 @@ and add a Changelog line:
   decision D1–D13 changes.
 
 ## Changelog
+
+- **2.2.0 — 2026-09-28** — user-invoked only: `disable-model-invocation:
+  true` (decision D14 in `references/plan.md`); the agent no longer starts the
+  gate itself and asks the user to run `/pr-self-review` before
+  `gh pr create` / a push for review (root `CLAUDE.md`). The skill still
+  blocks the PR on an open CRITICAL. Also: the integration command is
+  `DEVDIGEST_REQUIRE_DOCKER=1 pnpm exec vitest run .it.test` and a skipped
+  count on it is a fail (a changed command string re-runs cached passes
+  once); the vendor/shared drift note says 3 files, not 5. Minor, not major:
+  model-invocability was a §9 implementation item, not one of D1–D13, and
+  the CRITICAL list and the "checked" definition are unchanged.
 
 - **2.1.1 — 2026-09-27** — report fix: a finding served from the journal is
   dropped when its line is no longer an added line against the current base

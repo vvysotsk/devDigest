@@ -1,9 +1,10 @@
 ---
 name: pr-self-review
-description: "Self-review gate before a pull request. Use BEFORE running gh pr create or pushing a branch for review, and when the user says /pr-self-review, self-review, 'check before PR' or 'ready for PR?'. Routes every changed file to the skills whose metadata.applies_to matches it, re-checks only what the journal has not seen at the current content, runs typecheck/tests of touched packages and the Do-not-touch guards, and refuses to create the PR while any CRITICAL finding is open."
+description: "Self-review gate before a pull request, started by the user with /pr-self-review (the model never invokes it on its own). Run it before gh pr create or pushing a branch for review. Routes every changed file to the skills whose metadata.applies_to matches it, re-checks only what the journal has not seen at the current content, runs typecheck/tests of touched packages and the Do-not-touch guards, and refuses to create the PR while any CRITICAL finding is open."
 argument-hint: "[--mode full|blocking] [--skills a,b] [--full] [--base <ref>]"
+disable-model-invocation: true
 metadata:
-  version: 2.1.1
+  version: 2.2.0
 ---
 
 # PR self-review
@@ -72,7 +73,11 @@ directory, in the background while the checkers work, and record each:
 node $S record-mech --run <run> --package server --command "pnpm typecheck" --result pass|fail --summary "<first error lines>"
 ```
 
-`--command` must be the exact string from the plan. Touched packages =
+`--command` must be the exact string from the plan. Run the commands in Git
+Bash (the integration command carries a `DEVDIGEST_REQUIRE_DOCKER=1` prefix,
+so a missing Docker fails it instead of skipping its files) and put the
+skipped count of every test run into `--summary`; a non-zero skipped count on
+the integration run is a `fail`. Touched packages =
 packages with changed code, plus `server` when `reviewer-core` changed, plus
 `client` and `reviewer-core` when `server/src/vendor/shared` changed. Docker
 suites (server integration, e2e hermetic) run only when DB code changed and
@@ -82,7 +87,7 @@ e2e hermetic also needs the global `agent-browser` CLI; without it: WARNING
 
 When the plan shows both `server/src/vendor/shared/<f>` and its client copy
 changed, compare only the touched hunks yourself (the copies already drift
-in 5 files — `server/CLAUDE.md`); a hunk missing from the copy is CRITICAL.
+in 3 files — `server/CLAUDE.md`); a hunk missing from the copy is CRITICAL.
 
 ### 3. Checkers (subagents, parallel, max 6 at a time)
 

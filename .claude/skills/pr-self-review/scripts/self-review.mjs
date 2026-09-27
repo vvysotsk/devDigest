@@ -414,7 +414,8 @@ function commandsFor(scope) {
       const cached = journal.some((r) => r.kind === 'mech' && r.package === pkg && r.command === command && r.fingerprint === fingerprint && r.result === 'pass');
       cmds.push({ package: pkg, cwd: pkg, command, label, fingerprint, cached });
     };
-    if (docker) heavy('server', 'pnpm exec vitest run .it.test', 'integration (Docker)', inputs('server'));
+    // DEVDIGEST_REQUIRE_DOCKER=1: the files fail instead of silently skipping (server/test/helpers/pg.ts).
+    if (docker) heavy('server', 'DEVDIGEST_REQUIRE_DOCKER=1 pnpm exec vitest run .it.test', 'integration (Docker)', inputs('server'));
     if (docker && agentBrowser) heavy('e2e', 'npm run e2e:hermetic', 'e2e hermetic (Docker)', scope.filter((f) => f.status !== 'D'));
   }
   return { cmds, dbCode, docker, agentBrowser };

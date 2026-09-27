@@ -1,6 +1,6 @@
 # pr-self-review — skill plan
 
-Status: implemented as `SKILL.md` v1.0.0 on 2026-09-26; decisions D1–D12 are in §11 ("Decided" column); D13 (finding identity) was added on 2026-09-27 with 2.1.0. This file keeps the reasoning. Sources: `sources.md`
+Status: implemented as `SKILL.md` v1.0.0 on 2026-09-26; decisions D1–D12 are in §11 ("Decided" column); D13 (finding identity) was added on 2026-09-27 with 2.1.0; D14 (user-invoked only) on 2026-09-28 with 2.2.0. This file keeps the reasoning. Sources: `sources.md`
 (ids C = Claude Code docs, R = review practice, L = local evidence).
 
 Settled (not revisited here): (1) the skill itself blocks — on an open
@@ -59,7 +59,7 @@ security — typecheck + flow contract only), `scripts/**`, root docs,
 
 | Package | Typecheck | Tests (hermetic) | Heavy (needs Docker) |
 |---|---|---|---|
-| server | `pnpm typecheck` | `pnpm exec vitest run --exclude '**/*.it.test.ts'` | `pnpm exec vitest run .it.test` |
+| server | `pnpm typecheck` | `pnpm exec vitest run --exclude '**/*.it.test.ts'` | `DEVDIGEST_REQUIRE_DOCKER=1 pnpm exec vitest run .it.test` (since 2.2.0: fails instead of skipping without Docker) |
 | client | `pnpm typecheck` | `pnpm test` | — |
 | reviewer-core | `npm run typecheck` | `npm test` | — |
 | e2e | `npm run typecheck` | — | `npm run e2e:hermetic` (full stack) |
@@ -362,7 +362,8 @@ PR body section:
   `gh pr create` / pushing a branch for a PR: run `pr-self-review`; do not
   open the PR while it reports an open CRITICAL."
 - pr-self-review's own frontmatter: model-invocable (the description names
-  "before opening a PR, gh pr create, push for review"), `argument-hint:
+  "before opening a PR, gh pr create, push for review") — **superseded by D14
+  (2.2.0): user-invoked only, `disable-model-invocation: true`**; `argument-hint:
   [--base <ref>] [--full]`, `allowed-tools` limited to git read commands and
   the §1.2 commands.
 - Root `INSIGHTS.md`: one entry when the skill ships (tooling decision).
@@ -407,6 +408,7 @@ the rest reported as "not checked", (c) split the PR. Concurrency cap 6
 | D11 | e2e has no checker skill | (a) accept (typecheck + flow contract); (b) write an e2e-flows skill later | (a) now, listed as a gap → **(a)**, the e2e gap is shown in every report |
 | D12 | Dismissal after the file changed but the line is the same | (a) re-blocks (strict, as specified); (b) shown as "previously dismissed", non-blocking | (a) strict for CRITICAL, (b) for WARNING → **as proposed** |
 | D13 | Finding identity (added 2026-09-27, 2.1.0) | (a) hash the raw `rule` from the checker (as before); (b) hash a normalized rule key; (c) keep (a) and fuzzy-match dismissals | (b) → **(b)**: `ruleKey` = the rule id when the head (text before " — ", `(…)` removed) starts with one or is only ids (priority R > A > check > §), else the head up to ":"; id = sha1(skill \| rule key \| path \| line hash); dismissals match by that content per blob; old records resolve through their finding record. Why: re-checks are routine (`--full --skills`, minor bumps) and a checker words the same rule differently per run, which gave new ids — dismissed findings came back and one issue showed twice (journal: `b4faee06` / `1a435fbc`, same line of `FindingsHoverCard.tsx`). Residual risks: onion `check N` vs `R<n>` wording still gives two keys (only `checker.md`, "prefer `R<n>`", mitigates it); a head-level key merges two rules under one heading on the same line, so dismissing one hides the other; citing another line of a range still changes `line_hash` (unchanged) |
+| D14 | Who starts the gate (added 2026-09-28, 2.2.0) | (a) model-invocable — the agent runs it before `gh pr create` (as built in §9); (b) user-invoked only (`disable-model-invocation: true`), the agent asks the user to run `/pr-self-review` | (b) → **(b)**. Why: the L02 final check needs the gate run manually; the flag also blocks preloading the skill into subagents (`sources.md:11`, C-docs). Unchanged: "Settled (1)" — the skill itself still refuses `gh pr create` / a push for review while a CRITICAL is open; only who starts it changes. Risk: an agent that forgets to ask opens a PR ungated — mitigated by the root `CLAUDE.md` rule "Before opening a PR" |
 
 ## 12. Open questions
 

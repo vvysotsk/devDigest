@@ -124,10 +124,13 @@ The task report ends with two lines:
 `docs/specs: <files updated> | no change needed — <reason>`.
 
 ## Before opening a PR
-Run the `pr-self-review` skill before `gh pr create` or pushing a branch for
-review. While it reports an open (not dismissed) CRITICAL, do not create the
-PR and do not push the branch to open or update one (other pushes are not
-gated): fix it, or ask the user to dismiss a skill finding with a reason.
+`pr-self-review` is user-invoked only (`disable-model-invocation: true`): you
+cannot run it yourself. Before `gh pr create` or pushing a branch for review,
+ask the user to run `/pr-self-review`, and do not create the PR or push for
+review until they report no open CRITICAL. While it reports an open (not
+dismissed) CRITICAL, do not create the PR and do not push the branch to open
+or update one (other pushes are not gated): fix it, or ask the user to
+dismiss a skill finding with a reason.
 Only the user dismisses; mechanical CRITICALs (Do not touch,
 typecheck/tests, uncommitted changes) are fixed, never dismissed.
 
