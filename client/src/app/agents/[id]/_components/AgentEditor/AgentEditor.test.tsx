@@ -1,7 +1,7 @@
 import { describe, it, expect, afterEach, vi } from "vitest";
 import { render, screen, cleanup } from "@testing-library/react";
 import { NextIntlClientProvider } from "next-intl";
-import type { Agent } from "@devdigest/shared";
+import { agent } from "@/test/fixtures";
 import messages from "../../../../../../messages/en/agents.json";
 import { ToastProvider } from "../../../../../lib/toast";
 
@@ -15,21 +15,7 @@ import { AgentEditor } from "./AgentEditor";
 
 afterEach(cleanup);
 
-const AGENT: Agent = {
-  id: "ag1",
-  name: "Security Reviewer",
-  description: "Flags secrets and injection",
-  provider: "openai",
-  model: "gpt-4.1",
-  system_prompt: "You are a security reviewer.",
-  output_schema: null,
-  strategy: "single-pass",
-  ci_fail_on: "critical",
-  repo_intel: true,
-  enabled: true,
-  version: 1,
-  skill_count: 0,
-};
+const AGENT = agent();
 
 function renderWithIntl(ui: React.ReactElement) {
   return render(

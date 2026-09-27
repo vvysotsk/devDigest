@@ -314,17 +314,24 @@ no client caller) is removed. Services own `db.transaction`; repositories take
 ## Client
 
 - Routes `client/src/app/skills/page.tsx`, `client/src/app/skills/[id]/page.tsx`.
-- Route-private components: `SkillsListView/` (`SkillCard/`,
-  `CreateSkillModal/`, `ImportSkillModal/`), `SkillEditor/` (`ConfigTab/` with
-  `SkillBodyEditor/` and `EnableImportedConfirm/`, `PreviewTab/`,
+- Route-private components: under `app/skills/_components/`:
+  `SkillsListView/` (`SkillCard/`, `CreateSkillModal/`, `ImportSkillModal/`
+  with `ImportPreviewDetails/`), `SkillEnabledToggle/` (with
+  `EnableImportedConfirm/`; shared by the card and the Config tab),
+  `SkillMetaFields/` (name / description / type, used by create, import and
+  Config); under `app/skills/[id]/_components/`: `SkillEditor/` (`ConfigTab/`
+  with `SkillBodyEditor/` and `DeleteSkillConfirm/`, `PreviewTab/`,
   `VersionsTab/`).
+- The skill's Enabled switch (card and Config tab) writes at once
+  (`PUT {enabled}`, no version bump) and is not part of the Config draft; an
+  unsaved draft survives the toggle and its refetch.
 - Agents: `AgentEditor/_components/SkillsTab/`; `VALID_TABS` gains `skills`;
   `AgentCard` receives `skill_count`.
 - Shared (used by `/skills` and the agent tab): `components/skill-type-badge/`,
   `components/skill-source-chip/`.
 - Hooks `client/src/lib/hooks/skills.ts`: `useSkills`, `useSkill`,
   `useCreateSkill`, `useUpdateSkill`, `useDeleteSkill`, `useSkillVersions`,
-  `useImportPreview`, `useAgentSkills`, `useSetAgentSkills` (keys `["skills"]`,
+  `useImportPreview`, `useImportSkill`, `useAgentSkills`, `useSetAgentSkills` (keys `["skills"]`,
   `["skill", id]`, `["skill-versions", id]`, `["agent-skills", agentId]`;
   saving links also invalidates `["agents"]` and `["agent", id]`).
 - Test fixtures `skill()`, `agent()` in `client/src/test/fixtures.ts`.

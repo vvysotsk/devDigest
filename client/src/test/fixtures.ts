@@ -4,7 +4,46 @@
  * imported by tests only. A test that needs other defaults passes overrides;
  * it never copies the whole shape.
  */
-import type { FindingRecord, PrMeta, ReviewRecord } from "@devdigest/shared";
+import type { Agent, FindingRecord, PrMeta, ReviewRecord, Skill } from "@devdigest/shared";
+
+export function skill(o: Partial<Skill> = {}): Skill {
+  return {
+    id: "sk-1",
+    name: "pr-quality-rubric",
+    description: "Use when grading a PR against the quality rubric.",
+    type: "rubric",
+    source: "manual",
+    body: "# PR quality rubric\n\n- Small, focused diff",
+    enabled: true,
+    version: 1,
+    evidence_files: null,
+    agent_count: 0,
+    body_tokens: 12,
+    acknowledged_at: null,
+    created_at: "2026-09-20T10:00:00.000Z",
+    updated_at: "2026-09-20T10:00:00.000Z",
+    ...o,
+  };
+}
+
+export function agent(o: Partial<Agent> = {}): Agent {
+  return {
+    id: "ag1",
+    name: "Security Reviewer",
+    description: "Flags secrets and injection",
+    provider: "openai",
+    model: "gpt-4.1",
+    system_prompt: "You are a security reviewer.",
+    output_schema: null,
+    strategy: "single-pass",
+    ci_fail_on: "critical",
+    repo_intel: true,
+    enabled: true,
+    version: 1,
+    skill_count: 0,
+    ...o,
+  };
+}
 
 export function finding(o: Partial<FindingRecord> & { id: string }): FindingRecord {
   return {

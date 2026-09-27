@@ -26,6 +26,23 @@ Never rewrite existing entries — correct with a dated note.
 
 ## Codebase Patterns
 
+- 2026-09-27: Do not put a toggle that can open a dialog inside a `<label>`:
+  the kit `Modal` renders inside it and the label forwards every click in the
+  dialog back to the switch. Use a `div` for the caption (evidence:
+  `src/app/skills/[id]/_components/SkillEditor/_components/ConfigTab/ConfigTab.tsx:52-53`).
+- 2026-09-27: A clickable card (`role="button"`) that contains a switch must
+  ignore bubbled keys — `if (e.key === "Enter" && e.target === e.currentTarget)`
+  — and the switch's wrapper stops clicks (the switch's and its dialog's) from
+  reaching the card (evidence:
+  `src/app/skills/_components/SkillsListView/_components/SkillCard/SkillCard.tsx:22-23`,
+  `src/app/skills/_components/SkillEnabledToggle/SkillEnabledToggle.tsx:35-37`).
+- 2026-09-27: With mocked hooks, a mutation needs real state for
+  `isSuccess` / `data` ("Saved (vN)"): use `fakeMutation` from
+  `src/test/mutation-mock.ts:16`. To test a cache write-through (the saved
+  entity flowing back as a prop), back the mocked query hook with
+  `React.useSyncExternalStore` over a hoisted store the mutation writes
+  (evidence: `src/app/skills/[id]/_components/SkillEditor/SkillEditor.test.tsx:34`).
+
 - 2026-09-24: A popover inside the PR list must be `position: fixed` —
   `s.tableCard` has `overflow: hidden` and clips an absolute child. Being
   fixed, it closes on any outer scroll, but scroll events whose target is
@@ -90,6 +107,11 @@ Never rewrite existing entries — correct with a dated note.
   `src/app/repos/[repoId]/pulls/[number]/_components/FindingsPanel/FindingsPanel.test.tsx`.
 
 ## Recurring Errors & Fixes
+
+- 2026-09-27: `findByRole("status")` fails with "multiple elements" once a
+  success toast is on screen — `ToastProvider` renders `role="status"` too.
+  Query an inline status note by its text (evidence: `src/lib/toast.tsx:90`;
+  `src/app/skills/[id]/_components/SkillEditor/SkillEditor.test.tsx:100`).
 
 - 2026-09-27: `userEvent` actions hang (test timeout, not an assertion) under
   vitest fake timers even with `advanceTimers` or `delay: null`: RTL's

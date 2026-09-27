@@ -1,6 +1,6 @@
 # client — ui-architecture
 
-Last verified: 2026-09-26 against 8ae46a9 (+ hooks barrel removal in the working tree)
+Last verified: 2026-09-27 (L02 Stage 5: skills page)
 
 ## Purpose
 
@@ -17,11 +17,11 @@ browser.
 | Path | Role |
 |---|---|
 | `src/app/layout.tsx` | Root layout: `next-intl` provider with all namespaces, theme no-flash script, `Providers`. |
-| `src/app/**/page.tsx` | Routes (`/`, `/onboarding`, `/repos/[repoId]/pulls`, `/repos/[repoId]/pulls/[number]`, `/agents`, `/agents/[id]`, `/settings/[section]`). Thin: a page mounts one view or composes `_components/`. |
+| `src/app/**/page.tsx` | Routes (`/`, `/onboarding`, `/repos/[repoId]/pulls`, `/repos/[repoId]/pulls/[number]`, `/agents`, `/agents/[id]`, `/skills`, `/skills/[id]`, `/settings/[section]`). Thin: a page mounts one view or composes `_components/`. |
 | `src/app/**/_components/<Name>/` | Route-private components: `<Name>.tsx` + `constants.ts`, `helpers.ts`, `styles.ts`, `index.ts`, tests beside the source. |
-| `src/components/<kebab>/` | Shared components (`app-shell`, `diff-viewer`, `findings-preview`, `severity-summary`, `run-cost-badge`, `page-shell`, `repo-not-found`, `mermaid-diagram`, `showcase`). |
+| `src/components/<kebab>/` | Shared components (`app-shell`, `diff-viewer`, `findings-preview`, `severity-summary`, `run-cost-badge`, `page-shell`, `repo-not-found`, `mermaid-diagram`, `showcase`, `skill-type-badge`, `skill-source-chip`). |
 | `src/lib/api.ts` | `apiFetch` + `api.get/post/put/patch/del`; base URL from `NEXT_PUBLIC_API_BASE`; every failure becomes `ApiError { status, code, details }`. |
-| `src/lib/hooks/<domain>.ts` | All TanStack Query hooks (`core`, `agents`, `reviews`, `trace`, `repo-intel`). Imported from the domain file (`@/lib/hooks/core`); there is no `hooks/index.ts` barrel (see `.claude/skills/frontend-architecture`, R1). |
+| `src/lib/hooks/<domain>.ts` | All TanStack Query hooks (`core`, `agents`, `reviews`, `trace`, `repo-intel`, `skills`). Imported from the domain file (`@/lib/hooks/core`); there is no `hooks/index.ts` barrel (see `.claude/skills/frontend-architecture`, R1). |
 | `src/lib/providers.tsx` | `QueryClient` (retry 1, staleTime 30 s, no refetch on focus, global error toasts) → `ThemeProvider` → `ToastProvider` → `RepoProvider`. |
 | `src/lib/repo-context.tsx` | Active repo: URL `:repoId` > `localStorage("dd-repo")` > first repo; `useRepoNotFound`. |
 | `src/lib/theme.tsx`, `src/lib/toast.tsx` | `data-theme` on `<html>` + `localStorage("dd-theme")`; toast context plus the module-level `notify` bridge used outside React. |
@@ -32,6 +32,7 @@ browser.
 | `src/vendor/ui/` | `@devdigest/ui` — the in-house design system (tokens, primitives, kit, shell, charts); see its `README.md`. |
 | `src/vendor/shared/` | COPY of `../server/src/vendor/shared` (zod contracts); edited only by mirroring the server master. |
 | `src/test/setup.ts`, `vitest.config.ts` | jsdom + Testing Library; aliases `@`, `@devdigest/shared`, `@devdigest/ui`; tests match `src/**/*.test.{ts,tsx}`. |
+| `src/test/fixtures.ts`, `src/test/mutation-mock.ts` | Shared contract factories (`finding`, `pr`, `review`, `skill`, `agent`) and `fakeMutation` — a stand-in for a mocked mutation hook that keeps `isPending` / `isSuccess` / `data` state, so "Saved (vN)" UI can be tested with mocked hooks. |
 
 Path aliases (`tsconfig.json:22-28`): `@/*` → `src/*`, `@devdigest/shared` →
 `src/vendor/shared/index.ts`, `@devdigest/ui` → `src/vendor/ui/index.ts`.
@@ -118,7 +119,8 @@ Path aliases (`tsconfig.json:22-28`): `@/*` → `src/*`, `@devdigest/shared` →
   from mutations that change it.
 - **New shared component:** `src/components/<kebab-case>/<Name>.tsx` +
   `index.ts`, tests beside it; build contract objects with the shared
-  factories in `src/test/fixtures.ts` (`finding`, `pr`, `review`) and pass
+  factories in `src/test/fixtures.ts` (`finding`, `pr`, `review`, `skill`,
+  `agent`) and pass
   overrides; component-specific fixtures go in a non-test file beside the
   test.
 - **New strings:** add to the namespace JSON under `messages/en/`; camelCase

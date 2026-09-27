@@ -84,8 +84,135 @@
       "manual": "Manual",
       "extracted": "Extracted",
       "community": "Community",
-      "imported_url": "Imported"
+      "imported_url": "Imported",
+      "imported_file": "Imported"
     }
+  },
+  "list": {
+    "create": "Create skill",
+    "agentCount": "{count, plural, one {# agent} other {# agents}}",
+    "emptyBody": "A skill is a reusable Markdown instruction block that agents inject into their prompt. Create one or import a SKILL.md / .zip file.",
+    "noMatch": "No skills match “{q}”.",
+    "enabledLabel": "Enable {name}"
+  },
+  "create": {
+    "title": "Create skill",
+    "subtitle": "A skill is text only: a Markdown body injected into an agent's prompt as its own block.",
+    "cancel": "Cancel",
+    "create": "Create skill",
+    "creating": "Creating…",
+    "defaultBody": "# Rule\n\nDescribe what the reviewer should look for.\n"
+  },
+  "fields": {
+    "name": "Name",
+    "namePlaceholder": "pr-quality-rubric",
+    "nameInvalid": "Use kebab-case: lowercase letters, digits and single dashes (max 64).",
+    "description": "Description",
+    "descriptionCaption": "The skill's interface — write it as a directive: 'Use when…'",
+    "descriptionRequired": "A description is required.",
+    "type": "Type",
+    "body": "Skill body",
+    "bodyRequired": "The body cannot be empty."
+  },
+  "editor": {
+    "tabs": {
+      "config": "Config",
+      "preview": "Preview",
+      "versions": "Versions"
+    },
+    "version": "v{version}",
+    "disabled": "disabled"
+  },
+  "config": {
+    "title": "Configuration",
+    "enabled": "Enabled",
+    "save": "Save skill",
+    "saving": "Saving…",
+    "saved": "Saved (v{version})",
+    "savedToast": "Skill saved (v{version})",
+    "delete": "Delete skill"
+  },
+  "body": {
+    "unsaved": "unsaved",
+    "tokens": "≈ {count} tok (cl100k)",
+    "tokensEstimate": "≈ {count} tok (chars/4)",
+    "ariaLabel": "Skill body"
+  },
+  "previewTab": {
+    "rendered": "Rendered",
+    "raw": "Raw",
+    "empty": "Empty body"
+  },
+  "versions": {
+    "title": "Versions",
+    "hint": "Each edit of the name, description, type or body creates a version. Read-only.",
+    "current": "current",
+    "metadataChange": "metadata change",
+    "onlyCurrent": "Only the current version exists.",
+    "loadError": "Could not load versions.",
+    "select": "Select a version to see its body."
+  },
+  "delete": {
+    "title": "Delete skill {name}?",
+    "usedBy": "{count, plural, =0 {Not used by any agent.} one {Used by # agent — its link will be removed.} other {Used by # agents — their links will be removed.}}",
+    "irreversible": "This cannot be undone.",
+    "cancel": "Cancel",
+    "confirm": "Delete",
+    "deleting": "Deleting…"
+  },
+  "ack": {
+    "title": "Enable an imported skill",
+    "body": "“{name}” was imported from a file. Read its text in the Preview tab before you enable it.",
+    "statement": "I have read this text; it will be injected into the agent's prompt as instructions",
+    "cancel": "Cancel",
+    "confirm": "Enable skill"
+  },
+  "import": {
+    "title": "Import skill from file",
+    "subtitle": "A SKILL.md file or a .zip with SKILL.md at its root or in one top-level folder (≤ 512 KB).",
+    "fileLabel": "Skill file (.md or .zip)",
+    "reading": "Reading file…",
+    "draft": "Draft",
+    "rawSource": "Raw SKILL.md (exactly as it will be parsed — never rendered)",
+    "files": "Files",
+    "fileStatus": {
+      "imported": "imported",
+      "reference": "reference",
+      "skipped": "skipped"
+    },
+    "size": "{size} B",
+    "warnings": "Warnings",
+    "noWarnings": "No warnings.",
+    "warningLine": "line {line}",
+    "warningKind": {
+      "html_comment": "HTML comment",
+      "invisible_char": "Invisible character",
+      "long_line": "Long line",
+      "name_exists": "Name exists",
+      "name_normalized": "Name normalized",
+      "type_defaulted": "Type defaulted",
+      "description_missing": "Description missing"
+    },
+    "trust": "This text will be injected into the agent's prompt as instructions. The skill is saved disabled; enabling it the first time asks you to confirm you have read it.",
+    "cancel": "Cancel",
+    "save": "Save skill",
+    "saving": "Saving…",
+    "saved": "Imported “{name}” — saved disabled."
+  },
+  "errors": {
+    "skill_name_taken": "A skill with this name already exists.",
+    "skill_ack_required": "Confirm you have read an imported skill before enabling it.",
+    "skill_not_in_workspace": "A skill in the list does not belong to this workspace.",
+    "import_unsupported_file": "Only .md and .zip files can be imported.",
+    "import_too_large": "The file is too large (max 512 KB upload, 1 MB unpacked, 200 entries).",
+    "import_bad_archive": "The file could not be read (corrupt archive or not UTF-8 text).",
+    "import_unsafe_path": "The archive contains an unsafe path (.., absolute, drive letter or symlink).",
+    "import_no_skill_md": "No SKILL.md at the archive root or in one top-level folder.",
+    "import_bad_frontmatter": "The SKILL.md frontmatter is not valid YAML.",
+    "import_description_missing": "Write a description — the file has none.",
+    "import_invalid_name": "The name must be kebab-case (lowercase letters, digits, single dashes).",
+    "import_invalid_field": "The skill is out of bounds: the description must be at most 500 characters and the body 1 to 50,000 characters.",
+    "readFailed": "The file could not be read."
   },
   "preview": {
     "untrustedBadge": "untrusted source",

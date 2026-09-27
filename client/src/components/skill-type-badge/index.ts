@@ -1,0 +1,1 @@
+export { SkillTypeBadge } from "./SkillTypeBadge";
