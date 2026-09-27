@@ -7,7 +7,11 @@ import {
   GENERAL_REVIEWER_PROMPT,
   SECURITY_REVIEWER_PROMPT,
   PERFORMANCE_REVIEWER_PROMPT,
+  TEST_QUALITY_REVIEWER_PROMPT,
+  API_CONTRACT_REVIEWER_PROMPT,
 } from './seed-prompts.js';
+import { SEED_AGENT_SKILL_LINKS, SEED_SKILLS } from './seed-skills.js';
+import { SEED_EXPERIMENT_PRS } from './seed-prs.js';
 
 /** Default provider/model for the built-in reviewer agents. */
 const DEFAULT_PROVIDER = 'openrouter' as const;
@@ -19,11 +23,15 @@ const DEFAULT_MODEL = 'deepseek/deepseek-v4-flash';
  *
  * Seeds: default workspace + system user + membership, default settings,
  * demo repo (acme/payments-api), PR #482 with files/commits, a sample review
- * with a few findings, and the three built-in agents (General + Security +
- * Performance), all on the default openrouter/deepseek-v4-flash provider+model.
+ * with a few findings, the L02 experiment PRs #483 / #484 (with patches, so a
+ * review works without a clone), five built-in agents (General, Security,
+ * Performance, Test Quality, API Contract) on the default
+ * openrouter/deepseek-v4-flash provider+model, the 12 L02 seed skills and
+ * their links (an agent's links are seeded only while it has none, so user
+ * edits survive a re-seed).
  *
- * Course lessons populate the other tables (skills, conventions, memory, eval,
- * …) once their features are built — they start empty here.
+ * Course lessons populate the other tables (conventions, memory, eval, …)
+ * once their features are built — they start empty here.
  */
 
 export const DEFAULT_WORKSPACE_NAME = 'default';
@@ -176,7 +184,36 @@ export async function seed(db: Db): Promise<{ workspaceId: string; userId: strin
     ]);
   }
 
-  // ---- built-in agents (the three starter presets) ----
+  // ---- L02 experiment PRs #483 / #484 (specs/L02-skills.md D8) ----
+  for (const p of SEED_EXPERIMENT_PRS) {
+    const [exists] = await db
+      .select({ id: t.pullRequests.id })
+      .from(t.pullRequests)
+      .where(and(eq(t.pullRequests.repoId, repoId), eq(t.pullRequests.number, p.number)));
+    if (exists) continue;
+    const [row] = await db
+      .insert(t.pullRequests)
+      .values({
+        workspaceId,
+        repoId,
+        number: p.number,
+        title: p.title,
+        author: p.author,
+        branch: p.branch,
+        base: p.base,
+        headSha: p.headSha,
+        additions: p.files.reduce((n, f) => n + f.additions, 0),
+        deletions: p.files.reduce((n, f) => n + f.deletions, 0),
+        filesCount: p.files.length,
+        status: 'needs_review',
+        body: p.body,
+      })
+      .returning();
+    await db.insert(t.prFiles).values(p.files.map((f) => ({ prId: row!.id, ...f })));
+    await db.insert(t.prCommits).values(p.commits.map((c) => ({ prId: row!.id, ...c })));
+  }
+
+  // ---- built-in agents (starter presets + the two L02 agents) ----
   // Prompt bodies live in ./seed-prompts.ts (mirrored in docs/agent-prompts/*.md).
   const seedAgents: Array<typeof t.agents.$inferInsert> = [
     {
@@ -212,6 +249,28 @@ export async function seed(db: Db): Promise<{ workspaceId: string; userId: strin
       version: 1,
       createdBy: userId,
     },
+    {
+      workspaceId,
+      name: 'Test Quality Reviewer',
+      description: 'Finds untested branches, missing corner cases, over-mocked and flaky tests.',
+      provider: DEFAULT_PROVIDER,
+      model: DEFAULT_MODEL,
+      systemPrompt: TEST_QUALITY_REVIEWER_PROMPT,
+      enabled: true,
+      version: 1,
+      createdBy: userId,
+    },
+    {
+      workspaceId,
+      name: 'API Contract Reviewer',
+      description: 'Flags breaking changes to routes, response shapes and request parameters.',
+      provider: DEFAULT_PROVIDER,
+      model: DEFAULT_MODEL,
+      systemPrompt: API_CONTRACT_REVIEWER_PROMPT,
+      enabled: true,
+      version: 1,
+      createdBy: userId,
+    },
   ];
   for (const a of seedAgents) {
     const [existing] = await db
@@ -219,6 +278,41 @@ export async function seed(db: Db): Promise<{ workspaceId: string; userId: strin
       .from(t.agents)
       .where(and(eq(t.agents.workspaceId, workspaceId), eq(t.agents.name, a.name)));
     if (!existing) await db.insert(t.agents).values(a);
+  }
+
+  // ---- L02 seed skills (idempotent by name; v1 + its body snapshot) ----
+  const skillIds = new Map<string, string>();
+  for (const sk of SEED_SKILLS) {
+    let [row] = await db
+      .select({ id: t.skills.id })
+      .from(t.skills)
+      .where(and(eq(t.skills.workspaceId, workspaceId), eq(t.skills.name, sk.name)));
+    if (!row) {
+      [row] = await db
+        .insert(t.skills)
+        .values({ workspaceId, ...sk, enabled: true, version: 1 })
+        .returning({ id: t.skills.id });
+      await db.insert(t.skillVersions).values({ skillId: row!.id, version: 1, body: sk.body });
+    }
+    skillIds.set(sk.name, row!.id);
+  }
+
+  // ---- agent ↔ skill links, only for an agent that has none yet ----
+  for (const [agentName, links] of Object.entries(SEED_AGENT_SKILL_LINKS)) {
+    const [agent] = await db
+      .select({ id: t.agents.id })
+      .from(t.agents)
+      .where(and(eq(t.agents.workspaceId, workspaceId), eq(t.agents.name, agentName)));
+    if (!agent) continue;
+    const [linked] = await db
+      .select({ skillId: t.agentSkills.skillId })
+      .from(t.agentSkills)
+      .where(eq(t.agentSkills.agentId, agent.id))
+      .limit(1);
+    if (linked) continue;
+    await db.insert(t.agentSkills).values(
+      links.map((l, order) => ({ agentId: agent.id, skillId: skillIds.get(l.skill)!, order, enabled: l.enabled })),
+    );
   }
 
   return { workspaceId, userId };

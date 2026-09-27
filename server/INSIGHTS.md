@@ -54,8 +54,8 @@ Never rewrite existing entries — correct with a dated note.
   `log` message by message, so ANY new unconditional `runLog.info` in the
   executor breaks it. Log only when there is something to report (L02 logs one
   line per injected skill and nothing for an agent without skills) or update
-  the golden on purpose (evidence: `test/reviews-golden.it.test.ts`,
-  `src/modules/reviews/run-executor.ts:358-372`).
+  the golden on purpose (evidence: `test/reviews-golden.it.test.ts:271`,
+  `src/modules/reviews/run-executor.ts:358-371`).
 
 - 2026-09-27: A port shared by two modules cannot live in `src/vendor/shared`
   while contracts are frozen, and the consumer may not import it from the

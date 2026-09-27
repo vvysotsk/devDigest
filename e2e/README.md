@@ -107,3 +107,4 @@ All of these show the page after the failure.
 | `05-pr-diff` | PR #482 → Files changed tab → seeded file renders in the diff viewer |
 | `06-onboarding` | `/onboarding` → add-repository form renders (no submit) |
 | `07-settings` | `/settings/api-keys` + `/settings/models` → section titles render |
+| `08-skills` | `/skills` → open a seeded skill (Config tab); `/agents` → new agents + skill chips → Security's Skills tab "3 of 6 enabled" (L02) |

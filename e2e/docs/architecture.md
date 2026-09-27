@@ -18,7 +18,7 @@ fixtures: every expectation comes from the server seed
 |---|---|
 | `run.ts` | The runner: loads `specs/*.flow.json` in lexical order, executes each step with `execFile(agent-browser, args)` and logs its elapsed time, stops a flow at its first failure, records URL / page errors / accessibility snapshot / screenshot on failure, closes the browser, exits 1 if any flow failed. |
 | `lib/assert.ts` | `Flow` / `Step` types, `{BASE}` substitution (`resolveArgs`), the `stdoutIncludes` check, the PASS/FAIL summary. |
-| `specs/NN-<slug>.flow.json` | One browser flow each (01–07); `specs/flows-contract.md` is the curated contract for them. |
+| `specs/NN-<slug>.flow.json` | One browser flow each (01–08); `specs/flows-contract.md` is the curated contract for them. |
 | `agent-browser.json` | CLI config: headless, HTTPS errors not ignored. |
 | `package.json` | `npm test` → `tsx run.ts`; `npm run e2e:hermetic` → `../scripts/e2e.sh`; `npm run typecheck`. npm + `package-lock.json`, not pnpm. |
 | `tsconfig.json` | ES2022 / Bundler resolution over `run.ts` and `lib/**`. |

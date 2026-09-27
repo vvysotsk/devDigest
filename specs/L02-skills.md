@@ -377,8 +377,10 @@ words), descriptions as "Use when …" directives
   - API Contract Reviewer: "Flags breaking changes to routes, response shapes
     and request parameters."
 - PRs #483 and #484 (D8), status `needs_review`, PR totals summed from their
-  files. Idempotent by name / number. Stage 7 content (the data modules) is
-  in; `seed.ts` wires it in Wave 3.
+  files. Idempotent by name / number; an agent's links are seeded only while
+  it has none (user edits survive a re-seed). Wired in `server/src/db/seed.ts`
+  (Stage 7), checked by `server/test/seed.it.test.ts` and e2e flow
+  `e2e/specs/08-skills.flow.json`.
 - Import sample (a server test fixture, as text):
   `server/test/fixtures/skills/api-deprecation-policy/{SKILL.md,
   references/policy.md, scripts/install.sh}` — SKILL.md uses quoted values with

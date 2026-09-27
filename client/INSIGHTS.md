@@ -114,7 +114,8 @@ Never rewrite existing entries — correct with a dated note.
   `SkillErrorCode`, `SkillName`, `SkillType`, `SKILL_IMPORT_MAX_BYTES`). Every
   earlier import was type-only (erased), and vitest resolves `.js` → `.ts` by
   itself, so typecheck + all unit tests stayed green; only the e2e run (Next
-  dev) caught it. Fix: `resolve.extensionAlias` in `next.config.mjs`. After
+  dev) caught it — `next build` was broken from `a71befb` (Stage 5) until
+  the fix in `cea9dd2`. Fix: `resolve.extensionAlias` in `next.config.mjs`. After
   adding a runtime import from the shared contracts, run `pnpm build` or the
   e2e suite (evidence: `next.config.mjs:11-21`,
   `src/app/skills/helpers.ts:2`; `../e2e/test-results/08-skills-fail.snapshot.txt`).

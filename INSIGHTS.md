@@ -81,6 +81,13 @@ Never rewrite existing entries — correct with a dated note.
 
 ## Recurring Errors & Fixes
 
+- 2026-09-27: A gate written as `pnpm exec vitest run … | grep -E "Tests "`
+  exits with grep's status, so a red suite still let the `&&` chain reach
+  `git commit` (L02 commit `03ad7bb` went in with a failing
+  `reviews-golden.it.test.ts`). Run gate commands with `set -o pipefail` (or
+  redirect to a log and read `$?`) and report every command's exit code, not
+  just the test counts (evidence: commits `03ad7bb` → fix `dfa40a8`).
+
 - 2026-09-18: Python on this Windows box crashes with UnicodeEncodeError
   (cp1251) when printing non-ASCII from scripts run via Git Bash — prefix with
   `PYTHONIOENCODING=utf-8` (evidence: heredoc script printing "→" failed until
