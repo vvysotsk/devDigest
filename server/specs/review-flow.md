@@ -78,7 +78,8 @@ always written in full.
   skills (`agent_skills.enabled AND skills.enabled`, in `agent_skills.order`),
   passes them as `ReviewSkill { name, body, source, version }`, logs exactly
   one line per injected skill (`Skill "<name>" v<N> (<source>) · ≈ <T> tok`;
-  "No skills enabled for this agent" when none) and counts tokens per
+  nothing at all when the agent has none, so such a run's log is unchanged)
+  and counts tokens per
   rendered block (`renderSkillBlock` from reviewer-core, `container.tokenizer`
   = cl100k, approximate). A skill disabled by either flag appears in neither
   the prompt, the trace nor the log (`run-executor.ts:196-199`, `:358-375`).

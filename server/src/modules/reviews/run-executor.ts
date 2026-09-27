@@ -369,7 +369,6 @@ export class ReviewRunExecutor {
       skillBlocks.push({ skill_id: s.id, name: s.name, version: s.version, source: s.source, tokens });
       runLog.info(`Skill "${s.name}" v${s.version} (${s.source}) · ≈ ${tokens} tok`);
     }
-    if (effective.length === 0) runLog.info('No skills enabled for this agent');
     return { skills, skillBlocks };
   }
 
