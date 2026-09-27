@@ -1,6 +1,6 @@
 # server — skills
 
-Last verified: 2026-09-27 (L02 Stage 2: skills module + agent links; import routes pending)
+Last verified: 2026-09-27 (L02 Stage 3a: import pipeline as pure functions; import routes pending)
 
 ## Scope
 
@@ -105,7 +105,59 @@ foreign or unknown id is 404 `not_found`.
   returns the current version.
 - `Skill.body_tokens` = `container.tokenizer` (cl100k) over the body.
 
+## Import pipeline (`src/modules/skills/import/`, pure — no I/O, no DB)
+
+Public surface (`index.ts`): `decodeImportBase64`, `buildImportPreview`,
+`resolveImportSave` (`pipeline.ts:37`, `:63`, `:160`); failures are
+`{ ok: false, code: SkillErrorCode, message, details? }`. The routes that call
+them (`POST /skills/import/preview`, `POST /skills/import`) come in Stage 3b.
+
+- **Decode:** base64 over `SKILL_IMPORT_MAX_BYTES` → `import_too_large`
+  (checked before decoding); malformed base64 → `import_bad_archive`; a
+  `data:` URL prefix is NOT stripped (the client sends bare base64).
+- **File type:** `.md` → one entry; `.zip` → unzipped in memory with fflate;
+  anything else → `import_unsupported_file`.
+- **Zip checks** (`zip.ts`): an own central-directory read runs before any
+  inflate (`readCentralDirectory`, `zip.ts:80`): ≤ 200 entries
+  (`ZIP_MAX_ENTRIES`) and ≤ 1 MiB declared total (`ZIP_MAX_UNCOMPRESSED_BYTES`,
+  `types.ts:17-18`) → else `import_too_large`; paths normalised (`\` → `/`,
+  `.` and empty segments dropped) and `..`, leading `/`, drive letters, NUL
+  and symlink entries (`S_IFLNK` in the external attributes, any host) →
+  `import_unsafe_path`; ZIP64, encrypted entries and duplicate paths →
+  `import_bad_archive`. After inflating only the vetted entries, each size
+  must equal the declared size and its CRC-32 must match (`zip.ts:199-200`),
+  else `import_bad_archive`.
+- **SKILL.md:** the only candidates are a case-sensitive `SKILL.md` at the
+  root or directly inside one top-level folder; exactly one is required —
+  none or several (`details.candidates`) → `import_no_skill_md`
+  (`pipeline.ts:219`). Decoded as strict UTF-8 (else `import_bad_archive`);
+  a BOM stays in `raw_source` and is warned.
+- **Frontmatter** (`frontmatter.ts:12`): `---` fenced YAML via `yaml`
+  (`uniqueKeys`, `maxAliasCount: 100`); none/empty → `{}`; invalid, not a
+  mapping or never closed → `import_bad_frontmatter`. Body = the text after
+  the closing fence, leading blank lines and trailing whitespace trimmed.
+- **Draft:** name from frontmatter normalised to kebab-case (`name.ts:9`,
+  warning `name_normalized`), fallback folder / file name; `name_exists` when
+  it is in the workspace's names; `type` must match exactly, else `custom` +
+  `type_defaulted`; missing description → `''` + `description_missing`.
+- **Files:** every non-directory entry: `imported` (SKILL.md), `reference`
+  (`references/**/*.md`, "not imported (v1)"), `skipped` (everything else,
+  "skipped — never executed or stored").
+- **Warnings** (`warnings.ts:13`) on `raw_source` lines: `html_comment`,
+  `invisible_char`, `long_line` (> 500) — warned, never stripped. Order:
+  name/type/description warnings (`line: null`) first, then by line.
+- **Save** (`resolveImportSave`): overrides win for name / description / type
+  only; the body is always the parsed body. Final name not a `SkillName` →
+  `import_invalid_name`; no description → `import_description_missing`;
+  description > 500, body > 50,000 or an empty body → `import_invalid_field`
+  with `details: {field, limit}`.
+- `pnpm skill:pack <dir> <out.zip>` (`scripts/pack-skill.mjs`, fflate,
+  forward-slash paths) packs a folder such as
+  `test/fixtures/skills/api-deprecation-policy/` for a manual import.
+
 ## Known limitations
+
+- ZIP64 archives and encrypted entries are rejected, not supported.
 
 - `skill_versions` holds only the body: a metadata-only edit bumps
   `skills.version` with an unchanged body (the UI labels it "metadata
@@ -123,3 +175,4 @@ foreign or unknown id is 404 `not_found`.
 | CRUD, v1 + snapshot, version rule, no bump on enabled-only / unchanged values, 409 duplicate create + rename, ack 409 → OK → not needed again, `agent_count` incl. disabled links, delete cascade, workspace scope, R3 shapes | `test/skills.it.test.ts` |
 | link order/enabled, one bump per changed save, no bump on unchanged list, detach-all bump, 400 foreign/unknown skill with nothing written, 404 agent, effective `skill_count`, config edit snapshots links, port `enabledForAgent` / `namesInWorkspace`, R3 shapes | `test/agent-skills.it.test.ts` |
 | pure rules: `bumpsVersion`, `needsAck`, `linksChanged`, `missingIds`, DTO mapping, unique-violation detection | `test/skills-helpers.test.ts` |
+| import: `.md` and folder zip; quoted / colon / `>` / `\|` / nested frontmatter; `..`, absolute, drive, backslash, symlink paths; > 200 entries; declared and inflated size + CRC; references and skipped files; no or several SKILL.md; bad frontmatter; unsupported file; base64 limit and malformed base64; every warning kind; `resolveImportSave` overrides, `import_description_missing`, `import_invalid_name`, `import_invalid_field` (description, empty body, long body), body never overridable | `test/skill-import.test.ts` |

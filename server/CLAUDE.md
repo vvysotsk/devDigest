@@ -3,6 +3,8 @@
 ## Commands
 
 - `pnpm dev` · `pnpm typecheck` · `pnpm db:migrate` · `pnpm db:generate` · `pnpm db:seed`
+- `pnpm skill:pack <dir> <out.zip>` — zip a skill folder (e.g.
+  `test/fixtures/skills/api-deprecation-policy`) for a manual import.
 - `pnpm deps:check` — advisory layer check (dependency-cruiser, never fails);
   shows only violations missing from `.dependency-cruiser-known-violations.json`.
   `pnpm deps:baseline` rewrites that file — only after fixing a known one.

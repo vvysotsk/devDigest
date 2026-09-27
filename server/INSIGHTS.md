@@ -119,6 +119,23 @@ Never rewrite existing entries — correct with a dated note.
 
 ## Tool & Library Notes
 
+- 2026-09-27: fflate `unzipSync` inflates each entry into
+  `new Uint8Array(declaredSize)` and never checks CRC-32: a header that
+  under-declares the size is silently truncated (memory stays capped, content
+  is corrupted). Compare the inflated length AND CRC-32 with the central
+  directory (evidence: `src/modules/skills/import/zip.ts:199-200`;
+  `node_modules/fflate/esm/index.mjs:2704`; `test/skill-import.test.ts`).
+- 2026-09-27: fflate `unzipSync` keys its result by entry name (duplicates
+  collapse into one) and exposes neither external attributes nor the host OS,
+  so symlink / duplicate detection needs an own central-directory read. Decode
+  names with fflate's `strFromU8(bytes, !(flags & 0x800))` so they match its
+  keys (evidence: `src/modules/skills/import/zip.ts:131`, `:169`).
+- 2026-09-27: fflate follows a ZIP64 locator whenever one is present, even if
+  the classic EOCD fields are not maxed out — a pre-check that reads only the
+  classic EOCD would see a different entry list than fflate. Reject (or
+  parse) ZIP64 before inflating (evidence: `src/modules/skills/import/zip.ts:91-98`;
+  `node_modules/fflate/esm/index.mjs:2682-2690`).
+
 - 2026-09-27: With the zod type provider a 204 route declared as
   `response: { 204: z.null() }` must reply `reply.status(204).send(null)`;
   `send()` without an argument fails typecheck (TS2554). Fastify sends no body
@@ -175,6 +192,14 @@ Never rewrite existing entries — correct with a dated note.
     `src/modules/repo-intel/pipeline/repo-map.ts:64`).
 
 ## Recurring Errors & Fixes
+
+- 2026-09-27: In a fresh checkout or git worktree, `pnpm typecheck` fails
+  with `Cannot find module 'openai'` / `'zod'` inside
+  `../reviewer-core/src/llm/*.ts` until `cd reviewer-core && npm ci`: the
+  `@devdigest/reviewer-core` path alias compiles reviewer-core's SOURCES,
+  which resolve their imports from reviewer-core's own `node_modules`
+  (evidence: `tsconfig.json:24-25`; `../reviewer-core/src/llm/structured.ts:1`;
+  hit by three L02 Wave-2 tracks).
 
 - 2026-09-27: repo-intel tests build a partial `Container` with
   `as unknown as Container` (`test/indexer-pipeline.test.ts:140`,

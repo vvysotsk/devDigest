@@ -86,6 +86,10 @@ count, line numbers, mono font).
     the central directory before inflating and again after. Paths with `..`,
     absolute or drive-letter paths and symlink entries are rejected; `\`
     separators are normalised (PowerShell 5.1 `Compress-Archive` writes them).
+    After inflating, each entry's size and CRC-32 must match the central
+    directory (fflate truncates silently otherwise); ZIP64, encrypted entries
+    and duplicate paths are rejected. Exactly one `SKILL.md` candidate (root or
+    one top-level folder) is required — several are rejected, never picked.
     Nothing is written to disk, nothing is executed.
   - The preview stores nothing. The skill is created only by the explicit save
     `POST /skills/import` (`SkillImportSave`): the client re-sends the **file**

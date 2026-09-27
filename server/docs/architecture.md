@@ -1,6 +1,6 @@
 # server — architecture
 
-Last verified: 2026-09-27 (L02 Stage 2: skills module)
+Last verified: 2026-09-27 (L02 Stage 3a: skills import pipeline)
 
 ## Purpose
 
@@ -32,7 +32,7 @@ workspace (`src/adapters/auth/local.ts`).
 | `src/modules/index.ts` | Static module registry (9 plugins). |
 | `src/modules/<name>/` | `routes.ts` (Fastify plugin + zod schemas) → `service.ts` → `repository.ts` (Drizzle). `workspace`, `settings` still query Drizzle from the route directly (the thin-module exception). `pulls` (service + repository) and `polling` (service only — it owns no table and writes through `container.pullsRepo` / `container.reposRepo`) are layered since the onion refactor, see `../specs/refactor-onion.md`. |
 | `src/modules/_shared/` | `context.ts` (tenancy), `schemas.ts` (`IdParams`), `run-cost.ts`, `latest-batch.ts`, `diff-parser.ts` (`parseUnifiedDiff`, also used by the git adapter and its mock), `job-kinds.ts` (JobRunner kind strings that `repos` enqueues and `repo-intel` handles) — helpers two modules need without importing each other. |
-| `src/modules/skills/` | Skills (L02): owns `skills`, `skill_versions` and `agent_skills`. `routes.ts` (`/skills*`, `/agents/:id/skills`, every route with `schema.response`) → `service.ts` (transactions) → `repository.ts`; `errors.ts` (`SkillErrorCode` errors), `helpers.ts` (pure: DTO mapping, version-bump / link-change rules), `types.ts` (the `SkillsPort` other modules reach via `container.skillsRepo`). See `../specs/skills.md`. |
+| `src/modules/skills/` | Skills (L02): owns `skills`, `skill_versions` and `agent_skills`. `routes.ts` (`/skills*`, `/agents/:id/skills`, every route with `schema.response`) → `service.ts` (transactions) → `repository.ts`; `errors.ts` (`SkillErrorCode` errors), `helpers.ts` (pure: DTO mapping, version-bump / link-change rules), `types.ts` (the `SkillsPort` other modules reach via `container.skillsRepo`); `import/` is the pure import pipeline (base64 → in-memory zip via `fflate` → `SKILL.md` + YAML frontmatter via `yaml` → preview / save; no I/O, nothing written or executed). See `../specs/skills.md`. |
 | `src/modules/repo-intel/` | Facade `RepoIntel` (`src/modules/repo-intel/types.ts`) + indexer pipeline; `extract.ts` is the pure regex extractor (endpoints, crons, fallback symbols/references), also used by the ripgrep `codeindex` adapter; see its `README.md`. |
 | `src/adapters/` | Real implementations of the ports and `mocks.ts` fakes for tests: the interfaces in `src/vendor/shared/adapters.ts` (llm, github, git, codeindex, embedder, secrets, auth) and the repo-intel-only ports in `src/modules/repo-intel/types.ts` (`CodeParser` ← `astgrep`, `Tokenizer` ← `tokenizer`, `DepGraph` ← `depgraph`); the tokenizer is also read by the skills module (`Skill.body_tokens`) through `container.tokenizer`. Adapters implement ports; they do not declare them. |
 | `src/db/` | `client.ts` (postgres-js + Drizzle), `schema.ts` barrel over `schema/*.ts` (13 domain files + `src/db/schema/_shared.ts`), `migrations/` (drizzle-kit output), `migrate.ts`, `seed.ts` (CLI entry detected by `isEntryPoint()` in `cli.ts`, Windows-safe), `rows.ts` (shared row types). |
