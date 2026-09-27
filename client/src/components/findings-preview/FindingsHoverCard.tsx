@@ -2,8 +2,9 @@
 
    Opening: mouseenter (after `openDelayMs`, cancelled if the pointer leaves
    first — so a quick sweep over a list never opens or fetches anything) or
-   keyboard focus (immediately). `onOpen` fires at the moment of opening, which
-   lets the PR list start its lazy fetch only then.
+   keyboard focus (immediately). `onOpen` fires right after each opening (from
+   an effect, via useEffectEvent), which lets the PR list start its lazy fetch
+   only then.
 
    Closing: mouseleave with a ~100 ms grace (the popover is a DOM child of the
    wrapper, so moving into it does not count as leaving), blur outside the
@@ -55,8 +56,9 @@ export function FindingsHoverCard({
   const popoverRef = React.useRef<HTMLDivElement | null>(null);
   const openTimer = React.useRef<ReturnType<typeof setTimeout> | null>(null);
   const closeTimer = React.useRef<ReturnType<typeof setTimeout> | null>(null);
-  const onOpenRef = React.useRef(onOpen);
-  onOpenRef.current = onOpen;
+  // Effect event: always sees the latest `onOpen` without re-running the
+  // effect below; called only from that effect (React 19.2 rule).
+  const fireOnOpen = React.useEffectEvent(() => onOpen?.());
 
   const clearTimers = () => {
     if (openTimer.current) clearTimeout(openTimer.current);
@@ -68,7 +70,6 @@ export function FindingsHoverCard({
   const doOpen = React.useCallback(() => {
     setAnchor(triggerRef.current?.getBoundingClientRect() ?? null);
     setOpen(true);
-    onOpenRef.current?.();
   }, []);
 
   const doClose = React.useCallback(() => {
@@ -133,6 +134,11 @@ export function FindingsHoverCard({
       window.removeEventListener("resize", doClose);
     };
   }, [open, doClose]);
+
+  // `onOpen` fires once per opening, right after the card opens.
+  React.useEffect(() => {
+    if (open) fireOnOpen();
+  }, [open]);
 
   React.useEffect(() => clearTimers, []);
 

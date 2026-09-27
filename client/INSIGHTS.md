@@ -60,6 +60,13 @@ Never rewrite existing entries — correct with a dated note.
 
 ## Tool & Library Notes
 
+- 2026-09-27: To read the latest callback prop without re-running an effect,
+  use `React.useEffectEvent` (React 19.2, `@types/react` has it) instead of
+  writing `ref.current = prop` during render (a render-time side effect). An
+  effect event may be called only from inside effects, never from event
+  handlers or render — so `FindingsHoverCard` fires `onOpen` from an effect
+  on `open` becoming true, not from the mouse/focus handlers
+  (`src/components/findings-preview/FindingsHoverCard.tsx:61`, `:140`).
 - 2026-09-24: Importing a fixture from another `*.test.tsx` makes vitest execute that file's `describe` blocks inside the importer too (duplicated/failing tests); keep shared fixtures in a non-test file such as `test-fixtures.ts` (evidence: `src/components/findings-preview/test-fixtures.ts`).
 - 2026-09-24: UPDATE to the test-fixtures entry — evidence lines:
   `src/components/findings-preview/FindingsHoverCard.test.tsx:9` and
