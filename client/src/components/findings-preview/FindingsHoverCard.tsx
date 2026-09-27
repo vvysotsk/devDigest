@@ -149,7 +149,7 @@ export function FindingsHoverCard({
       onMouseLeave={onMouseLeave}
       onFocus={onFocus}
       onBlur={onBlur}
-      style={{ display: "inline-flex", position: "relative" }}
+      style={s.wrap}
     >
       <span
         ref={triggerRef}

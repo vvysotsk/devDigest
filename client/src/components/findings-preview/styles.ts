@@ -5,6 +5,8 @@ export const POPOVER_WIDTH = 340;
 export const POPOVER_GAP = 6;
 
 export const s = {
+  /** Positioning context for the popover; inline so it sits in a table cell or a text run. */
+  wrap: { display: "inline-flex", position: "relative" } satisfies CSSProperties,
   trigger: { display: "inline-flex", alignItems: "center", cursor: "default" } satisfies CSSProperties,
   popover: (top: number, left: number): CSSProperties => ({
     position: "fixed", // list containers clip overflow — absolute would be cut off

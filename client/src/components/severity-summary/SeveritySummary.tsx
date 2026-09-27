@@ -7,6 +7,7 @@ import React from "react";
 import { Icon, SEV } from "@devdigest/ui";
 import type { Severity } from "@devdigest/shared";
 import { presentSeverities, type FindingsBySeverity } from "./helpers";
+import { st } from "./styles";
 
 export function SeveritySummary({
   counts,
@@ -25,7 +26,7 @@ export function SeveritySummary({
       <span
         role="group"
         aria-label={ariaLabel}
-        style={{ display: "inline-flex", alignItems: "center", gap: 6, flexWrap: "wrap" }}
+        style={st.iconsGroup}
       >
         {present.map((sev) => (
           <SeverityChip key={sev} severity={sev} count={counts[sev]} />
@@ -38,12 +39,12 @@ export function SeveritySummary({
     <span
       role="group"
       aria-label={ariaLabel}
-      style={{ display: "inline-flex", alignItems: "center", gap: 8, flexWrap: "wrap" }}
+      style={st.pillsGroup}
     >
       {present.map((sev, i) => (
         <React.Fragment key={sev}>
           {i > 0 && (
-            <span aria-hidden style={{ color: "var(--text-muted)", fontSize: 12 }}>
+            <span aria-hidden style={st.separator}>
               ·
             </span>
           )}
@@ -66,20 +67,10 @@ function SeverityChip({ severity, count }: { severity: Severity; count: number }
       data-severity={severity}
       title={label}
       aria-label={label}
-      style={{
-        display: "inline-flex",
-        alignItems: "center",
-        padding: "2px 6px",
-        borderRadius: 5,
-        fontSize: 12,
-        fontWeight: 600,
-        color: s.c,
-        background: s.bg,
-        whiteSpace: "nowrap",
-      }}
+      style={{ ...st.chip, color: s.c, background: s.bg, whiteSpace: "nowrap" }}
     >
       <I size={12.5} />
-      <span className="tnum severity-summary-count" style={{ opacity: 0.85, marginLeft: 6 }}>
+      <span className="tnum severity-summary-count" style={st.chipCount}>
         {count}
       </span>
     </span>
@@ -93,20 +84,7 @@ function SeverityPill({ severity, count }: { severity: Severity; count: number }
   return (
     <span
       data-severity={severity}
-      style={{
-        display: "inline-flex",
-        alignItems: "center",
-        gap: 6,
-        padding: "3px 10px",
-        borderRadius: 999,
-        fontSize: 12,
-        fontWeight: 700,
-        letterSpacing: "0.05em",
-        textTransform: "uppercase",
-        color: s.c,
-        background: s.bg,
-        whiteSpace: "nowrap",
-      }}
+      style={{ ...st.pill, color: s.c, background: s.bg, whiteSpace: "nowrap" }}
     >
       <I size={12.5} />
       <span className="tnum">
