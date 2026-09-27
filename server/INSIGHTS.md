@@ -84,6 +84,14 @@ Never rewrite existing entries — correct with a dated note.
   mismatch into a 500 (evidence: `src/app.ts:64-65`;
   `node_modules/fastify-type-provider-zod/dist/src/core.js:85-92`;
   grep `response:` over `src/modules/**/routes.ts` → 0).
+- 2026-09-27: An offline (never cloned) repo is still reviewable: with
+  `repos.clone_path = null`, `git.diff` throws and `loadDiff` falls back to
+  `diffFromPrFiles`, which silently SKIPS every `pr_files` row without a
+  `patch`. Seeded PR #482 has no patches, so a review on it gets an empty
+  diff. Seed PRs meant for real runs must carry `patch` text (GitHub patch
+  format starting at `@@`); repo-intel then degrades to empty callers / repo map
+  instead of failing (evidence: `src/modules/reviews/diff-loader.ts:19-29`,
+  `:37`; `src/db/seed.ts:121-126`; `src/modules/repo-intel/service.ts:467-468`).
 
 ## Tool & Library Notes
 
