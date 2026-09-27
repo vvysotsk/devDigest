@@ -1,6 +1,6 @@
 # client — ui-architecture
 
-Last verified: 2026-09-27 (L02 Stage 5: skills page)
+Last verified: 2026-09-27 (L02 Stage 6: agent skills tab, trace skills)
 
 ## Purpose
 
@@ -83,6 +83,20 @@ Path aliases (`tsconfig.json:22-28`): `@/*` → `src/*`, `@devdigest/shared` →
    `run_id`; `?trace=<runId>` mounts `RunTraceDrawer`, which loads
    `GET /runs/:id/trace` through `useRunTrace`.
 
+## Data flow — an agent's skill list (Agents › Skills tab)
+
+1. `useAgentSkills(id)` → `GET /agents/:id/skills` (links in order) and
+   `useSkills()` → `GET /skills`; the tab lists linked skills first, then the
+   unlinked ones (`src/app/agents/[id]/_components/AgentEditor/_components/SkillsTab/`).
+2. Ticks, ↑/↓, drag and Detach edit a local draft that lives in
+   `AgentEditor` (tagged with the agent id, `AgentEditor.tsx:17-19`), so it
+   survives a tab switch, marks the tab label, and is dropped on agent switch.
+3. "Save skills" → `useSetAgentSkills` → ONE `PUT /agents/:id/skills` with the
+   ordered `[{skill_id, enabled}]`; the server bumps the agent version at most
+   once and the toast shows it; the hook writes `["agent-skills", id]` and
+   invalidates `["agents"]`, `["agent", id]`, `["skills"]` ("N skills" chips,
+   `agent_count`). "Discard" drops the draft.
+
 ## Boundaries & dependencies
 
 - **No raw `fetch` in components.** Everything goes through `src/lib/api.ts`
@@ -145,6 +159,17 @@ when" condition appears.
   only components (R1). When `features/reviews/` is introduced, these files
   move there. This does not change the deferred trigger's revisit condition
   above.
+- 2026-09-27 — Trigger `features/<domain>/` fired for **skills**: its UI sits
+  in `components/` (`skill-type-badge`, `skill-source-chip`) and
+  `lib/hooks/skills.ts`, and is used by three routes (`/skills`,
+  `/agents/:id`, the PR page's trace drawer). This also meets the revisit
+  condition of the deferred `features/reviews/` entry above ("…or the trigger
+  fires for a second domain"). Decision (user): introduce `features/reviews/`
+  and `features/skills/` as L02 **Stage 9**, in `lesson-2` right after Wave 3
+  and Stage 7a, before the user's final `/pr-self-review` — a separate
+  behaviour-preserving refactor with its own commits; Stage 9 details go to
+  the user for approval before it starts. Until then new skills UI keeps the
+  current layout.
 - 2026-09-27 — Shared test factories live in `src/test/fixtures.ts`, one per
   contract type (`finding` → `FindingRecord`, `pr` → `PrMeta`, `review` →
   `ReviewRecord`), beside `src/test/setup.ts`. Tests only: vitest collects
@@ -161,5 +186,5 @@ when" condition appears.
   `src/app/repos/[repoId]/pulls/constants.ts:34` refers to `.pr-table` rules
   in `globals.css` while the class is `.pr-list` (`globals.css:31`); both look
   like leftovers. Unverified whether anything reads `PrRowView`.
-- `src/app/agents/[id]/page.tsx:15` allows only the `config` tab; the editor
-  keeps `?tab=` for later lessons.
+- `src/app/agents/[id]/page.tsx:15` allows `config` and `skills`; Evals,
+  Stats and CI tabs of the design are out of scope (L02 D14).

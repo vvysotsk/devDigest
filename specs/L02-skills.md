@@ -325,8 +325,12 @@ no client caller) is removed. Services own `db.transaction`; repositories take
 - The skill's Enabled switch (card and Config tab) writes at once
   (`PUT {enabled}`, no version bump) and is not part of the Config draft; an
   unsaved draft survives the toggle and its refetch.
-- Agents: `AgentEditor/_components/SkillsTab/`; `VALID_TABS` gains `skills`;
-  `AgentCard` receives `skill_count`.
+- Agents: `AgentEditor/_components/SkillsTab/` (with `SkillRow/`); the draft
+  lives in `AgentEditor` so it survives a tab switch; `VALID_TABS` gains
+  `skills`; `AgentCard` receives `skill_count`. "N of M enabled": N = linked
+  AND globally enabled (the `skill_count` rule), M = linked.
+- Trace: `RunTraceDrawer/_components/SkillBlocksList/` renders the per-skill
+  rows; `skillsSummary` (`RunTraceDrawer/helpers.ts`) the label.
 - Shared (used by `/skills` and the agent tab): `components/skill-type-badge/`,
   `components/skill-source-chip/`.
 - Hooks `client/src/lib/hooks/skills.ts`: `useSkills`, `useSkill`,
@@ -376,6 +380,7 @@ One commit per stage; each stage has its own gate.
 | 7 | `feat(seed,e2e): seed skills, agents and experiment PRs; skills flow` | server tests; `npm run e2e:hermetic` with `e2e/specs/08-skills.flow.json` (read-only: `/skills` cards, a skill opens, agent Skills tab "3 of 6 enabled"; `wait --text` before every `find … click`); `e2e/specs/flows-contract.md` preconditions: 5 agents, PRs #482–#484 |
 | 7a | `chore(skills): make pr-self-review user-invoked` (D9) | the skill's script self-check; then the user runs `/pr-self-review` |
 | 8 | control experiment — manual, real LLM key, no code; results table appended here in a `docs(specs)` commit | each agent × its PR, without and with skills, two runs per side |
+| 9 | `refactor(client): move reviews and skills into features/` — in `lesson-2` right after Wave 3 and 7a (independent of Stage 8), separate commits, behaviour unchanged; includes the `frontend-architecture` skill change (R4 and the Map gain the `features/` layer → MAJOR 2.0.0 per its README, Changelog, catalog row); details go to the user for approval first. The user's final `/pr-self-review` runs after Stage 9, so it covers the refactor | client typecheck + all client tests + `npm run e2e:hermetic` |
 
 Every stage ends with the engineering-insights checkpoint and package-docs;
 its report ends with the `INSIGHTS:` and `docs/specs:` lines.
@@ -403,7 +408,11 @@ The user approves per wave, not per stage.
     by `seed.ts`.
 - **Wave 3** — main session (or one subagent at a time): Stage 3b route,
   Stage 4b executor + trace, Stage 7 wiring (`seed.ts`, flow 08,
-  `flows-contract.md`), then 7a; then the user's `/pr-self-review` run.
+  `flows-contract.md`), then 7a.
+- **Stage 9** — `features/` refactor (client), main session, after Wave 3 and
+  7a, once the user approves its details; then the user's final
+  `/pr-self-review` run (it covers the refactor too). The PR comes later,
+  after the lesson homework.
 
 Rules for every track (repeated verbatim in each subagent prompt):
 

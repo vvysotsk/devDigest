@@ -29,8 +29,9 @@ describe("AgentCard (smoke)", () => {
     expect(screen.getByText("3 skills")).toBeInTheDocument();
   });
 
-  it("falls back to a translated placeholder when description is empty", () => {
-    renderWithIntl(<AgentCard ag={agent({ description: "" })} />);
+  it("falls back to a translated placeholder when description is empty; no skills chip at 0", () => {
+    renderWithIntl(<AgentCard ag={agent({ description: "" })} skillCount={0} />);
     expect(screen.getByText("No description")).toBeInTheDocument();
+    expect(screen.queryByText(/skills?$/)).not.toBeInTheDocument();
   });
 });

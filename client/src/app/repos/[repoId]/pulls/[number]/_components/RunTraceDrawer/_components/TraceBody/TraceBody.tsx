@@ -8,17 +8,20 @@ import { Badge } from "@devdigest/ui";
 import type { RunTrace, FindingRecord } from "@devdigest/shared";
 import { formatCost } from "@/lib/cost-format";
 import { PROMPT_COLORS } from "../../constants";
-import { formatSeconds, formatTokens } from "../../helpers";
+import { formatSeconds, formatTokens, skillsSummary } from "../../helpers";
 import { s } from "../../styles";
 import { TraceSection } from "../TraceSection";
 import { ToolCallRow } from "../ToolCallRow";
 import { PromptBlock } from "../PromptBlock";
 import { FindingsSection } from "../FindingsSection";
+import { SkillBlocksList } from "../SkillBlocksList";
 import { Row, Stat } from "../atoms";
 
 export function TraceBody({ trace, findings }: { trace: RunTrace; findings: FindingRecord[] }) {
   const t = useTranslations("runs");
   const stats = trace.stats;
+  // Traces saved before L02 have no skill_blocks: keep the plain "Skills" block.
+  const skillBlocks = trace.prompt_assembly.skill_blocks?.length ? trace.prompt_assembly.skill_blocks : null;
   return (
     <>
       <TraceSection icon="Settings" title={t("trace.configuration")}>
@@ -74,7 +77,14 @@ export function TraceBody({ trace, findings }: { trace: RunTrace; findings: Find
       <TraceSection icon="FileText" title={t("trace.promptAssembly")} defaultOpen={false}>
         <PromptBlock label={t("trace.prompt.system")} text={trace.prompt_assembly.system} color={PROMPT_COLORS.system} />
         {trace.prompt_assembly.skills != null && (
-          <PromptBlock label={t("trace.prompt.skills")} text={trace.prompt_assembly.skills} color={PROMPT_COLORS.skills} />
+          <>
+            <PromptBlock
+              label={skillBlocks ? t("trace.prompt.skillsSummary", skillsSummary(skillBlocks)) : t("trace.prompt.skills")}
+              text={trace.prompt_assembly.skills}
+              color={PROMPT_COLORS.skills}
+            />
+            {skillBlocks && <SkillBlocksList blocks={skillBlocks} />}
+          </>
         )}
         {trace.prompt_assembly.memory != null && (
           <PromptBlock label={t("trace.prompt.memory")} text={trace.prompt_assembly.memory} color={PROMPT_COLORS.memory} />

@@ -1,6 +1,6 @@
 # client — pages
 
-Last verified: 2026-09-27 (L02 Stage 5: skills page)
+Last verified: 2026-09-27 (L02 Stage 6: agent skills tab, trace skills)
 
 ## Scope
 
@@ -148,12 +148,23 @@ for the PR page (`FindingsPanel/FindingsPanel.tsx`, `RunHistory/RunHistory.tsx`,
 - `/agents`: `useAgents` → `GET /agents`; search filters client-side; the
   "Add agent" dropdown opens `CreateAgentModal`; the card toggle calls
   `useUpdateAgent` → `PUT /agents/:id { enabled }`; clicking a card opens
-  `/agents/:id?tab=config` (`src/app/agents/_components/AgentsListView/AgentsListView.tsx:20-25`,
-  `:83-93`; `agents.ts:8-12`, `:61-69`).
-- `/agents/:id`: left list of all agents, right `AgentEditor` with the single
-  `config` tab (model + system prompt); the header shows `provider/model` and a
-  "disabled" badge; load failure → full-screen `ErrorState`
-  (`src/app/agents/[id]/page.tsx:15`, `:40-51`, `:96-118`).
+  `/agents/:id?tab=config`; the card's "N skills" chip shows
+  `Agent.skill_count` (effective skills) and is hidden at 0
+  (`src/app/agents/_components/AgentsListView/AgentsListView.tsx:89`,
+  `src/app/agents/_components/AgentCard/AgentCard.tsx:66-68`).
+- `/agents/:id`: left list of all agents, right `AgentEditor` with tabs
+  `config` and `skills` (`?tab=`, anything else → `config`,
+  `src/app/agents/[id]/page.tsx:15`, `:27`); the header shows
+  `provider/model` and a "disabled" badge; load failure → full-screen
+  `ErrorState`.
+- Skills tab: every workspace skill — linked ones first in their order, then
+  unlinked; "N of M enabled" (N = linked AND globally enabled, M = linked);
+  filter; order hint; rows with drag handle, ↑/↓, checkbox, name, type badge,
+  Detach; a globally disabled skill is greyed with a hint. Tick an unlinked
+  skill = link at the end, enabled; untick = keep the link and position,
+  disabled; Detach = remove. All edits stay in a draft (tab label marked)
+  until "Save skills" sends ONE `PUT /agents/:id/skills`; "Discard" and an
+  agent switch drop it.
 
 ### `/skills` and `/skills/:id`
 
@@ -191,6 +202,13 @@ for the PR page (`FindingsPanel/FindingsPanel.tsx`, `RunHistory/RunHistory.tsx`,
 - `?tab=preview`: rendered Markdown, "Raw" toggle. `?tab=versions`:
   `GET /skills/:id/versions` newest first; a version whose body equals the
   previous one is labelled "metadata change"; a row shows its raw body.
+
+- Trace drawer → Prompt assembly: when the trace has `skill_blocks`, the
+  Skills block is titled "Skills · N · ≈ T tok (cl100k)" and lists each
+  skill (name, version, source, ≈ tokens); traces without `skill_blocks`
+  keep the plain "Skills (dynamic)" block
+  (`src/app/repos/[repoId]/pulls/[number]/_components/RunTraceDrawer/_components/TraceBody/TraceBody.tsx:82-86`,
+  `RunTraceDrawer/helpers.ts:26`).
 
 ### `/settings/:section`
 
@@ -263,4 +281,7 @@ for the PR page (`FindingsPanel/FindingsPanel.tsx`, `RunHistory/RunHistory.tsx`,
 | Import preview (raw text, warnings, file statuses), save with overrides and no body, error-code messages, size pre-check | `src/app/skills/_components/SkillsListView/_components/ImportSkillModal/ImportSkillModal.test.tsx` |
 | Config changed-field PUT + "Saved (v2)", unsaved chip + token estimate, delete confirm, Config acknowledgement, Enabled toggle keeps the unsaved draft, Preview raw/rendered, Versions "metadata change" | `src/app/skills/[id]/_components/SkillEditor/SkillEditor.test.tsx` |
 | Every `SkillErrorCode` has a message | `src/app/skills/helpers.test.ts` |
+| Agent Skills tab: draft-only tick / untick / ↑↓ / Detach, one PUT on Save, Discard, "N of M enabled", draft reset on agent switch, empty state | `src/app/agents/[id]/_components/AgentEditor/_components/SkillsTab/SkillsTab.test.tsx` |
+| "N skills" chip from `skill_count`, hidden at 0 | `src/app/agents/_components/AgentsListView/AgentsListView.test.tsx`, `src/app/agents/_components/AgentCard/AgentCard.test.tsx` |
+| Trace Skills label with count + tokens, one row per skill, plain block without `skill_blocks` | `RunTraceDrawer/_components/TraceBody/TraceBody.test.tsx` |
 | Kit gallery renders in both themes; diff viewer parses a unified patch | `src/test/smoke.test.tsx:15`, `:27` |

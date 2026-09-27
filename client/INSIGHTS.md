@@ -180,3 +180,8 @@ Never rewrite existing entries — correct with a dated note.
   happens, propose the move to the user again; until then add new `reviews`
   UI to the existing layout (`_components/`, `components/`,
   `lib/hooks/reviews.ts`).
+- 2026-09-27: UPDATE — the revisit condition is met: the `features/<domain>/`
+  trigger fired for `skills` (L02). Decision recorded in
+  `docs/ui-architecture.md` ("Architecture decisions"): `features/reviews/`
+  and `features/skills/` are introduced as L02 Stage 9, after Wave 3 and 7a.
+  Until Stage 9 lands, keep the current layout.
