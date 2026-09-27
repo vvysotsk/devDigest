@@ -417,3 +417,20 @@ the rest reported as "not checked", (c) split the PR. Concurrency cap 6
   finding and invalidate on their blob change; (b) re-run a pair whenever any
   file in the same batch changed; (c) keep manual dismissal (current). Not
   fixed yet.
+  - 2026-09-27 RESOLUTION — option **(d)**, chosen by the user: when a
+    finding's fix lands in ANOTHER file, re-run that skill in full,
+    `plan --full --skills <skill>`, instead of dismissing the finding. (a)
+    and (b) are not built: they tie checkers to file relations (imports,
+    tests, batches) for a rare case and add coupling for little gain. (d)
+    needs no new code: `--full` ignores the journal (`scripts/self-review.mjs:533`),
+    `ground` appends a fresh `check` record per checked file — `clean` with
+    empty `finding_ids` when the finding no longer holds (`:713`) — and
+    `report` keeps the LATEST check record per (skill, rev, path, blob)
+    (`:787-803`, `Map.set` in journal order), so the new clean record
+    replaces the old one. Journal evidence for this exact case,
+    `server/src/modules/pulls/routes.ts` at the unchanged blob `1ba03e79`:
+    the onion v1.0.1 check of 2026-09-26T22:47:23Z (head 160b523) raised
+    b01dbdca / ef6bc205; the user dismissed both at 23:08:11Z / 23:08:24Z
+    ("shape tests added in ed642df"); the onion v1.1.0 check of
+    2026-09-27T12:10:12Z (head 3b724d5) of the same blob is `clean` with
+    `finding_ids: []` — a fresh re-check alone cleared them.

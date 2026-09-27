@@ -61,8 +61,9 @@ file changes, a dismissed CRITICAL blocks again. Mechanical findings cannot
 be dismissed. You must fix them.
 
 **Known limit.** A finding on a file is not re-checked when only a
-related file changes (its test, or a file it imports). See
-`references/plan.md` §12.
+related file changes (its test, or a file it imports). Procedure: re-run
+that skill in full, `plan --full --skills <skill>` (SKILL.md "A fix that
+lands in another file"); decision in `references/plan.md` §12.
 
 Files:
 - `SKILL.md` — the procedure the agent follows.
@@ -80,7 +81,7 @@ Files:
 
 ## Version
 
-**2.0.0** — see `metadata.version` in `SKILL.md` and the row in
+**2.0.1** — see `metadata.version` in `SKILL.md` and the row in
 `.claude/skills/README.md`.
 
 When you change `SKILL.md`, `checker.md` or the script, bump the version
@@ -92,6 +93,10 @@ and add a Changelog line:
 
 ## Changelog
 
+- **2.0.1 — 2026-09-27** — procedure only, no rule or key changes: SKILL.md
+  "A fix that lands in another file" — re-run the skill with
+  `plan --full --skills <skill>` instead of dismissing; plan.md §12 resolved
+  as option (d), with the journal evidence.
 - **2.0.0 — 2026-09-27** — the "checked" definition changes (D8): a
   versioned skill's journal revision is `major.minor` of
   `metadata.version`, so a patch bump (wording) keeps its checks and only a

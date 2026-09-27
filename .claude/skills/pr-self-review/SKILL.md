@@ -3,7 +3,7 @@ name: pr-self-review
 description: "Self-review gate before a pull request. Use BEFORE running gh pr create or pushing a branch for review, and when the user says /pr-self-review, self-review, 'check before PR' or 'ready for PR?'. Routes every changed file to the skills whose metadata.applies_to matches it, re-checks only what the journal has not seen at the current content, runs typecheck/tests of touched packages and the Do-not-touch guards, and refuses to create the PR while any CRITICAL finding is open."
 argument-hint: "[--mode full|blocking] [--skills a,b] [--full] [--base <ref>]"
 metadata:
-  version: 2.0.0
+  version: 2.0.1
 ---
 
 # PR self-review
@@ -171,6 +171,20 @@ Never CRITICAL: review signals and thresholds, style, findings on unchanged
 lines, medium confidence. WARNING-level mechanical checks: package code
 changed without its `docs/`/`specs/` (package-docs rule); a versioned skill
 whose `SKILL.md` changed without a `metadata.version` bump.
+
+## A fix that lands in another file
+
+A skill finding stays open while ITS file keeps the same content, even when
+the fix went into another file (e.g. a route's "no shape test" finding fixed
+by adding the test). Do not dismiss it: re-run that skill in full,
+
+```
+node $S plan --full --skills <skill>
+```
+
+then spawn its checkers, `ground` and `report` as usual. The fresh check of
+the unchanged file replaces the old one in the journal; if the finding no
+longer holds, it is gone. Dismiss only a finding that is wrong.
 
 ## Dismissing a false alarm
 

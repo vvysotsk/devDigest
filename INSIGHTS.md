@@ -110,3 +110,14 @@ Never rewrite existing entries — correct with a dated note.
   `.claude/skills/pr-self-review/scripts/self-review.mjs:787-805`, `:530-533`;
   `.claude/skills/pr-self-review/references/plan.md` §12; findings b01dbdca,
   ef6bc205 on `server/src/modules/pulls/routes.ts:46`, `:55`).
+  - 2026-09-27 RESOLUTION: no "related paths" machinery (the user's
+    decision — coupling for little gain). When a fix lands in another file,
+    re-run that skill with `plan --full --skills <skill>`: the fresh check of
+    the unchanged file is appended and `report` keeps the latest one, so a
+    clean re-check clears the finding. The journal shows it for this case:
+    `pulls/routes.ts` at blob 1ba03e79 raised b01dbdca / ef6bc205 at onion
+    v1.0.1 (2026-09-26T22:47Z) and was `clean` with empty `finding_ids` at
+    v1.1.0 (2026-09-27T12:10Z). Procedure in pr-self-review 2.0.1 SKILL.md
+    "A fix that lands in another file" (evidence:
+    `.claude/skills/pr-self-review/scripts/self-review.mjs:713`, `:787-803`;
+    `.claude/skills/pr-self-review/references/plan.md` §12).
