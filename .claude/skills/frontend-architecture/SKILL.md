@@ -2,7 +2,7 @@
 name: frontend-architecture
 description: "Where frontend code lives in client/ and how it is split. Use when creating, moving or splitting a component, hook, helper or constant in client/, adding a route, or deciding where code should live. Covers folder placement, the index.ts component boundary, helpers vs lib, hooks by domain, Next.js route boundaries, API contract types, review signals with thresholds, and the triggers that would change this architecture."
 metadata:
-  version: 1.1.0
+  version: 2.0.0
   applies_to: "client/src/**, client/messages/**, !client/src/vendor/**"
   blocking: "true"
 ---
@@ -31,11 +31,12 @@ on demand; section pointers below are to `research.md`.
 |---|---|---|
 | Route entry | `src/app/<route>/page.tsx` | Thin: mounts one view from `_components/` or composes a few. No data logic beyond reading params/search params. |
 | Route-private view or component | `src/app/<route>/_components/<Name>/` | PascalCase folder = component name. Used by this route only. |
-| Shared component | `src/components/<kebab-case>/<Name>.tsx` | Used by ≥2 routes. Domain-specific is fine (`severity-summary`), see triggers for `features/`. |
+| Shared component | `src/components/<kebab-case>/<Name>.tsx` | Used by ≥2 routes and not owned by a domain feature (`app-shell`, `diff-viewer`, `page-shell`, …). Never imports a feature. |
+| Domain feature | `src/features/<domain>/` — `components/<kebab>/`, `hooks.ts`, `lib/<topic>.ts` | The shared UI, data hooks and pure functions of ONE domain that met the `features/` rule (R4): today `reviews` and `skills`. Route-private views of that domain stay in `app/<route>/_components/`. No barrel at the feature root. |
 | UI primitive | `src/vendor/ui` (`@devdigest/ui`) | Extend the kit; never add a component library. |
-| Data hooks | `src/lib/hooks/<domain>.ts` | One file per API domain (`core`, `agents`, `reviews`, `trace`, `repo-intel`). Import from the domain file; there is no `lib/hooks/index.ts`. |
+| Data hooks | `src/lib/hooks/<domain>.ts`, or `src/features/<domain>/hooks.ts` for a feature domain | One file per API domain (`core`, `agents`, `trace`, `repo-intel` in `lib/hooks/`; `reviews`, `skills` in their features). Import from the domain file; there is no `lib/hooks/index.ts`. |
 | App infrastructure | `src/lib/<topic>.ts(x)` | `api.ts`, `providers.tsx`, `theme.tsx`, `toast.tsx`, `repo-context.tsx`, `types.ts`. |
-| Shared pure functions | `src/lib/<topic>.ts` | kebab-case, named by topic (`github-urls.ts`, `model-label.ts`). |
+| Shared pure functions | `src/lib/<topic>.ts`, or `src/features/<domain>/lib/<topic>.ts` when the topic belongs to a feature domain (`severity.ts`, `cost-format.ts` in `features/reviews/lib/`) | kebab-case, named by topic (`github-urls.ts`, `model-label.ts`). |
 | Component-local pure functions | `helpers.ts` beside the component (or beside the route for route-wide ones) | With `helpers.test.ts` when non-trivial. |
 | Constants | `constants.ts` beside the component/route; module scope in the file when only that file uses them | Never inline static objects/arrays in the render body. |
 | Styles | `styles.ts` beside the component (`s.<name>` inline objects) | Media queries and keyframes only in `src/app/globals.css`. |
@@ -62,8 +63,9 @@ Component folder anatomy (`_components/<Name>/` and `components/<kebab>/`):
   real default import of a component folder is `RunTraceDrawer` in
   `src/app/repos/[repoId]/pulls/[number]/page.tsx`.
 - Barrel files over a whole layer are forbidden: no `components/index.ts`,
-  no `lib/hooks/index.ts`, no `lib/index.ts`. Import the concrete file
-  (`@/lib/hooks/reviews`, `@/components/severity-summary`).
+  no `lib/hooks/index.ts`, no `lib/index.ts`, no `features/<domain>/index.ts`.
+  Import the concrete file (`@/lib/hooks/agents`,
+  `@/features/reviews/components/severity-summary`, `@/features/reviews/hooks`).
 - Why: a per-component index is a one-level redirect; layer barrels pull the
   whole layer into every importer and break tree-shaking and test start-up
   (research §1 contested, §6).
@@ -74,13 +76,18 @@ Component folder anatomy (`_components/<Name>/` and `components/<kebab>/`):
 2. Used by the component and its siblings → `helpers.ts` / `constants.ts`
    beside it.
 3. Used by ≥2 routes → `src/components/<kebab>/` for UI, `src/lib/<topic>.ts`
-   for pure functions, `src/lib/hooks/<domain>.ts` for data hooks.
+   for pure functions, `src/lib/hooks/<domain>.ts` for data hooks — or the
+   same pieces under `src/features/<domain>/` when that domain is a feature
+   (R4).
 - Do not promote on the first duplicate; two copies are cheaper than a wrong
   abstraction. Promote at the second unrelated consumer (research §1, §4).
 - Dependency direction: `vendor/ui` and `vendor/shared` → `lib/` →
-  `components/` → `app/`. Nothing in `lib/` or `components/` imports from
-  `app/`. Route folders never import from another route folder; shared code
-  goes through `components/` or `lib/`.
+  `components/` → `features/` → `app/`. Nothing in `lib/`, `components/` or
+  `features/` imports from `app/`; nothing in `lib/` or `components/` imports
+  from `features/`; a feature never imports another feature. Route folders
+  never import from another route folder; shared code goes through
+  `components/`, `lib/` or a feature. `app/` is the only layer that composes
+  several features (e.g. the trace drawer uses `reviews` and `skills`).
 
 ### R3 — Naming pure functions: `helpers.ts` local, `lib/<topic>.ts` shared
 - A pure function used by one component (or one route) lives in `helpers.ts`
@@ -92,18 +99,27 @@ Component folder anatomy (`_components/<Name>/` and `components/<kebab>/`):
   grows unrelated functions and hides them from every caller (research §4).
 - A function that calls a hook is a hook (`useX`) and lives in
   `lib/hooks/<domain>.ts` if it talks to the API, otherwise beside its
-  component. A function that calls no hook has no `use` prefix.
+  component (`features/<domain>/hooks.ts` for a feature domain). A function
+  that calls no hook has no `use` prefix.
 
-### R4 — Structure is fixed: `_components/` per route, `components/` shared, hooks by domain
+### R4 — Structure: `_components/` per route, `components/` shared, `features/<domain>/` per grown domain, hooks by domain
 - Route views: `app/<route>/_components/`. Sub-views of a view nest as
   `_components/<View>/_components/<Sub>/`.
 - Shared UI: `components/<kebab>/`. A route-private component moves here the
   moment a second route needs it; it must then import nothing from `app/`.
 - Hooks: `lib/hooks/<domain>.ts`, one file per API domain, query keys start
   with the entity name and the id. A new API domain = a new file, not a
-  section in an existing one.
-- No `features/` layer now. See "Architecture-change triggers" for when
-  that changes.
+  section in an existing one. A feature domain keeps its hooks in
+  `features/<domain>/hooks.ts` instead.
+- Domain features: `features/<domain>/` holds ONE domain's shared UI
+  (`components/<kebab>/`, each with its `index.ts`), its data hooks
+  (`hooks.ts`) and its domain pure functions (`lib/<topic>.ts`). There is no
+  barrel at the feature root: import `@/features/<domain>/components/<kebab>`,
+  `@/features/<domain>/hooks`, `@/features/<domain>/lib/<topic>` (R1).
+  Features today: `reviews`, `skills` (since 2026-09-28, L02 Stage 9).
+- A domain becomes a feature when the `features/<domain>/` rule in
+  "Architecture-change triggers" holds for it; until then it uses
+  `components/`, `lib/hooks/<domain>.ts` and `lib/<topic>.ts`.
 
 ### R5 — Next.js boundaries: root `error.tsx` and `not-found.tsx` only
 - Target state: `src/app/error.tsx` (client component) and
@@ -160,7 +176,7 @@ Signals: <file> <signal> — kept: <reason> | split into <A>, <B>
 
 Examples: `Signals: RunHistory.tsx >200 lines — kept: single timeline, no
 second consumer` · `Signals: page.tsx >1 useEffect — split into
-useReviewRefresh (lib/hooks/reviews.ts)`.
+useReviewRefresh (features/reviews/hooks.ts)`.
 
 Why signals, not caps: the React team expects function components to get
 longer with hooks, and every credible source splits on responsibility, not
@@ -180,7 +196,7 @@ appeared; mention the deferred entry in the report instead.
 
 | Trigger | Fires when | Change |
 |---|---|---|
-| Introduce `features/<domain>/` | Code of one domain sits in ≥2 of `components/`, `lib/hooks/`, `lib/` AND its UI is used by ≥2 routes; OR `components/` holds ≥3 domain widgets (not primitives) of the same domain; OR the domain must be extracted or shared with another project. First candidate: `reviews` (`severity-summary`, `findings-preview`, `run-cost-badge`, `lib/hooks/reviews.ts`). | Move the domain's components, hooks and helpers under `src/features/<domain>/`; features never import each other; `app/` composes them. |
+| Promote a domain to `features/<domain>/` (a standing rule — done for `reviews` and `skills` on 2026-09-28; not an open decision) | For any NEXT domain (e.g. `agents`, `trace`): its code sits in ≥2 of `components/`, `lib/hooks/`, `lib/` AND its UI is used by ≥2 routes; OR `components/` holds ≥3 domain widgets (not primitives) of it; OR it must be extracted or shared with another project. | Propose the move to the user (a layout change); when accepted, move the domain's shared components, hooks and pure functions under `src/features/<domain>/` per R4; features never import each other; `app/` composes them. |
 | Next.js server layer | SSR is needed, or an auth cookie / secret must live in the browser-facing app and cannot stay in the Fastify API. | Add a `server-only` DAL and thin Server Actions per research §7.8–7.9; `next-best-practices` for APIs; proxy only for optimistic redirects (§7.5). |
 | OpenAPI instead of the contract copy | A first API consumer that is not this client appears (CI, another project's integration). | Generate the spec from Fastify's zod schemas; `openapi-typescript` + `openapi-fetch` in `lib/api.ts`; delete `client/src/vendor/shared`. |
 | Segment `error.tsx` | A nested `layout.tsx` appears under `src/app/`. | Add `error.tsx` next to that layout (R5). |
@@ -192,8 +208,9 @@ appeared; mention the deferred entry in the report instead.
       and `lib/<topic>.ts`).
 - [ ] `index.ts` (if any) has only named re-exports; no layer barrel was
       created or imported (R1).
-- [ ] Nothing in `lib/` or `components/` imports from `app/`; no route
-      imports another route (R2).
+- [ ] Nothing in `lib/`, `components/` or `features/` imports from `app/`;
+      `lib/` and `components/` import no feature; no feature imports another
+      feature; no route imports another route (R2).
 - [ ] No `utils.ts`/`helpers.ts` at `lib/` root; no `use`-prefixed non-hook (R3).
 - [ ] No Server Action, DAL, `use cache`, proxy or server fetch added (R6).
 - [ ] No local API type; contract types only (R7).

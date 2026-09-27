@@ -40,7 +40,7 @@ is CRITICAL. A signal is at most a SUGGESTION.
 
 ## Version
 
-**1.1.0** — see `metadata.version` in `SKILL.md` and the row in
+**2.0.0** — see `metadata.version` in `SKILL.md` and the row in
 `.claude/skills/README.md`.
 
 When you change `SKILL.md`, bump the version and add a Changelog line:
@@ -49,6 +49,19 @@ When you change `SKILL.md`, bump the version and add a Changelog line:
 - **major** — a settled decision (R1–R7, a trigger's condition) is changed.
 
 ## Changelog
+
+- **2.0.0 — 2026-09-28** — the `features/` layer exists: R4 (was "No
+  `features/` layer now") now places a grown domain's shared UI, hooks and
+  pure functions in `src/features/<domain>/` (today `reviews`, `skills`);
+  R2 extends the dependency direction to `lib/ → components/ → features/ →
+  app/` (no feature imports another feature; `lib/` and `components/` import
+  no feature); new Map row "Domain feature"; the Data hooks / Shared pure
+  functions rows name the feature locations; the `features/<domain>/` trigger
+  became a standing rule for the next domain (e.g. `agents`, `trace`)
+  instead of an open decision. Major: a settled decision (R4, a trigger's
+  outcome) changed; every client file is re-checked for this skill in the
+  next self-review. Decision: `client/docs/ui-architecture.md`
+  ("Architecture decisions", 2026-09-27/28), L02 Stage 9.
 
 - **1.1.0 — 2026-09-27** — new Map row "Shared test factories":
   `src/test/fixtures.ts` holds one factory per contract type (`finding`,

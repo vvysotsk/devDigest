@@ -12,7 +12,7 @@ Reusable AI skills that provide specialized knowledge and workflows. Canonical l
 | [onion-architecture](onion-architecture/SKILL.md) (v1.1.1) | Backend | Layers and import direction in `server/` + `reviewer-core/`: ring map, thin-module exception, response schema + shape test, use-case transactions, advisory `pnpm deps:check`, architecture-change triggers (104-source research in `references/`; versioning rules in its `README.md`) |
 | [next-best-practices](next-best-practices/SKILL.md) | Frontend | Next.js App Router, RSC boundaries, data fetching, optimization |
 | [react-best-practices](react-best-practices/SKILL.md) | Frontend | React anti-patterns, state management, hooks rules |
-| [frontend-architecture](frontend-architecture/SKILL.md) (v1.1.0) | Frontend | Where code lives in `client/` and how it splits: placement map, `index.ts` boundary, helpers vs lib, review signals, architecture-change triggers (275-source research in `references/`; versioning rules in its `README.md`) |
+| [frontend-architecture](frontend-architecture/SKILL.md) (v2.0.0) | Frontend | Where code lives in `client/` and how it splits: placement map, `index.ts` boundary, helpers vs lib, domain features (`features/reviews`, `features/skills`), review signals, architecture-change triggers (275-source research in `references/`; versioning rules in its `README.md`) |
 | [react-testing-library](react-testing-library/SKILL.md) | Frontend | General-purpose React Testing Library guide with Vitest |
 | [zod](zod/SKILL.md) | Full-stack | Zod schema validation, parsing, error handling, type inference |
 | [typescript-expert](typescript-expert/SKILL.md) | Full-stack | Type-level programming, performance, tooling, migrations |
