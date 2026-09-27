@@ -9,7 +9,9 @@
   shows only violations missing from `.dependency-cruiser-known-violations.json`.
   `pnpm deps:baseline` rewrites that file — only after fixing a known one.
 - Unit tests (hermetic): `pnpm exec vitest run --exclude '**/*.it.test.ts'`
-- Integration (Docker): `pnpm exec vitest run .it.test`
+- Integration (Docker): `DEVDIGEST_REQUIRE_DOCKER=1 pnpm exec vitest run .it.test`
+  — the flag makes a missing Docker daemon FAIL the files instead of skipping
+  them; without it they self-skip and report green.
 
 ## Before answering
 

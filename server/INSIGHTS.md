@@ -209,6 +209,12 @@ Never rewrite existing entries — correct with a dated note.
   `test/skill-import.it.test.ts` was skipped ("4 skipped" in the summary).
   Timeout is now 30 s; still read the summary for `skipped` / `↓` lines,
   not only for failures.
+  - 2026-09-27 note: a longer timeout only makes the skip rarer. The gate is
+    now strict: with `DEVDIGEST_REQUIRE_DOCKER=1` (CI
+    `../.github/workflows/server-integration.yml`, the documented command in
+    `CLAUDE.md`) `dockerAvailable()` THROWS when Docker is unreachable, so the
+    file fails instead of skipping (`test/helpers/pg.ts:22-48`). Report the
+    skipped count of every integration run.
 
 - 2026-09-27: `pnpm typecheck` checks only `src/` (`tsconfig.json:28`
   `"include": ["src/**/*.ts"]`) and vitest does not typecheck, so a change to

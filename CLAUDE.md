@@ -37,7 +37,7 @@ workspace: each has its own package.json and lockfile; install per package.
 
 | Package | Typecheck | Tests |
 |---|---|---|
-| server | `pnpm typecheck` | unit: `pnpm exec vitest run --exclude '**/*.it.test.ts'` · integration (Docker): `pnpm exec vitest run .it.test` |
+| server | `pnpm typecheck` | unit: `pnpm exec vitest run --exclude '**/*.it.test.ts'` · integration (Docker): `DEVDIGEST_REQUIRE_DOCKER=1 pnpm exec vitest run .it.test` (fails instead of skipping without Docker; report skipped counts) |
 | client | `pnpm typecheck` | `pnpm test` |
 | reviewer-core | `npm run typecheck` | `npm test` |
 | e2e | `npm run typecheck` | `npm run e2e:hermetic` |

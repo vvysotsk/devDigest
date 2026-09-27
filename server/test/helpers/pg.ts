@@ -24,15 +24,25 @@ let dockerCache: boolean | undefined;
  * starts every `*.it.test.ts` file in parallel and each one spins up a
  * container, so under that load `docker info` can take well over 5 s — a
  * timeout here silently SKIPS the whole file (it reports as green).
+ *
+ * With `DEVDIGEST_REQUIRE_DOCKER=1` (set by CI and by the documented gate
+ * command) an unreachable Docker THROWS instead, so the file fails and the gate
+ * goes red — a gate must never pass by skipping its integration tests.
  */
 export async function dockerAvailable(): Promise<boolean> {
-  if (dockerCache !== undefined) return dockerCache;
-  try {
-    const { execSync } = await import('node:child_process');
-    execSync('docker info', { stdio: 'ignore', timeout: 30_000 });
-    dockerCache = true;
-  } catch {
-    dockerCache = false;
+  if (dockerCache === undefined) {
+    try {
+      const { execSync } = await import('node:child_process');
+      execSync('docker info', { stdio: 'ignore', timeout: 30_000 });
+      dockerCache = true;
+    } catch {
+      dockerCache = false;
+    }
+  }
+  if (!dockerCache && process.env.DEVDIGEST_REQUIRE_DOCKER === '1') {
+    throw new Error(
+      'DEVDIGEST_REQUIRE_DOCKER=1 but the Docker daemon is not reachable — integration tests must run, not skip',
+    );
   }
   return dockerCache;
 }
