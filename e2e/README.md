@@ -31,6 +31,10 @@ A spec lives in `specs/NN-name.flow.json`:
   command's stdout.
 - Locators are deterministic only (`--url`, `--text`, `find role|text|label`).
   We never use the AI `chat` command, so runs are stable and key-free.
+- `find … click` does **not** wait for its target: put a `wait --text` for the
+  target right before it. `wait --url` and `wait --load networkidle` do not
+  prove the page's data has rendered (rules: `specs/flows-contract.md` →
+  "Flow authoring rules").
 
 Flows target **read-only seeded data** (the demo repo `acme/payments-api`, PR
 #482, the seeded agents), so nothing triggers a model call.
@@ -86,8 +90,11 @@ Env knobs:
   `E2E_WEB_PORT` (3100), `E2E_PG_CONTAINER` (`devdigest-e2e-postgres`),
   `E2E_PG_IMAGE` (`pgvector/pgvector:pg16`).
 
-Failure screenshots are written to `e2e/test-results/` (git-ignored; uploaded as
-a CI artifact by `.github/workflows/e2e-web.yml`).
+Each step line shows its elapsed time. On a failure the runner prints the URL
+and page errors and writes a screenshot and an accessibility snapshot
+(`<flow>-fail.png`, `<flow>-fail.snapshot.txt`) to `e2e/test-results/`
+(git-ignored; uploaded as a CI artifact by `.github/workflows/e2e-web.yml`).
+All of these show the page after the failure.
 
 ## Coverage (typological, not exhaustive)
 

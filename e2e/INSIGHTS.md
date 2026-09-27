@@ -23,6 +23,19 @@ Never rewrite existing entries — correct with a dated note.
   `npm i -g agent-browser && agent-browser install` first (evidence:
   `../scripts/e2e.sh:51-52`, `run.ts:44-51`).
 
+- 2026-09-27: agent-browser 0.38.1 `find <locator> <value> click` does not
+  wait for its target — it fails at once when the element is not in the DOM
+  yet; only `wait --text` / `wait --url` wait. `find text` can also match
+  text that is not visible (a string inside a `<script>`) and print "✓ Done"
+  without clicking the real element. Put a `wait --text` for the target's own
+  visible text right before every `find` (evidence:
+  `specs/05-pr-diff.flow.json:7-8`, `specs/flows-contract.md` "Flow authoring
+  rules"). `wait --load networkidle` after an in-app (push) navigation DOES
+  wait for a quiet network — ~0.9–1.0 s in flows 04/05 — contrary to the
+  assumption that the already-reached load state makes it return at once; it
+  still proves nothing about what rendered (run logs of 2026-09-27: the tab
+  `wait --text` after it took 20–33 ms).
+
 ## Recurring Errors & Fixes
 
 - 2026-09-27: On Windows the hermetic suite fails in three stacked ways,
@@ -61,3 +74,17 @@ Never rewrite existing entries — correct with a dated note.
   (`specs/02-repo-pulls-detail.flow.json:7`), and the API log shows the PR
   list re-syncing (GitHub 404 → persisted PRs) at that moment. If it fails
   again, investigate before adding a retry.
+  - 2026-09-27 RESOLUTION: the hypothesis holds. `agent-browser find text …
+    click` does not auto-wait (fails in ~0.1 s, "No element found by text"),
+    and `wait --url /pulls` passes right after the client redirect
+    (`../client/src/app/page.tsx:15-19`) while `GET /repos/:id/pulls` is still
+    syncing from GitHub (`../server/src/modules/pulls/service.ts:59-67`).
+    Reproduced outside the repo with agent-browser 0.38.1, the real `run.ts`
+    and flows 02/05 against a fake SPA: list delay 0 ms → 3/3 pass; 300 and
+    1500 ms → flow 05 fails 3/3 at "open the PR row" while 02 passes; with
+    `wait --text` added to 05 → 3/3 pass at 300/1500/5000 ms. The saved
+    `test-results/05-pr-diff-fail.png` showed the row because it is taken
+    after the failure. Fixed by waiting for the row in 04 and 05
+    (`specs/04-pr-findings.flow.json:7`, `specs/05-pr-diff.flow.json:7`) and
+    for the tab button before each tab click (`:11`); rule in
+    `specs/flows-contract.md` "Flow authoring rules".
