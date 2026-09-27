@@ -11,7 +11,7 @@ import type { FindingRecord } from "@devdigest/shared";
 import { finding as findingRecord } from "@/test/fixtures";
 import messages from "../../../../../../../../messages/en/prReview.json";
 
-vi.mock("../../../../../../../lib/hooks/reviews", () => ({
+vi.mock("@/features/reviews/hooks", () => ({
   useFindingAction: () => ({ mutate: vi.fn(), isPending: false }),
 }));
 

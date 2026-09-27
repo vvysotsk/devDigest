@@ -20,7 +20,7 @@ toggling a filter never hits `/review`.
 ## Semantics
 
 - **Counting** is `countBySeverity(findings)` from
-  `client/src/lib/severity.ts` — one function for every surface.
+  `client/src/features/reviews/lib/severity.ts` — one function for every surface.
 - **Review runs card**: pills count the findings visible **after** the
   "Hide low confidence" toggle and **before** the severity filter, so the number
   on a pill always equals the finding cards of that severity rendered below.
@@ -55,16 +55,16 @@ toggling a filter never hits `/review`.
 
 ## Client
 
-- `client/src/components/severity-summary/` — `SeveritySummary` (variants
+- `client/src/features/reviews/components/severity-summary/` — `SeveritySummary` (variants
   `icons`, `pills`); `countBySeverity` / `presentSeverities` / `totalFindings` /
-  `sortBySeverity` live in `client/src/lib/severity.ts`.
+  `sortBySeverity` live in `client/src/features/reviews/lib/severity.ts`.
   Severity is typed from `@devdigest/shared` (three values), not from the UI
   kit's `Severity` (which also has INFO).
 - `FindingsPanel` (`[number]/_components/FindingsPanel`) — pills + chips +
   `visibleFindings(findings, hideLow, severity)`.
 - UI kit `Chip` gained optional `pressed` (renders `aria-pressed`), `title`
   and `disabled` (native `disabled` + `aria-disabled`, muted, no hover).
-- `client/src/components/findings-preview/` — `FindingPreview` (read-only
+- `client/src/features/reviews/components/findings-preview/` — `FindingPreview` (read-only
   row), `FindingsPopover` (`position: fixed`, clamped to the viewport; list
   containers clip overflow so `absolute` would be cut off) and
   `FindingsHoverCard` (trigger: hover after `openDelayMs` or focus; closes on

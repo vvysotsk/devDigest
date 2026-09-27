@@ -4,7 +4,7 @@
 import React from "react";
 import type { FindingRecord } from "@devdigest/shared";
 import { FindingPreview } from "./FindingPreview";
-import { sortBySeverity } from "@/lib/severity";
+import { sortBySeverity } from "@/features/reviews/lib/severity";
 import { s, POPOVER_WIDTH, POPOVER_GAP } from "./styles";
 
 export const FindingsPopover = React.forwardRef<

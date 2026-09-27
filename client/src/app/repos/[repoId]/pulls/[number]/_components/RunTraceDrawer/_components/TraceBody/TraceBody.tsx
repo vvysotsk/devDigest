@@ -6,7 +6,7 @@ import React from "react";
 import { useTranslations } from "next-intl";
 import { Badge } from "@devdigest/ui";
 import type { RunTrace, FindingRecord } from "@devdigest/shared";
-import { formatCost } from "@/lib/cost-format";
+import { formatCost } from "@/features/reviews/lib/cost-format";
 import { PROMPT_COLORS } from "../../constants";
 import { formatSeconds, formatTokens, skillsSummary } from "../../helpers";
 import { s } from "../../styles";

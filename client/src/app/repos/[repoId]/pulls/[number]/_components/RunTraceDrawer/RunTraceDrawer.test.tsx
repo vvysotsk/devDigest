@@ -22,7 +22,7 @@ const TRACE: RunTrace = {
 vi.mock("../../../../../../../lib/hooks/trace", () => ({
   useRunTrace: () => ({ data: TRACE, isLoading: false }),
 }));
-vi.mock("../../../../../../../lib/hooks/reviews", () => ({
+vi.mock("@/features/reviews/hooks", () => ({
   useRunEvents: () => ({ events: [], running: false }),
 }));
 

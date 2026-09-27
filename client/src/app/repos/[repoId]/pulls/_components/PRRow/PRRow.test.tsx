@@ -14,7 +14,7 @@ const push = vi.fn();
 vi.mock("next/navigation", () => ({ useRouter: () => ({ push }) }));
 
 const usePrReviews = vi.fn();
-vi.mock("@/lib/hooks/reviews", () => ({ usePrReviews: (...a: unknown[]) => usePrReviews(...a) }));
+vi.mock("@/features/reviews/hooks", () => ({ usePrReviews: (...a: unknown[]) => usePrReviews(...a) }));
 
 import { PRRow } from "./PRRow";
 import { HOVER_INTENT_MS } from "./FindingsCell";

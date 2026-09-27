@@ -63,7 +63,7 @@ for the PR page (`FindingsPanel/FindingsPanel.tsx`, `RunHistory/RunHistory.tsx`,
   nothing; a fetch failure shows the error text instead of a loading note.
 - **COST** = `RunCostBadge` over `pr.cost_usd` (the server's sum of every
   `done` run); null renders a dash, a genuine 0 renders `$0.00`
-  (`PRRow/PRRow.tsx:61-63`, `src/lib/cost-format.ts:5-14`).
+  (`PRRow/PRRow.tsx:61-63`, `src/features/reviews/lib/cost-format.ts:5-14`).
 - Status badge = `STATUS_META[pr.status]` label + colour; unknown statuses fall
   back to `needs_review` (`PRRow/PRRow.tsx:19`, `constants.ts:10-17`).
 - Clicking a row navigates to `/repos/:repoId/pulls/<number>`
@@ -266,16 +266,16 @@ for the PR page (`FindingsPanel/FindingsPanel.tsx`, `RunHistory/RunHistory.tsx`,
 | Icon + count per severity of the latest batch | `PRRow/PRRow.test.tsx:64` |
 | Quick sweep opens nothing and fetches nothing; settling opens + fetches + filters by `run_ids` | `PRRow/PRRow.test.tsx:71`, `:82` |
 | Keyboard focus opens immediately; fetch error replaces the loading note | `PRRow/PRRow.test.tsx:105`, `:113` |
-| Hover card: delay, grace, Escape, blur, outer scroll closes / inner scroll does not; `onOpen` once per opening (hover timer + focus) | `src/components/findings-preview/FindingsHoverCard.test.tsx:39-143` |
-| Popover: sorted previews, loading / empty / error precedence, `position: fixed` | `src/components/findings-preview/FindingsPopover.test.tsx:14-55` |
+| Hover card: delay, grace, Escape, blur, outer scroll closes / inner scroll does not; `onOpen` once per opening (hover timer + focus) | `src/features/reviews/components/findings-preview/FindingsHoverCard.test.tsx:39-143` |
+| Popover: sorted previews, loading / empty / error precedence, `position: fixed` | `src/features/reviews/components/findings-preview/FindingsPopover.test.tsx:14-55` |
 | Pills count after hide-low-confidence; three chips always, zero-count chip disabled; vanished filter dropped | `src/app/repos/[repoId]/pulls/[number]/_components/FindingsPanel/FindingsPanel.test.tsx:74-141` |
 | `visibleFindings` applies hideLow before the severity filter and sorts by severity | `FindingsPanel/helpers.test.ts:33-46` |
 | Second finding action reads "Reject" and dispatches `dismiss` | `FindingCard/FindingCard.test.tsx:52` |
 | Timeline badge outcome (rejected / approved / reviewed / error / running), cost line, severity icons + "N findings in this run" hover | `RunHistory/RunHistory.test.tsx:71-165` |
 | Trace drawer stats, COST stat, Findings section, live-log tab | `RunTraceDrawer/RunTraceDrawer.test.tsx:42-95` |
 | Verdict banner label + score + counts | `VerdictBanner/VerdictBanner.test.tsx:18` |
-| `formatCost` dash vs `$0.00` vs scaled decimals; token compaction | `src/lib/cost-format.test.ts:9-24`, `src/components/run-cost-badge/RunCostBadge.test.tsx:13-42` |
-| `countBySeverity` ignores unknown values; pills / icons render only present severities | `src/lib/severity.test.ts:11-43`, `src/components/severity-summary/SeveritySummary.test.tsx:12-37` |
+| `formatCost` dash vs `$0.00` vs scaled decimals; token compaction | `src/features/reviews/lib/cost-format.test.ts:9-24`, `src/features/reviews/components/run-cost-badge/RunCostBadge.test.tsx:13-42` |
+| `countBySeverity` ignores unknown values; pills / icons render only present severities | `src/features/reviews/lib/severity.test.ts:11-43`, `src/features/reviews/components/severity-summary/SeveritySummary.test.tsx:12-37` |
 | Agent card and editor render | `src/app/agents/_components/AgentCard/AgentCard.test.tsx:38`, `src/app/agents/[id]/_components/AgentEditor/AgentEditor.test.tsx:42` |
 | Skill cards, switch, imported first-enable acknowledgement, create flow | `src/app/skills/_components/SkillsListView/SkillsListView.test.tsx` |
 | Import preview (raw text, warnings, file statuses), save with overrides and no body, error-code messages, size pre-check | `src/app/skills/_components/SkillsListView/_components/ImportSkillModal/ImportSkillModal.test.tsx` |

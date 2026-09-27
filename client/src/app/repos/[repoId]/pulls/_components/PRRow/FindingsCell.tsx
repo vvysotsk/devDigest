@@ -8,10 +8,10 @@
 import React from "react";
 import { useTranslations } from "next-intl";
 import type { PrMeta } from "@/lib/types";
-import { usePrReviews } from "@/lib/hooks/reviews";
-import { SeveritySummary } from "@/components/severity-summary";
-import { totalFindings } from "@/lib/severity";
-import { FindingsHoverCard } from "@/components/findings-preview";
+import { usePrReviews } from "@/features/reviews/hooks";
+import { SeveritySummary } from "@/features/reviews/components/severity-summary";
+import { totalFindings } from "@/features/reviews/lib/severity";
+import { FindingsHoverCard } from "@/features/reviews/components/findings-preview";
 import { s } from "../../styles";
 
 export const HOVER_INTENT_MS = 180;

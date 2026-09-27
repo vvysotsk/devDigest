@@ -1,6 +1,6 @@
 # client — ui-architecture
 
-Last verified: 2026-09-27 (L02 Stage 6: agent skills tab, trace skills)
+Last verified: 2026-09-28 (L02 Stage 9: features/reviews)
 
 ## Purpose
 
@@ -19,14 +19,15 @@ browser.
 | `src/app/layout.tsx` | Root layout: `next-intl` provider with all namespaces, theme no-flash script, `Providers`. |
 | `src/app/**/page.tsx` | Routes (`/`, `/onboarding`, `/repos/[repoId]/pulls`, `/repos/[repoId]/pulls/[number]`, `/agents`, `/agents/[id]`, `/skills`, `/skills/[id]`, `/settings/[section]`). Thin: a page mounts one view or composes `_components/`. |
 | `src/app/**/_components/<Name>/` | Route-private components: `<Name>.tsx` + `constants.ts`, `helpers.ts`, `styles.ts`, `index.ts`, tests beside the source. |
-| `src/components/<kebab>/` | Shared components (`app-shell`, `diff-viewer`, `findings-preview`, `severity-summary`, `run-cost-badge`, `page-shell`, `repo-not-found`, `mermaid-diagram`, `showcase`, `skill-type-badge`, `skill-source-chip`). |
+| `src/components/<kebab>/` | Shared components that belong to no domain feature (`app-shell`, `diff-viewer`, `page-shell`, `repo-not-found`, `mermaid-diagram`, `showcase`, `skill-type-badge`, `skill-source-chip`). They never import `features/`. |
+| `src/features/<domain>/` | Domain features (frontend-architecture R4, 2.0.0): a grown domain's shared UI (`components/<kebab>/`), data hooks (`hooks.ts`) and pure functions (`lib/<topic>.ts`), no barrel at the root. `features/reviews/`: `components/{severity-summary,findings-preview,run-cost-badge}`, `hooks.ts`, `lib/{severity,finding-format,cost-format}.ts`. Features import no other feature and no `app/`; `app/` composes them. |
 | `src/lib/api.ts` | `apiFetch` + `api.get/post/put/patch/del`; base URL from `NEXT_PUBLIC_API_BASE`; every failure becomes `ApiError { status, code, details }`. |
-| `src/lib/hooks/<domain>.ts` | All TanStack Query hooks (`core`, `agents`, `reviews`, `trace`, `repo-intel`, `skills`). Imported from the domain file (`@/lib/hooks/core`); there is no `hooks/index.ts` barrel (see `.claude/skills/frontend-architecture`, R1). |
+| `src/lib/hooks/<domain>.ts` | TanStack Query hooks of domains that are not features (`core`, `agents`, `trace`, `repo-intel`, `skills`); a feature keeps its hooks in `src/features/<domain>/hooks.ts` (`reviews`). Imported from the domain file (`@/lib/hooks/core`); there is no `hooks/index.ts` barrel (see `.claude/skills/frontend-architecture`, R1). |
 | `src/lib/providers.tsx` | `QueryClient` (retry 1, staleTime 30 s, no refetch on focus, global error toasts) → `ThemeProvider` → `ToastProvider` → `RepoProvider`. |
 | `src/lib/repo-context.tsx` | Active repo: URL `:repoId` > `localStorage("dd-repo")` > first repo; `useRepoNotFound`. |
 | `src/lib/theme.tsx`, `src/lib/toast.tsx` | `data-theme` on `<html>` + `localStorage("dd-theme")`; toast context plus the module-level `notify` bridge used outside React. |
 | `src/lib/types.ts` | Re-exports contract types from `@devdigest/shared`; no local API shapes. |
-| `src/lib/severity.ts`, `src/lib/finding-format.ts`, `src/lib/cost-format.ts` | Pure helpers shared by ≥2 routes: severity order / counts / sort (counts typed with the contract `FindingsBySeverity`), a finding's line label, run-cost formatting; each with its `*.test.ts`. |
+| `src/lib/github-urls.ts`, `src/lib/model-label.ts`, `src/lib/feature-models.ts` | Shared pure functions that belong to no feature (the `reviews` ones moved to `src/features/reviews/lib/`). |
 | `src/i18n/request.ts` | Single locale; merges every `messages/en/<ns>.json` into `{ [ns]: … }`. |
 | `messages/en/*.json` | One namespace per file (`prReview`, `runs`, `agents`, `settings`, `shell`, …). |
 | `src/vendor/ui/` | `@devdigest/ui` — the in-house design system (tokens, primitives, kit, shell, charts); see its `README.md`. |
@@ -68,16 +69,16 @@ Next build, while type-only imports and vitest are unaffected.
 1. `RunReviewDropdown` calls `useRunReview().mutateAsync({ prId, all | agentId })`
    → `POST /pulls/:id/review`; the response carries `runs[].run_id` and an empty
    `reviews` array (`RunReviewDropdown/RunReviewDropdown.tsx:41-49`,
-   `src/lib/hooks/reviews.ts:127-139`).
+   `src/features/reviews/hooks.ts:127-139`).
 2. The page switches to the findings tab and invalidates
    `["pr-active-runs", prId]` (`[number]/page.tsx:132-133`); `usePrActiveRuns`
    polls `GET /pulls/:id/runs/active` every 4 s while anything is running
-   (`src/lib/hooks/reviews.ts:28-35`).
+   (`src/features/reviews/hooks.ts:28-35`).
 3. `FindingsTab` mounts `RunStatus` for the live run ids; `useRunEvents` opens
    one `EventSource` per run on `GET /runs/:id/events`, appends every
    `info | tool | result | error` frame to state, toasts `error` frames and
    flips `running` to false when the last stream closes
-   (`src/lib/hooks/reviews.ts:171-219`).
+   (`src/features/reviews/hooks.ts:171-219`).
 4. When `running` drops, `RunStatus` fires `onDone` and the page invalidates
    active runs and run history and refetches reviews
    (`RunStatus/RunStatus.tsx:23-26`, `[number]/page.tsx:156-160`).
@@ -103,8 +104,13 @@ Next build, while type-only imports and vitest are unaffected.
 
 ## Boundaries & dependencies
 
+- **Layer direction** (frontend-architecture R2): `vendor/` → `lib/` →
+  `components/` → `features/` → `app/`. `lib/` and `components/` import no
+  feature, a feature imports no other feature and no `app/`, and only `app/`
+  composes several features (the trace drawer uses `reviews` and `skills`).
+  Enforced by `src/test/import-boundaries.test.ts`.
 - **No raw `fetch` in components.** Everything goes through `src/lib/api.ts`
-  and a hook in `src/lib/hooks/`; `useRunEvents` is the one direct browser
+  and a hook in `src/lib/hooks/` or a feature's `hooks.ts`; `useRunEvents` is the one direct browser
   API use (`EventSource`) and still builds its URL from `API_BASE`.
 - **Contracts are read-only here.** `src/vendor/shared` is a copy of the
   server master; `src/lib/types.ts` only re-exports. Response shapes are
@@ -183,6 +189,14 @@ when" condition appears.
   Rejected: keeping it in a component folder (route tests would import a
   component's internals) and `src/lib/` (app code). Recorded as a Map row in
   the `frontend-architecture` skill (1.1.0).
+- 2026-09-28 — `features/reviews/` introduced (L02 Stage 9, per the
+  2026-09-27 decision above): `severity-summary`, `findings-preview`,
+  `run-cost-badge` → `src/features/reviews/components/`; `lib/hooks/reviews.ts`
+  → `src/features/reviews/hooks.ts`; `lib/{severity,finding-format,cost-format}.ts`
+  → `src/features/reviews/lib/`. `lib/hooks/trace.ts` stays: the trigger
+  fired for `reviews` and `skills`, not `trace`, and its one consumer (the
+  trace drawer) is in `app/`, which may compose features. Behaviour
+  unchanged. frontend-architecture 2.0.0 records the layer.
 
 ## Open questions
 

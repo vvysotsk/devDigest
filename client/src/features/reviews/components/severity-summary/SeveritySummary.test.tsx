@@ -5,7 +5,7 @@
 import { describe, it, expect, afterEach } from "vitest";
 import { render, screen, cleanup } from "@testing-library/react";
 import { SeveritySummary } from "./SeveritySummary";
-import { emptyCounts } from "@/lib/severity";
+import { emptyCounts } from "@/features/reviews/lib/severity";
 
 afterEach(cleanup);
 

@@ -2,7 +2,7 @@
    variant "cost" → "$0.014" (PR list); "costTokens" → "$0.014 · 8.2k→1.3k"
    (run timeline). No usage data renders "—", never a fabricated "$0.00". */
 import React from "react";
-import { formatCost } from "@/lib/cost-format";
+import { formatCost } from "@/features/reviews/lib/cost-format";
 import { formatTokensCompact } from "./helpers";
 
 export function RunCostBadge({

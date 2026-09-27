@@ -151,6 +151,14 @@ Never rewrite existing entries — correct with a dated note.
 
 ## Session Notes
 
+- 2026-09-28: L02 Stage 9 moved the `reviews` domain — entries above that
+  cite `src/components/{severity-summary,findings-preview,run-cost-badge}/`,
+  `src/lib/{severity,finding-format,cost-format}.ts` or
+  `src/lib/hooks/reviews.ts` now mean `src/features/reviews/components/…`,
+  `src/features/reviews/lib/…` and `src/features/reviews/hooks.ts` (same
+  file contents; line numbers unchanged). Boundaries are enforced by
+  `src/test/import-boundaries.test.ts`.
+
 - 2026-09-26: Added the `frontend-architecture` skill (placement map, R1–R7,
   review signals, architecture-change triggers; research in
   `.claude/skills/frontend-architecture/references/`), removed the

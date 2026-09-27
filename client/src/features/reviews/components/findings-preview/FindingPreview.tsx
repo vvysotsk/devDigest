@@ -12,7 +12,7 @@ import {
   type Category,
 } from "@devdigest/ui";
 import type { FindingRecord } from "@devdigest/shared";
-import { lineLabel } from "@/lib/finding-format";
+import { lineLabel } from "@/features/reviews/lib/finding-format";
 import { s } from "./styles";
 
 export function FindingPreview({

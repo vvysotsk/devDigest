@@ -6,7 +6,7 @@
 import React from "react";
 import { Icon, SEV } from "@devdigest/ui";
 import type { FindingsBySeverity, Severity } from "@devdigest/shared";
-import { presentSeverities } from "@/lib/severity";
+import { presentSeverities } from "@/features/reviews/lib/severity";
 import { st } from "./styles";
 
 export function SeveritySummary({
