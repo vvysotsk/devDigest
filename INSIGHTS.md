@@ -45,6 +45,15 @@ Never rewrite existing entries — correct with a dated note.
 
 ## Tool & Library Notes
 
+- 2026-09-27: Agent-tool worktree isolation (`isolation: "worktree"`) created
+  every L02 Wave-2 track worktree from `ae6124d` (origin/main), NOT from the
+  current `lesson-2` HEAD `8118bcc`; all five tracks had to
+  `git reset --hard 8118bcc` before working. Every parallel-track brief must
+  start with `git merge-base --is-ancestor <wave base> HEAD` and reset (clean
+  tree) or rebase onto the wave base if it fails (evidence: track reports for
+  commits `dc5d927`, `330b4d2`, `61c8938`, `ce80bf0`, `118d991`; `specs/L02-skills.md`
+  "Execution waves").
+
 - 2026-09-27: `node --test <directory>` (Node 24.18) does not discover
   tests in that directory — it treats the path as one test file and reports
   a single failing test named after the directory ("test failed"). Pass the

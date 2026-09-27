@@ -155,6 +155,16 @@ them (`POST /skills/import/preview`, `POST /skills/import`) come in Stage 3b.
   forward-slash paths) packs a folder such as
   `test/fixtures/skills/api-deprecation-policy/` for a manual import.
 
+## Seed data (`src/db/seed-skills.ts`, `src/db/seed-prs.ts`)
+
+Plain typed data, not yet imported by `seed.ts` (wired in L02 Wave 3):
+`SEED_SKILLS` (12 manual skills), `SEED_AGENT_SKILL_LINKS` (per agent, array
+order = `agent_skills.order`; Security 6 linked / 3 enabled),
+`SEED_EXPERIMENT_PRS` (#483, #484 on `acme/payments-api` with `pr_files`
+patches in GitHub format, read by `diffFromPrFiles` when there is no clone).
+Skill bodies and prompts stay generic — they never name the experiment PRs'
+defects (see `../specs/L02-skills.md` D8).
+
 ## Known limitations
 
 - ZIP64 archives and encrypted entries are rejected, not supported.

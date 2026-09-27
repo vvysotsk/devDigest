@@ -155,6 +155,13 @@ count, line numbers, mono font).
     repo map `degraded: no_data` (`:404-411`), file rank `[]` (`:424-428`). The
     experiment therefore isolates the effect of skills and needs only an LLM
     key. PR #482 (no patches, `server/src/db/seed.ts:121-126`) is unchanged.
+  - Fixture files: #483 `src/billing/discount.ts` + `test/billing/discount.test.ts`
+    (2 files, +81/−0); #484 `src/api/users.ts` + `src/schemas/users.ts`
+    (2 files, +31/−8); data in `server/src/db/seed-prs.ts`. Neither the PRs
+    nor any seed skill or prompt names the defect (checked by grep).
+  - Run the experiment **only on Test Quality Reviewer (#483) and API
+    Contract Reviewer (#484)**. General Reviewer on #484 is not meaningful:
+    its prompt already mentions pagination (`server/src/db/seed-prompts.ts:36`).
 - **D9 pr-self-review becomes user-invoked → 2.2.0** — adds
   `disable-model-invocation: true`. Not a major: model-invocability is not one
   of D1–D13 but an implementation item in §9
@@ -345,16 +352,33 @@ no client caller) is removed. Services own `db.transaction`; repositories take
 
 ## Seed
 
-- Skills from the design: `pr-quality-rubric` (rubric), `no-then-chains`
+**12 seed skills**, all `source: manual`, bodies generic (no experiment
+words), descriptions as "Use when …" directives
+(`server/src/db/seed-skills.ts`, `SEED_SKILLS`):
+
+- Design skills: `pr-quality-rubric` (rubric), `no-then-chains`
   (convention), `secret-leakage-gate`, `lethal-trifecta`, `phantom-api-gate`
   (security), `test-coverage-nudge` (custom).
-- Test Quality: `branch-coverage-check`, `edge-case-hunter`,
-  `over-mocking-smell`, `flaky-test-patterns`.
-- API Contract: `route-signature-diff`, `breaking-change-rubric`, plus
-  `api-deprecation-policy` imported manually by the user.
-- Agents Test Quality Reviewer and API Contract Reviewer; links as in 2.png
-  (Security: 6 linked, 3 enabled); PRs #483 and #484 (D8). Idempotent by name /
-  number.
+- Test Quality: `branch-coverage-check` (rubric), `edge-case-hunter`
+  (custom), `over-mocking-smell` (convention), `flaky-test-patterns`
+  (convention).
+- API Contract: `route-signature-diff` (custom), `breaking-change-rubric`
+  (rubric), plus `api-deprecation-policy` imported manually by the user.
+- Links (`SEED_AGENT_SKILL_LINKS`, array order = `agent_skills.order`):
+  Security — all 6 design skills, enabled `pr-quality-rubric`,
+  `secret-leakage-gate`, `lethal-trifecta` (6 linked / 3 enabled, 2.png);
+  Performance — `pr-quality-rubric`, `no-then-chains` (both enabled); Test
+  Quality — its 4 skills; API Contract — its 2 skills.
+- New agents (prompts `TEST_QUALITY_REVIEWER_PROMPT`,
+  `API_CONTRACT_REVIEWER_PROMPT` in `server/src/db/seed-prompts.ts`, mirrored
+  in `docs/agent-prompts/`), descriptions:
+  - Test Quality Reviewer: "Finds untested branches, missing corner cases,
+    over-mocked and flaky tests."
+  - API Contract Reviewer: "Flags breaking changes to routes, response shapes
+    and request parameters."
+- PRs #483 and #484 (D8), status `needs_review`, PR totals summed from their
+  files. Idempotent by name / number. Stage 7 content (the data modules) is
+  in; `seed.ts` wires it in Wave 3.
 - Import sample (a server test fixture, as text):
   `server/test/fixtures/skills/api-deprecation-policy/{SKILL.md,
   references/policy.md, scripts/install.sh}` — SKILL.md uses quoted values with
