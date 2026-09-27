@@ -21,6 +21,11 @@ Never rewrite existing entries — correct with a dated note.
 
 ## Tool & Library Notes
 
+- 2026-09-27: `node --test <directory>` (Node 24.18) does not discover
+  tests in that directory — it treats the path as one test file and reports
+  a single failing test named after the directory ("test failed"). Pass the
+  file (`node --test .claude/skills/pr-self-review/scripts/journal-keys.test.mjs`)
+  or a glob (evidence: `.claude/skills/pr-self-review/scripts/journal-keys.test.mjs:1`).
 - 2026-09-22: pnpm v12 auto-recreates untracked `client/pnpm-workspace.yaml` /
   `server/pnpm-workspace.yaml` (the repo is deliberately NOT a workspace) —
   harmless to the build, but it breaks `git stash pop` of a stash made with
@@ -86,6 +91,13 @@ Never rewrite existing entries — correct with a dated note.
   `RunCostBadge` on PR list / timeline / trace drawer; spec in
   `specs/L01-run-cost.md`); hit the Windows db:migrate no-op and the stale
   stash/pnpm-workspace quirks recorded above.
+- 2026-09-27: pr-self-review 2.0.0 — the journal revision of a versioned
+  skill is `major.minor` (D8 revised), because the onion 1.1.0 → 1.1.1
+  wording bump had re-queued all four onion batches (~266k of an ~841k
+  full-run estimate); after the change the same full plan drops to ~663k
+  with onion served from the journal
+  (`.claude/skills/pr-self-review/scripts/journal-keys.mjs`,
+  `.claude/skills/pr-self-review/references/plan.md` D8).
 
 ## Open Questions
 

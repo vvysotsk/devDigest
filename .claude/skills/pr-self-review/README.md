@@ -21,6 +21,10 @@ Files:
 - `checker.md` — instructions every checker subagent reads.
 - `scripts/self-review.mjs` — the deterministic half: `plan`, `record-mech`,
   `ground`, `report`, `dismiss` (Node ≥ 22, no dependencies).
+- `scripts/journal-keys.mjs` — pure journal-key helpers (skill revision =
+  `major.minor`, pair keys); tests:
+  `node --test .claude/skills/pr-self-review/scripts/journal-keys.test.mjs`
+  (run it after changing either script).
 - `../../agents/skill-checker.md` — read-only checker agent type (loaded at
   session start; the skill falls back to `general-purpose`).
 - `references/plan.md` — design, options and decisions D1–D12;
@@ -28,7 +32,7 @@ Files:
 
 ## Version
 
-**1.0.0** — see `metadata.version` in `SKILL.md` and the row in
+**2.0.0** — see `metadata.version` in `SKILL.md` and the row in
 `.claude/skills/README.md`.
 
 When you change `SKILL.md`, `checker.md` or the script, bump the version
@@ -40,6 +44,13 @@ and add a Changelog line:
 
 ## Changelog
 
+- **2.0.0 — 2026-09-27** — the "checked" definition changes (D8): a
+  versioned skill's journal revision is `major.minor` of
+  `metadata.version`, so a patch bump (wording) keeps its checks and only a
+  minor or major bump re-checks; journal records written with the full
+  version (`v1.1.0`) read as `v1.1`. Unversioned skills keep the `SKILL.md`
+  hash. Key helpers live in `scripts/journal-keys.mjs`, tested by
+  `scripts/journal-keys.test.mjs`.
 - **1.0.0 — 2026-09-26** — first version: routing by `metadata.applies_to`
   (comma-separated string) and `metadata.blocking`; journal in
   `<git-common-dir>/devdigest/pr-self-review/` keyed by skill revision ×

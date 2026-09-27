@@ -126,7 +126,9 @@ the line moves, changes when the line text changes.
 **A pair is checked** iff a `check` record exists with the same `skill`,
 `skill_rev`, `path` and `blob`. Consequences:
 - File edited → new `blob` → re-check only that file.
-- Skill edited → new `skill_rev` → its pairs re-check (D8 to relax).
+- Skill edited → its pairs re-check only when `skill_rev` changes: for a
+  versioned skill `skill_rev` = `v<major>.<minor>` (a patch bump keeps the
+  pairs), otherwise the `SKILL.md` hash (D8).
 - **Rename** (`R` status): new `path` → re-check. Placement skills depend on
   the path, so reuse across paths is unsafe; renames are cheap. Possible
   optimisation later: reuse `R100` pairs for skills marked
@@ -392,7 +394,7 @@ the rest reported as "not checked", (c) split the PR. Concurrency cap 6
 | D5 | Can third-party skills raise CRITICAL at all | (a) only for a concrete runtime defect (§7.6); (b) never; (c) same as owned skills | (a) → **(a)** |
 | D6 | typescript-expert | (a) narrow `applies_to` (§1.1); (b) every `*.ts`; (c) exclude from self-review | (a) or (c) — it is a persona with one checklist → **(c)** excluded |
 | D7 | Base ref | `main` (local) vs `origin/main` (needs a fetch) | `origin/main` when it exists, no automatic fetch; report which one → **origin/main, no fetch**; the report names the ref and the age of the last fetch (`FETCH_HEAD` mtime) |
-| D8 | Skill edit invalidates its checks | (a) yes, whole `SKILL.md` hash; (b) only when `metadata.version` changes | (b) for versioned skills, (a) otherwise → **(b)** + WARNING "skill edited without version bump" when `SKILL.md` changed but `metadata.version` did not; unversioned skills use the content hash |
+| D8 | Skill edit invalidates its checks | (a) yes, whole `SKILL.md` hash; (b) only when `metadata.version` changes; (c) only when `major.minor` changes | (b) for versioned skills, (a) otherwise → **(b)** + WARNING "skill edited without version bump" when `SKILL.md` changed but `metadata.version` did not; unversioned skills use the content hash. **Revised 2026-09-27 (2.0.0) → (c):** a patch bump is wording by every skill's versioning rule, and under (b) it re-ran every pair of that skill (onion 1.1.0 → 1.1.1 re-queued 4 batches, ~266k tokens, for no rule change). Journal records with a full version read as `major.minor`. The "without version bump" WARNING stays |
 | D9 | Uncommitted/untracked at PR time | (a) review and block PR creation until committed; (b) review, warn, create PR from commits only | (a) — otherwise the reviewed state ≠ the PR → **(a)** |
 | D10 | Large-diff threshold | batches > 12 / > 600k tokens | as proposed; tune after first real runs → **as proposed** |
 | D11 | e2e has no checker skill | (a) accept (typecheck + flow contract); (b) write an e2e-flows skill later | (a) now, listed as a gap → **(a)**, the e2e gap is shown in every report |

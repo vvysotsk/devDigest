@@ -16,6 +16,7 @@ import fs from 'node:fs';
 import os from 'node:os';
 import path from 'node:path';
 import crypto from 'node:crypto';
+import { skillRev, checkKey, pairsFromJournal } from './journal-keys.mjs';
 
 // ---------- basics ----------
 
@@ -80,7 +81,7 @@ function compactJournal() {
   const keep = new Map();
   const cutoff = Date.now() - 90 * 864e5;
   const keyOf = (r) =>
-    r.kind === 'check' ? `c|${r.skill}|${r.skill_rev}|${r.path}|${r.blob}`
+    r.kind === 'check' ? `c|${checkKey(r.skill, r.skill_rev, r.path, r.blob)}`
     : r.kind === 'mech' ? `m|${r.package}|${r.command}|${r.fingerprint}`
     : r.kind === 'finding' ? `f|${r.id}|${r.blob}`
     : r.kind === 'dismissal' ? (Date.parse(r.at) > cutoff ? `d|${r.finding_id}|${r.blob}` : null)
@@ -159,7 +160,7 @@ function loadSkills() {
       name,
       file,
       version,
-      rev: version ? `v${version}` : `h${sha1(text).slice(0, 12)}`,
+      rev: skillRev(version, text),
       blocking: fm.metadata.blocking === 'true',
       bytes: Buffer.byteLength(text),
       applies_to: applies,
@@ -527,10 +528,9 @@ function cmdPlan(a) {
   const pairs = [];
   for (const f of reviewable) for (const s of routed) if (matches(s.matcher, f.path)) pairs.push({ skill: s.name, path: f.path });
   const journal = readJournal();
-  const done = new Set(journal.filter((r) => r.kind === 'check').map((r) => `${r.skill}|${r.skill_rev}|${r.path}|${r.blob}`));
   const rev = Object.fromEntries(skills.map((s) => [s.name, s.rev]));
   const activeNames = new Set(active.map((s) => s.name));
-  const fromJournal = a.full ? [] : pairs.filter((p) => done.has(`${p.skill}|${rev[p.skill]}|${p.path}|${byPath.get(p.path).blob}`));
+  const fromJournal = a.full ? [] : pairsFromJournal(pairs, journal, rev, (p) => byPath.get(p).blob);
   const fromJournalSet = new Set(fromJournal.map((p) => `${p.skill}|${p.path}`));
   const open = pairs.filter((p) => !fromJournalSet.has(`${p.skill}|${p.path}`));
   const todo = open.filter((p) => activeNames.has(p.skill));
@@ -791,12 +791,12 @@ function cmdReport(a) {
     const checks = new Map();
     const found = new Map();
     for (const r of journal) {
-      if (r.kind === 'check') checks.set(`${r.skill}|${r.skill_rev}|${r.path}|${r.blob}`, r);
+      if (r.kind === 'check') checks.set(checkKey(r.skill, r.skill_rev, r.path, r.blob), r);
       if (r.kind === 'finding') found.set(`${r.id}|${r.blob}`, r);
     }
     skillFindings = [];
     for (const p of plan.pairs_list) {
-      const c = checks.get(`${p.skill}|${p.rev}|${p.path}|${p.blob}`);
+      const c = checks.get(checkKey(p.skill, p.rev, p.path, p.blob));
       for (const id of c?.finding_ids || []) {
         const f = found.get(`${id}|${p.blob}`);
         if (f) skillFindings.push(f);

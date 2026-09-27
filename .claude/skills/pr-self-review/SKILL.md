@@ -3,7 +3,7 @@ name: pr-self-review
 description: "Self-review gate before a pull request. Use BEFORE running gh pr create or pushing a branch for review, and when the user says /pr-self-review, self-review, 'check before PR' or 'ready for PR?'. Routes every changed file to the skills whose metadata.applies_to matches it, re-checks only what the journal has not seen at the current content, runs typecheck/tests of touched packages and the Do-not-touch guards, and refuses to create the PR while any CRITICAL finding is open."
 argument-hint: "[--mode full|blocking] [--skills a,b] [--full] [--base <ref>]"
 metadata:
-  version: 1.0.0
+  version: 2.0.0
 ---
 
 # PR self-review
@@ -44,8 +44,10 @@ checker batch. The run dir is printed on the last line; pass it as `--run`.
   (a mirror), build output, binaries, deletions.
 - A (skill, file) pair counts as checked only when the journal has a check
   for the same skill revision and the same `git hash-object` of the file.
-  Skill revision = `metadata.version`, or the `SKILL.md` hash when a skill
-  has no version. `--full` ignores the journal; `--skills a,b` limits the
+  Skill revision = `major.minor` of `metadata.version` (a patch bump —
+  wording, per the skill's README — keeps its checks; a minor or major bump
+  re-checks), or the `SKILL.md` hash when a skill has no version (any edit
+  re-checks). `--full` ignores the journal; `--skills a,b` limits the
   run to those skills (e.g. `--full --skills security` re-audits one skill).
 - Session transcripts only label pairs "likely checked"; those pairs still
   run. Missing or unreadable transcripts change nothing but that label.
@@ -206,4 +208,5 @@ Give it `metadata.applies_to` — a comma-separated glob string, `!` to
 exclude, no braces, quoted in YAML (values starting with `*` are YAML
 aliases otherwise). Add `blocking: "true"` only if the skill has must/never
 rules that should stop a PR. A versioned skill's checks are invalidated by
-a version bump, so bump it whenever its rules change.
+a minor or major version bump, so bump minor (or major) whenever its rules
+change; a patch bump (wording only) keeps them.
