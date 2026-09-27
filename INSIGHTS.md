@@ -17,6 +17,17 @@ Never rewrite existing entries — correct with a dated note.
 
 ## What Doesn't Work
 
+- 2026-09-27: A cache key that omits one input of the result serves stale
+  results when only that input changes. pr-self-review keys a check by
+  (skill, rev, path, blob) — not the base — so after the base moved
+  (`c6af1e4` → `8ae46a9`) a journal finding on a line that had merged into
+  `main` was still reported (27ff45e6). Filter cached results against the
+  current input at read time (`report` now keeps a journal finding only while
+  its line is still added), or put the input into the key (evidence:
+  `.claude/skills/pr-self-review/scripts/self-review.mjs` report rebuild
+  loop, `.claude/skills/pr-self-review/scripts/journal-keys.mjs` `stillAdded`;
+  residual risk in `references/plan.md` §12).
+
 - 2026-09-27: Hashing text copied verbatim from an LLM reply does not give a
   stable id. pr-self-review hashed the checker's `rule` string into the
   finding id, and checkers word the same rule differently per run ("R3 —

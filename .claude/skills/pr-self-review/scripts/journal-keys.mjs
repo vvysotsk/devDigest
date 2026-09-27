@@ -124,3 +124,52 @@ export function dismissalKeyOf(d, findingById) {
   if (!f) return null;
   return { key: contentKey(f.skill, f.rule_key ?? ruleKey(f.rule), f.path, d.line_hash ?? f.line_hash), blob: d.blob };
 }
+
+// ---------- stale findings after a base change ----------
+//
+// The check key (skill, rev, path, blob) has no base: when the base moves, a
+// file with the same blob is served from the journal even though its set of
+// added lines changed. `report` keeps a journal finding only while its line is
+// still an added line against the current base.
+
+const sha12 = (s) => crypto.createHash('sha1').update(s).digest('hex').slice(0, 12);
+const normLine = (s) => String(s).replace(/\s+/g, ' ').trim();
+
+/** `line_hash` of an added line — the same formula `groundOne` uses. */
+export function lineHash(text) {
+  return sha12(normLine(text));
+}
+
+/** `line_hash` of a placement finding (a finding about where a new/moved file lives). */
+export function placementHash(path) {
+  return sha12(`placement:${path}`);
+}
+
+/** `{ status, untracked, added_hashes }` for a scope file with `added` = { line: text }. */
+export function addedInfo(file) {
+  return {
+    status: file.status,
+    untracked: !!file.untracked,
+    added_hashes: Object.values(file.added || {}).map(lineHash),
+  };
+}
+
+/**
+ * What to filter a file's journal findings against, or null = do not filter.
+ *   - the plan recorded `added_hashes` (plans since 2.1.1) → use them;
+ *   - a legacy plan without them → the live scope file, but only when its blob
+ *     is the blob the plan recorded (the live tree may have moved on).
+ */
+export function filterInfo(planFile, liveFile) {
+  if (!planFile) return null;
+  if (Array.isArray(planFile.added_hashes)) return planFile;
+  if (liveFile && planFile.blob && liveFile.blob === planFile.blob) return addedInfo(liveFile);
+  return null;
+}
+
+/** True while a journal finding still sits on an added line (or an added/moved file). */
+export function stillAdded(f, info) {
+  if (!info) return true;
+  if (f.line_hash === placementHash(f.path)) return info.status === 'A' || info.status === 'R' || !!info.untracked;
+  return info.added_hashes.includes(f.line_hash);
+}

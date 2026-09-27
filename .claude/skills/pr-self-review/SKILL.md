@@ -3,7 +3,7 @@ name: pr-self-review
 description: "Self-review gate before a pull request. Use BEFORE running gh pr create or pushing a branch for review, and when the user says /pr-self-review, self-review, 'check before PR' or 'ready for PR?'. Routes every changed file to the skills whose metadata.applies_to matches it, re-checks only what the journal has not seen at the current content, runs typecheck/tests of touched packages and the Do-not-touch guards, and refuses to create the PR while any CRITICAL finding is open."
 argument-hint: "[--mode full|blocking] [--skills a,b] [--full] [--base <ref>]"
 metadata:
-  version: 2.1.0
+  version: 2.1.1
 ---
 
 # PR self-review

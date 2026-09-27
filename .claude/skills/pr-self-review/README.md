@@ -83,7 +83,7 @@ Files:
 
 ## Version
 
-**2.1.0** — see `metadata.version` in `SKILL.md` and the row in
+**2.1.1** — see `metadata.version` in `SKILL.md` and the row in
 `.claude/skills/README.md`.
 
 When you change `SKILL.md`, `checker.md` or the script, bump the version
@@ -95,6 +95,16 @@ and add a Changelog line:
 
 ## Changelog
 
+- **2.1.1 — 2026-09-27** — report fix: a finding served from the journal is
+  dropped when its line is no longer an added line against the current base
+  (the check key has no base, so after the base moved from `c6af1e4` to
+  `8ae46a9` a finding on a line that had merged into `main` was still
+  reported — 27ff45e6). `plan` records `added_hashes` per file; legacy run
+  dirs use the live scope only for files still at the planned blob. The
+  Findings line counts them ("N stale after base change"). Estimator data
+  point, no retuning: `lesson-2` full run of 2026-09-27, 9 batches,
+  estimate ~532k, actual ~322k checker tokens (61%) — next to the `lesson-1`
+  dry run (431k estimated, ~603k actual).
 - **2.1.0 — 2026-09-27** — stable finding ids (plan.md D13): the id is
   sha1 of skill | `ruleKey(rule)` | path | line hash, where `ruleKey` keeps
   only the rule's id (`R3`, `check 7`, `A05`, `§12`) or its heading, so a

@@ -16,7 +16,10 @@ import fs from 'node:fs';
 import os from 'node:os';
 import path from 'node:path';
 import crypto from 'node:crypto';
-import { skillRev, checkKey, pairsFromJournal, ruleKey, contentKey, stableFindingId, dismissalKeyOf } from './journal-keys.mjs';
+import {
+  skillRev, checkKey, pairsFromJournal, ruleKey, contentKey, stableFindingId, dismissalKeyOf,
+  lineHash, placementHash, addedInfo, filterInfo, stillAdded,
+} from './journal-keys.mjs';
 
 // ---------- basics ----------
 
@@ -600,7 +603,11 @@ function cmdPlan(a) {
       reviewable: reviewable.length,
       untracked: scope.filter((f) => f.untracked).map((f) => f.path),
       excluded: scope.filter((f) => f.excluded).map((f) => ({ path: f.path, reason: f.excluded })),
-      files: scope.map((f) => ({ path: f.path, status: f.status, blob: f.blob || null, excluded: f.excluded, changed: f.changed })),
+      // added_hashes / untracked: report drops journal findings whose line is no longer added.
+      files: scope.map((f) => ({
+        path: f.path, status: f.status, blob: f.blob || null, excluded: f.excluded, changed: f.changed,
+        untracked: !!f.untracked, added_hashes: addedInfo(f).added_hashes,
+      })),
     },
     skills: { routed: routed.map((s) => ({ name: s.name, rev: s.rev, blocking: s.blocking })), not_routed: notRouted, active: [...activeNames] },
     pairs: { total: pairs.length, from_journal: fromJournal.length, todo: todo.length, skipped_by_mode: skippedByMode.length, likely_checked: hints.likely.size },
@@ -758,7 +765,7 @@ function groundOne(f, skill, byPath, perFile) {
     }
   }
   // The id never hashes the raw `rule` (a checker words it differently per run) — D13.
-  const line_hash = sha1(lineText).slice(0, 12);
+  const line_hash = f.kind === 'placement' ? placementHash(f.path) : lineHash(lineText);
   const rule_key = ruleKey(f.rule);
   const id = stableFindingId({ skill, rule_key, path: f.path, line_hash });
   const list = perFile.get(f.path);
@@ -802,6 +809,7 @@ function cmdReport(a) {
   // Open skill findings = the latest journal check of every current (skill, rev, path, blob) pair,
   // so pairs served from the journal keep their findings; fall back to this run's ground output.
   let skillFindings = g.kept;
+  let staleCount = 0;
   if (plan.pairs_list) {
     const checks = new Map();
     const found = new Map();
@@ -810,11 +818,27 @@ function cmdReport(a) {
       if (r.kind === 'finding') found.set(`${r.id}|${r.blob}`, r);
     }
     skillFindings = [];
+    // A pair served from the journal was checked against the base of that time; keep its
+    // finding only while the line is still added against the current base. Legacy plans
+    // (no added_hashes) use the live scope, and only for files still at the planned blob.
+    const planFiles = new Map(plan.scope.files.map((f) => [f.path, f]));
+    let live = null;
+    const liveFile = (path) => {
+      if (plan.scope.files.every((f) => Array.isArray(f.added_hashes))) return null;
+      live ??= new Map(buildScope(plan.base).map((f) => [f.path, f]));
+      return live.get(path);
+    };
     for (const p of plan.pairs_list) {
       const c = checks.get(checkKey(p.skill, p.rev, p.path, p.blob));
+      const info = c?.finding_ids?.length ? filterInfo(planFiles.get(p.path), liveFile(p.path)) : null;
       for (const id of c?.finding_ids || []) {
         const f = found.get(`${id}|${p.blob}`);
-        if (f) skillFindings.push(f);
+        if (!f) continue;
+        if (!stillAdded(f, info)) {
+          staleCount++;
+          continue;
+        }
+        skillFindings.push(f);
       }
     }
   }
@@ -875,7 +899,7 @@ function cmdReport(a) {
   L.push(`Scope: ${plan.scope.total} files (${plan.scope.untracked.length} untracked) · excluded ${plan.scope.excluded.length}`);
   L.push(`Checks: ${plan.skills.active.length} skill(s) · ${plan.pairs.total} pairs · ${plan.pairs.from_journal} from journal · ${plan.pairs.todo} run now (${plan.pairs.likely_checked} likely checked in transcripts)${plan.pairs.skipped_by_mode ? ` · ${plan.pairs.skipped_by_mode} not checked in this mode` : ''}`);
   L.push(`Mechanical: ${plan.commands.map((c) => `${c.package} ${c.label} ${statusOf(journal, c)}`).join(' · ') || 'no package code changed'} · guards ${plan.guards.filter((x) => x.severity === 'CRITICAL').length ? '✗' : '✓'}`);
-  L.push(`Findings: ${counts.CRITICAL} CRITICAL · ${counts.WARNING} WARNING · ${counts.SUGGESTION} SUGGESTION · ${dismissedList.length} dismissed · ${g.dropped.length} dropped by grounding`);
+  L.push(`Findings: ${counts.CRITICAL} CRITICAL · ${counts.WARNING} WARNING · ${counts.SUGGESTION} SUGGESTION · ${dismissedList.length} dismissed · ${g.dropped.length} dropped by grounding${staleCount ? ` · ${staleCount} stale after base change` : ''}`);
   if (unresolved.length) L.push(`Note: ${unresolved.length} old dismissal(s) have no finding record in the journal and match nothing: ${unresolved.join(', ')}`);
   L.push(`Not routed: ${plan.skills.not_routed.join(', ') || '—'}`);
   L.push(`Not covered by any skill: ${plan.uncovered.code.length} code file(s)${plan.uncovered.code.length ? ' (' + plan.uncovered.code.slice(0, 8).join(', ') + (plan.uncovered.code.length > 8 ? ', …' : '') + ')' : ''}, ${plan.uncovered.markdown} Markdown${plan.uncovered.e2e_gap ? ' · e2e/: no checker skill (D11)' : ''}`);

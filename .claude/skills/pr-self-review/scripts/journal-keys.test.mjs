@@ -10,6 +10,11 @@ import {
   contentKey,
   stableFindingId,
   dismissalKeyOf,
+  lineHash,
+  placementHash,
+  addedInfo,
+  filterInfo,
+  stillAdded,
 } from './journal-keys.mjs';
 
 const PAIRS = [
@@ -183,4 +188,52 @@ test('a new-format dismissal carries its own key', () => {
 
 test('an old-format dismissal without its finding record resolves to null', () => {
   assert.equal(dismissalKeyOf({ kind: 'dismissal', finding_id: 'deadbeef', blob: 'b1', line_hash: 'x' }, new Map()), null);
+});
+
+// ---------- stale findings after a base change ----------
+
+const PAGE = 'client/src/app/repos/[repoId]/pulls/page.tsx';
+const onLine = (text) => ({ skill: 'react-best-practices', path: PAGE, line_hash: lineHash(text) });
+
+test('lineHash equals the grounding formula (sha1 of the whitespace-normalized line, 12 hex)', () => {
+  const raw = '          {isLoading ? (   ';
+  assert.equal(lineHash(raw), sha('{isLoading ? (').slice(0, 12));
+  assert.equal(placementHash(PAGE), sha(`placement:${PAGE}`).slice(0, 12));
+});
+
+test('a journal finding on a line that is still added is kept', () => {
+  const info = addedInfo({ status: 'M', added: { 107: '  {isLoading ? (', 108: '  <Row />' } });
+  assert.equal(stillAdded(onLine('{isLoading ? ('), info), true);
+});
+
+test('a journal finding on a line that is no longer added is dropped', () => {
+  const info = addedInfo({ status: 'M', added: { 12: 'import x from "y";' } });
+  assert.equal(stillAdded(onLine('{isLoading ? ('), info), false);
+});
+
+test('a placement finding follows the file status', () => {
+  const f = { skill: 'frontend-architecture', path: PAGE, line_hash: placementHash(PAGE) };
+  assert.equal(stillAdded(f, addedInfo({ status: 'A', added: {} })), true);
+  assert.equal(stillAdded(f, addedInfo({ status: 'R', added: {} })), true);
+  assert.equal(stillAdded(f, addedInfo({ status: 'M', added: {}, untracked: true })), true);
+  assert.equal(stillAdded(f, addedInfo({ status: 'M', added: { 1: 'x' } })), false);
+});
+
+test('a plan with added_hashes is used as is', () => {
+  const planFile = { path: PAGE, status: 'M', blob: 'b1', untracked: false, added_hashes: [lineHash('x')] };
+  assert.equal(filterInfo(planFile, undefined), planFile);
+});
+
+test('legacy run dir, blob mismatch: findings of a file whose current blob differs from the plan stay unfiltered', () => {
+  const planFile = { path: PAGE, status: 'M', blob: 'planned-blob' }; // no added_hashes: legacy plan
+  const live = { path: PAGE, status: 'M', blob: 'edited-since', added: { 1: 'unrelated' } };
+  const info = filterInfo(planFile, live);
+  assert.equal(info, null);
+  assert.equal(stillAdded(onLine('{isLoading ? ('), info), true);
+});
+
+test('legacy run dir, same blob: the live added lines are used', () => {
+  const planFile = { path: PAGE, status: 'M', blob: 'same' };
+  const live = { path: PAGE, status: 'M', blob: 'same', added: { 1: 'unrelated' } };
+  assert.equal(stillAdded(onLine('{isLoading ? ('), filterInfo(planFile, live)), false);
 });

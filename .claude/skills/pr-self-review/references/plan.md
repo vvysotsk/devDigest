@@ -442,3 +442,17 @@ the rest reported as "not checked", (c) split the PR. Concurrency cap 6
     ("shape tests added in ed642df"); the onion v1.1.0 check of
     2026-09-27T12:10:12Z (head 3b724d5) of the same blob is `clean` with
     `finding_ids: []` — a fresh re-check alone cleared them.
+- 2026-09-27 — **A journal finding outlives a base change** (fixed in 2.1.1).
+  The check key (skill, rev, path, blob) has no base, so when the base moved
+  from `c6af1e4` to `8ae46a9` a file at the same blob was served from the
+  journal and its finding on `client/src/app/repos/[repoId]/pulls/page.tsx:107`
+  (27ff45e6) was still reported, although that line had merged into `main`.
+  Fix: `report` keeps a journal finding only while its `line_hash` is the hash
+  of a current added line (placement findings: while the file is added, moved
+  or untracked); `plan` records `added_hashes`; legacy plans use the live scope
+  only for files still at the planned blob (`scripts/journal-keys.mjs`
+  `filterInfo` / `stillAdded`). **Residual risk, not done:** when the base
+  moves BACK, the added set grows and the old check does not cover the new
+  lines — they are neither checked nor reported until the file's blob or the
+  skill revision changes. Detecting it needs the added set (or the base) in
+  the check key, which is a major change to the "checked" definition.
