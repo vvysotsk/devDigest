@@ -115,6 +115,11 @@ Never rewrite existing entries — correct with a dated note.
   Use `grep -a` / `git diff --text`, and edit them byte-wise (Python `rb`) or
   with the Edit tool — never round-trip them through a text tool that drops
   the byte (changing the key changes dedup behaviour).
+  - 2026-09-27 correction: the literal byte is now the `\u0000` escape (same
+    string at runtime), so both files are plain text for git and grep again.
+    Keep the separator as the escape, never a raw control character (evidence:
+    `src/adapters/depgraph/index.ts:82`,
+    `src/modules/repo-intel/pipeline/repo-map.ts:64`).
 
 ## Recurring Errors & Fixes
 
