@@ -107,8 +107,25 @@ Never rewrite existing entries — correct with a dated note.
   `base` / `head_sha` the review diff was requested for; only typecheck
   guards that wiring. Add call recording to the mock before relying on it.
 
+- 2026-09-27: `src/adapters/depgraph/index.ts:82` and
+  `src/modules/repo-intel/pipeline/repo-map.ts:64` contain a literal NUL byte
+  inside a template-literal dedup key (`${from}\0${to}`). git and grep treat
+  both files as binary: `git diff` prints `Bin 4246 -> 4082 bytes` (no hunks,
+  so diff-based review sees nothing), `grep` prints "Binary file matches".
+  Use `grep -a` / `git diff --text`, and edit them byte-wise (Python `rb`) or
+  with the Edit tool — never round-trip them through a text tool that drops
+  the byte (changing the key changes dedup behaviour).
+
 ## Recurring Errors & Fixes
 
+- 2026-09-27: repo-intel tests build a partial `Container` with
+  `as unknown as Container` (`test/indexer-pipeline.test.ts:140`,
+  `test/repo-intel-resync.test.ts:50`, `test/repo-intel-phantom.test.ts:36`),
+  so typecheck does not notice a container member the code newly reads — the
+  test fails at runtime with "Cannot read properties of undefined". When the
+  service or a pipeline starts using a new port (`codeParser` in stage d),
+  add it to every such fake: the real adapter where the test pins real
+  parsing, `MockCodeParser` where it pins service logic.
 - 2026-09-26: Path splitting on `'/'` breaks on Windows: `join()` yields
   backslashes, so `full.lastIndexOf('/')` is -1. It made the 6
   `test/indexer-pipeline.test.ts` tests fail with ENOENT (no `mkdir` for
@@ -159,5 +176,12 @@ Never rewrite existing entries — correct with a dated note.
   `src/modules/reviews/types.ts`); golden responses pinned before the change
   (`test/reviews-golden.it.test.ts`) match unchanged; non-default agent fields
   covered by `test/reviews-row-fields.it.test.ts`.
+- 2026-09-27: Onion stage d: `parseUnifiedDiff`, the regex extractor and the
+  job kinds moved inward (`src/modules/_shared/{diff-parser,job-kinds}.ts`,
+  `src/modules/repo-intel/extract.ts`); repo-intel reaches ast-grep only via
+  the `CodeParser` port (`src/modules/repo-intel/types.ts`,
+  `container.codeParser`, fake `MockCodeParser` in `src/adapters/mocks.ts`,
+  service rule pinned by `test/repo-intel-phantom.test.ts`);
+  dependency-cruiser baseline 10 → 1 (`src/modules/repos/helpers.ts`).
 
 ## Open Questions

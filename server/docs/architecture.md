@@ -33,7 +33,7 @@ workspace (`src/adapters/auth/local.ts`).
 | `src/modules/<name>/` | `routes.ts` (Fastify plugin + zod schemas) → `service.ts` → `repository.ts` (Drizzle). `workspace`, `settings` still query Drizzle from the route directly (the thin-module exception). `pulls` (service + repository) and `polling` (service only — it owns no table and writes through `container.pullsRepo` / `container.reposRepo`) are layered since the onion refactor, see `../specs/refactor-onion.md`. |
 | `src/modules/_shared/` | `context.ts` (tenancy), `schemas.ts` (`IdParams`), `run-cost.ts`, `latest-batch.ts`, `diff-parser.ts` (`parseUnifiedDiff`, also used by the git adapter and its mock), `job-kinds.ts` (JobRunner kind strings that `repos` enqueues and `repo-intel` handles) — helpers two modules need without importing each other. |
 | `src/modules/repo-intel/` | Facade `RepoIntel` (`src/modules/repo-intel/types.ts`) + indexer pipeline; `extract.ts` is the pure regex extractor (endpoints, crons, fallback symbols/references), also used by the ripgrep `codeindex` adapter; see its `README.md`. |
-| `src/adapters/` | Real implementations of the interfaces in `src/vendor/shared/adapters.ts` (llm, github, git, codeindex, astgrep, depgraph, embedder, tokenizer, secrets, auth) and `mocks.ts` for tests. |
+| `src/adapters/` | Real implementations of the ports and `mocks.ts` fakes for tests: the interfaces in `src/vendor/shared/adapters.ts` (llm, github, git, codeindex, embedder, secrets, auth) and the repo-intel-only ports in `src/modules/repo-intel/types.ts` (`CodeParser` ← `astgrep`, `Tokenizer` ← `tokenizer`, `DepGraph` ← `depgraph`). Adapters implement ports; they do not declare them. |
 | `src/db/` | `client.ts` (postgres-js + Drizzle), `schema.ts` barrel over `schema/*.ts` (13 domain files + `src/db/schema/_shared.ts`), `migrations/` (drizzle-kit output), `migrate.ts`, `seed.ts` (CLI entry detected by `isEntryPoint()` in `cli.ts`, Windows-safe), `rows.ts` (shared row types). |
 | `src/vendor/shared/` | Master copy of `@devdigest/shared` (zod contracts + adapter interfaces), aliased via `tsconfig.json` `paths`. |
 | `test/` | Vitest suites; `helpers/pg.ts` starts Postgres via testcontainers, `helpers/runs.ts` waits for background runs. |
@@ -129,6 +129,7 @@ jsonb document in `run_traces` (PK = `agent_runs.id`).
 | `codeIndex` | `RipgrepCodeIndex(git)` | `codeIndex` |
 | `repoIntel` | `RepoIntelService(this)` | `repoIntel` |
 | `depgraph`, `tokenizer` | `DepCruiseGraph`, `TiktokenTokenizer` (indexer only) | `depgraph`, `tokenizer` |
+| `codeParser` | `AstGrepCodeParser` (`@ast-grep/napi`), the `CodeParser` port of repo-intel — facade and indexer pipelines; fake: `MockCodeParser` | `codeParser` |
 | `priceBook` | `PriceBook(openrouter /models lister, estimateCost)` | — |
 | `agentsRepo`, `reviewRepo` | shared repositories for cross-module reads (`reviewRepo` is the one `ReviewRepository`: `ReviewService` uses it, and it feeds the PR-list aggregates of `PullsService`; `agentsRepo` gives `ReviewService` its targets as the `Agent` contract via `listEnabledAgents` / `getAgent`) | — |
 | `pullsRepo`, `reposRepo` | `PullsRepository` (owner of `pull_requests`, `pr_files`, `pr_commits`) and `RepoRepository` (owner of `repos`; other modules use `getRef`) | — |
@@ -203,9 +204,10 @@ assumed (the boot reaper would misfire with replicas).
 - **New module:** `modules/<name>/routes.ts` exporting a default
   `FastifyPluginAsync`, plus one import + one entry in `modules/index.ts`.
   Register job handlers inside the plugin if the module owns any.
-- **New adapter:** interface in `src/vendor/shared/adapters.ts` (mirror to
-  client), implementation under `src/adapters/<kind>/`, a getter and an
-  `ContainerOverrides` key in `container.ts`, a mock in `adapters/mocks.ts`.
+- **New adapter:** port interface in the consuming module's `types.ts` when
+  one module uses it, otherwise in `src/vendor/shared/adapters.ts` (mirror to
+  client); implementation under `src/adapters/<kind>/`, a getter and an
+  `ContainerOverrides` key in `container.ts`, a fake in `adapters/mocks.ts`.
 - **New job kind:** a `<MODULE>_JOB_KIND` constant (in
   `src/modules/_shared/job-kinds.ts` when another module enqueues it),
   `container.jobs.register` in the module's route plugin,

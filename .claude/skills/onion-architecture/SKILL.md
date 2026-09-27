@@ -2,7 +2,7 @@
 name: onion-architecture
 description: "Where backend code lives in server/ and reviewer-core/ and which way imports may point (onion / ports and adapters). Use when adding or changing a route, service, repository, adapter, job or port, moving code between modules, touching reviewer-core's public API, or deciding whether a use case needs a transaction, a port, a response schema or a separate type."
 metadata:
-  version: 1.0.1
+  version: 1.1.0
   applies_to: "server/src/**, reviewer-core/src/**, server/.dependency-cruiser.cjs, !**/*.test.ts, !**/*.it.test.ts"
   blocking: "true"
 ---
@@ -27,8 +27,8 @@ each decision). Section pointers below are to `research.md`.
 
 | Ring | `server/` | `reviewer-core/` |
 |---|---|---|
-| Domain core — pure rules and types | `src/vendor/shared/contracts/*` (shared kernel); pure functions in `modules/*/helpers.ts`, `modules/_shared/{latest-batch,run-cost}.ts`, `modules/pulls/status.ts`, `modules/repo-intel/pipeline/{rank,repo-map}.ts` | everything in `src/` except `src/llm/openrouter.ts` |
-| Ports | `src/vendor/shared/adapters.ts`; `modules/repo-intel/types.ts` (`RepoIntel`); `Tokenizer`/`DepGraph` interfaces in `adapters/{tokenizer,depgraph}/index.ts` | consumes `LLMProvider` from `@devdigest/shared` |
+| Domain core — pure rules and types | `src/vendor/shared/contracts/*` (shared kernel); pure functions in `modules/*/helpers.ts`, `modules/_shared/{latest-batch,run-cost,diff-parser,job-kinds}.ts`, `modules/pulls/status.ts`, `modules/repo-intel/extract.ts`, `modules/repo-intel/pipeline/{rank,repo-map}.ts` | everything in `src/` except `src/llm/openrouter.ts` |
+| Ports | shared across modules or with the client: `src/vendor/shared/adapters.ts`; used by one module: that module's `types.ts` — `modules/repo-intel/types.ts` (`RepoIntel` facade, `CodeParser`, `Tokenizer`, `DepGraph`) | consumes `LLMProvider` from `@devdigest/shared` |
 | Application — use cases | `modules/<m>/service.ts`, `modules/reviews/{run-executor,findings,diff-loader}.ts`, `modules/repo-intel/service.ts` + `pipeline/{full,incremental,walk}.ts` | `src/review/run.ts` `reviewPullRequest()` |
 | Infrastructure — adapters, persistence | `modules/<m>/repository.ts` + `repository/*.repo.ts`; `adapters/*`; `db/*`; `platform/{jobs,sse,run-logger,price-book,resilience,config}.ts` | `src/llm/openrouter.ts` (exception, R9) |
 | Presentation — HTTP | `modules/<m>/routes.ts`; `modules/_shared/{context,schemas}.ts`; error handler in `app.ts` | — |
@@ -111,9 +111,13 @@ packages (and the client copy) consume. Its mirroring rule lives in
 - New services take `deps: Pick<Container, 'git' | 'llm' | …>` plus the
   repositories they use, not the whole `Container`. Existing services keep
   their constructor until touched (research §1.3 D-3, D-4).
-- New adapter: interface in `src/vendor/shared/adapters.ts` (mirror to
-  client) → implementation in `src/adapters/<kind>/` → getter +
-  `ContainerOverrides` key → fake in `src/adapters/mocks.ts`.
+- A port lives with its consumers: a port used by one module lives in that
+  module's `types.ts`; ports shared across modules or with the client live
+  in `src/vendor/shared/adapters.ts` (mirror to client). Adapters only
+  implement a port; they never declare one.
+- New adapter: port interface (see above) → implementation in
+  `src/adapters/<kind>/` → getter + `ContainerOverrides` key → fake in
+  `src/adapters/mocks.ts`.
 
 ### R6 — Adapters are thin; tests fake our ports, not SDKs
 - Adapters wrap the SDK and translate types; SDK types never leave them.

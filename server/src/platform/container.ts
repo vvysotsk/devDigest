@@ -27,10 +27,11 @@ import { AgentsRepository } from '../modules/agents/repository.js';
 import { ReviewRepository } from '../modules/reviews/repository.js';
 import { PullsRepository } from '../modules/pulls/repository.js';
 import { RepoRepository } from '../modules/repos/repository.js';
-import type { RepoIntel } from '../modules/repo-intel/types.js';
+import type { CodeParser, DepGraph, RepoIntel, Tokenizer } from '../modules/repo-intel/types.js';
 import { RepoIntelService } from '../modules/repo-intel/service.js';
-import { type DepGraph, DepCruiseGraph } from '../adapters/depgraph/index.js';
-import { type Tokenizer, TiktokenTokenizer } from '../adapters/tokenizer/index.js';
+import { DepCruiseGraph } from '../adapters/depgraph/index.js';
+import { TiktokenTokenizer } from '../adapters/tokenizer/index.js';
+import { AstGrepCodeParser } from '../adapters/astgrep/index.js';
 
 /**
  * DI container. One per app instance. Holds config, db, the JobRunner,
@@ -53,6 +54,8 @@ export interface ContainerOverrides {
   /** repo-intel T3 adapters — only the indexer pipeline reads these. */
   depgraph?: DepGraph;
   tokenizer?: Tokenizer;
+  /** repo-intel TS/JS parser (facade + indexer pipeline). */
+  codeParser?: CodeParser;
 }
 
 export class Container {
@@ -79,6 +82,7 @@ export class Container {
   private _repoIntel?: RepoIntel;
   private _depgraph?: DepGraph;
   private _tokenizer?: Tokenizer;
+  private _codeParser?: CodeParser;
   private _priceBook?: PriceBook;
 
   constructor(config: AppConfig, db: Db, private overrides: ContainerOverrides = {}) {
@@ -143,6 +147,13 @@ export class Container {
     if (this.overrides.tokenizer) return this.overrides.tokenizer;
     this._tokenizer ??= new TiktokenTokenizer();
     return this._tokenizer;
+  }
+
+  /** AST parser for TS/JS (ast-grep) used by the repo-intel facade and indexer. */
+  get codeParser(): CodeParser {
+    if (this.overrides.codeParser) return this.overrides.codeParser;
+    this._codeParser ??= new AstGrepCodeParser();
+    return this._codeParser;
   }
 
   /**

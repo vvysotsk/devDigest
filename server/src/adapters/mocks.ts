@@ -33,6 +33,14 @@ import type {
   SecretKey,
 } from '@devdigest/shared';
 import { parseUnifiedDiff } from '../modules/_shared/diff-parser.js';
+import { SUPPORTED_EXT } from '../modules/repo-intel/constants.js';
+import type {
+  CodeParser,
+  ParsedImport,
+  ParsedInvocationHead,
+  ParsedReference,
+  ParsedSymbol,
+} from '../modules/repo-intel/types.js';
 
 /**
  * Deterministic MOCK adapters for tests/dev — NO real network. Each mirrors the
@@ -305,6 +313,42 @@ export class MockCodeIndex implements CodeIndex {
   }
   async references(_repo: RepoRef, symbol: string): Promise<CodeReference[]> {
     return [{ fromPath: 'src/api/public/index.ts', toSymbol: symbol, line: 23 }];
+  }
+}
+
+// ---------- Mock CodeParser (repo-intel port) ----------
+export interface MockCodeParserOptions {
+  /** Canned results per file path; a file not listed parses to `[]`. */
+  symbols?: Record<string, ParsedSymbol[]>;
+  references?: Record<string, Omit<ParsedReference, 'refFile'>[]>;
+  imports?: Record<string, ParsedImport[]>;
+  heads?: Record<string, ParsedInvocationHead[]>;
+}
+
+/**
+ * Deterministic `CodeParser`: ignores the source text and returns the canned
+ * rows for the file. `langForFile` accepts the same extensions as the real
+ * parser (SUPPORTED_EXT).
+ */
+export class MockCodeParser implements CodeParser {
+  constructor(private opts: MockCodeParserOptions = {}) {}
+  langForFile(file: string): string | null {
+    const dot = file.lastIndexOf('.');
+    const ext = dot < 0 ? '' : file.slice(dot).toLowerCase();
+    return (SUPPORTED_EXT as readonly string[]).includes(ext) ? 'mock' : null;
+  }
+  parseSymbols(file: string): ParsedSymbol[] {
+    return this.langForFile(file) ? (this.opts.symbols?.[file] ?? []) : [];
+  }
+  parseReferences(file: string): ParsedReference[] {
+    if (!this.langForFile(file)) return [];
+    return (this.opts.references?.[file] ?? []).map((r) => ({ ...r, refFile: file }));
+  }
+  parseImports(file: string): ParsedImport[] {
+    return this.langForFile(file) ? (this.opts.imports?.[file] ?? []) : [];
+  }
+  parseInvocationHeads(file: string): ParsedInvocationHead[] {
+    return this.langForFile(file) ? (this.opts.heads?.[file] ?? []) : [];
   }
 }
 

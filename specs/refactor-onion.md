@@ -15,8 +15,8 @@ one PR at the end. Evidence: `.claude/skills/onion-architecture/` (SKILL.md,
 | a pulls | done | 160b523 (+ tests 2712a6e, ed642df) | 16 |
 | b polling | done | fe1cd55 | 14 |
 | b′ polling `opened_at` fix | done | b57c30b | 14 |
-| c reviews rows | done | this commit (+ golden test d0dd9ce) | 10 |
-| d adapters + cross-module + skill 1.1.0 | pending | | 1 |
+| c reviews rows | done | 649250a (+ golden test d0dd9ce) | 10 |
+| d adapters + cross-module + skill 1.1.0 | done | 6fef5fe (d1 pure moves + job kinds, baseline 5), this commit (d2 `CodeParser` port, `Tokenizer`/`DepGraph` interfaces, skill 1.1.0) | 1 |
 | e `Pick<Container>` (registration design approved first) | pending | | 1 |
 | docs wrap-up | pending | | 1 |
 

@@ -3,7 +3,8 @@
  *
  * This is the AST-accurate complement to `modules/repo-intel/extract.ts`. The
  * regex extractor stays as the ALWAYS-available fallback; this adapter is the
- * "good path" used by the repo-intel facade (wired by T1.3).
+ * "good path" used by the repo-intel facade and pipelines through the
+ * `CodeParser` port (`modules/repo-intel/types.ts`, `container.codeParser`).
  *
  * Compatibility baseline: `ParsedSymbol extends ExtractedSymbol` and
  * `ParsedReference extends ExtractedReference`, so any consumer of the
@@ -21,32 +22,18 @@ import { parse, Lang, type SgNode } from '@ast-grep/napi';
 import { readFile } from 'node:fs/promises';
 import { extname, join } from 'node:path';
 
-import type { ExtractedReference, ExtractedSymbol } from '../../modules/repo-intel/extract.js';
 import { MAX_SIGNATURE_CHARS, SUPPORTED_EXT } from '../../modules/repo-intel/constants.js';
+import type {
+  CodeParser,
+  ParsedImport,
+  ParsedInvocationHead,
+  ParsedReference,
+  ParsedSymbol,
+} from '../../modules/repo-intel/types.js';
 
-// ---------------------------------------------------------------------------
-// Public types — superset of the regex extractor's row shapes.
-// ---------------------------------------------------------------------------
-
-export interface ParsedSymbol extends ExtractedSymbol {
-  /** True when the declaration is reached through an `export` form. */
-  exported: boolean;
-  /** Declaration head trimmed to MAX_SIGNATURE_CHARS; null for kinds without one. */
-  signature: string | null;
-  /** 1-based line of the closing token of the declaration body. */
-  endLine: number;
-}
-
-export interface ParsedReference extends ExtractedReference {
-  /** Path passed in by the caller — surfaced so consumers can fan-out. */
-  refFile: string;
-}
-
-export interface ParsedImport {
-  name: string;
-  source: string;
-  isType: boolean;
-}
+// The row types belong to the `CodeParser` port (modules/repo-intel/types.ts);
+// re-exported for the adapter's contract test.
+export type { ParsedImport, ParsedInvocationHead, ParsedReference, ParsedSymbol };
 
 // ---------------------------------------------------------------------------
 // Lang mapping — accepts SUPPORTED_EXT and falls back to null otherwise.
@@ -465,15 +452,6 @@ export function parseReferences(file: string, source: string): ParsedReference[]
 // parseInvocationHeads — T1.3 Phantom-API gate fuel
 // ---------------------------------------------------------------------------
 
-export interface ParsedInvocationHead {
-  /** The bare identifier being invoked (callee name, ctor name, or JSX tag). */
-  name: string;
-  /** 1-based line of the invocation. */
-  line: number;
-  /** Which AST shape produced this head. */
-  kind: 'call' | 'new' | 'jsx';
-}
-
 /**
  * Bare-identifier invocation heads only — the phantom-gate's high-precision
  * input. We DELIBERATELY skip `x.foo()` (member calls) because we can't
@@ -588,6 +566,29 @@ export function parseImports(file: string, source: string): ParsedImport[] {
   }
 
   return out;
+}
+
+// ---------------------------------------------------------------------------
+// CodeParser — the port implementation the container wires
+// ---------------------------------------------------------------------------
+
+/** `CodeParser` over the functions above; `container.codeParser` builds one. */
+export class AstGrepCodeParser implements CodeParser {
+  langForFile(file: string): string | null {
+    return langForFile(file);
+  }
+  parseSymbols(file: string, source: string): ParsedSymbol[] {
+    return parseSymbols(file, source);
+  }
+  parseReferences(file: string, source: string): ParsedReference[] {
+    return parseReferences(file, source);
+  }
+  parseImports(file: string, source: string): ParsedImport[] {
+    return parseImports(file, source);
+  }
+  parseInvocationHeads(file: string, source: string): ParsedInvocationHead[] {
+    return parseInvocationHeads(file, source);
+  }
 }
 
 // ---------------------------------------------------------------------------

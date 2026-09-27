@@ -19,7 +19,6 @@ import { extname, join } from 'node:path';
 import type { RepoRef } from '@devdigest/shared';
 import type { Container } from '../../../platform/container.js';
 import { withTimeout } from '../../../platform/resilience.js';
-import { parseSymbols, parseReferences, langForFile } from '../../../adapters/astgrep/index.js';
 import { extractEndpoints, extractCrons } from '../extract.js';
 import {
   DEFAULT_REPO_MAP_TOKEN_BUDGET,
@@ -144,7 +143,7 @@ export async function runIncremental(
   const parseDegraded: Array<{ file: string; reason: string }> = [];
 
   for (const relPath of changed) {
-    const lang = langForFile(relPath);
+    const lang = container.codeParser.langForFile(relPath);
     if (!lang) {
       filesSkipped += 1;
       continue;
@@ -163,8 +162,8 @@ export async function runIncremental(
     try {
       const parsed = await withTimeout(
         Promise.resolve().then(() => ({
-          symbols: parseSymbols(relPath, source),
-          references: parseReferences(relPath, source),
+          symbols: container.codeParser.parseSymbols(relPath, source),
+          references: container.codeParser.parseReferences(relPath, source),
         })),
         MAX_PARSE_MS_PER_FILE,
       );

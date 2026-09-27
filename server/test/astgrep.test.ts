@@ -4,6 +4,8 @@ import {
   parseReferences,
   parseImports,
   langForFile,
+  parseInvocationHeads,
+  AstGrepCodeParser,
 } from '../src/adapters/astgrep/index.js';
 import { MAX_SIGNATURE_CHARS } from '../src/modules/repo-intel/constants.js';
 
@@ -191,5 +193,32 @@ import type { OnlyT } from './t';
     expect(find('quux')).toMatchObject({ source: './mod', isType: false }); // alias kept as alias
     expect(find('ns')).toMatchObject({ source: 'x', isType: false });
     expect(find('OnlyT')).toMatchObject({ source: './t', isType: true });   // top-level `import type`
+  });
+});
+
+describe('AstGrepCodeParser (the CodeParser port the container wires)', () => {
+  it('returns exactly what the adapter functions return', () => {
+    const src = `
+import { dep } from './dep';
+export function main() {
+  dep();
+  missing();
+  return new Thing();
+}
+`;
+    const parser = new AstGrepCodeParser();
+    expect(parser.langForFile('src/x.ts')).toBe(langForFile('src/x.ts'));
+    expect(parser.langForFile('README.md')).toBeNull();
+    expect(parser.parseSymbols('src/x.ts', src)).toEqual(parseSymbols('src/x.ts', src));
+    expect(parser.parseReferences('src/x.ts', src)).toEqual(parseReferences('src/x.ts', src));
+    expect(parser.parseImports('src/x.ts', src)).toEqual(parseImports('src/x.ts', src));
+    expect(parser.parseInvocationHeads('src/x.ts', src)).toEqual(
+      parseInvocationHeads('src/x.ts', src),
+    );
+    expect(parser.parseInvocationHeads('src/x.ts', src).map((h) => h.name)).toEqual([
+      'dep',
+      'missing',
+      'Thing',
+    ]);
   });
 });

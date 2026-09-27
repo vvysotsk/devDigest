@@ -9,8 +9,8 @@
  * Adapted to real code:
  *   - `repos.id` is a `uuid`, so every `repoId` here is a `string`.
  *   - facade-level rows (SymbolRow / SignatureRow / RefRow) mirror the read model.
- *   - adapter-level extraction types live with the astgrep adapter and stay
- *     compatible with `./extract.ts` (ExtractedSymbol/Reference).
+ *   - parser-level extraction types (ParsedSymbol …) are declared below with
+ *     the ports and stay compatible with `./extract.ts` (ExtractedSymbol/Reference).
  *
  * DEGRADED CONTRACT (lead decision — resolves the read-model vs degraded-contract ambiguity):
  *   - Object-returning methods carry an inline `degraded?: boolean` (+ optional
@@ -21,6 +21,8 @@
  * This keeps signatures natural (no `{ degraded, data }` wrappers at call sites)
  * while still guaranteeing every consumer can fall back without throwing.
  */
+
+import type { ExtractedReference, ExtractedSymbol } from './extract.js';
 
 export type IndexStatus = 'full' | 'partial' | 'degraded' | 'failed';
 
@@ -169,4 +171,81 @@ export interface RepoIntel {
     opts?: { exclude?: string[] },
   ): Promise<string[]>;
   getCriticalPaths(repoId: string): Promise<string[][]>;
+}
+
+// ---------------------------------------------------------------------------
+// Ports owned by repo-intel. Only this module uses them, so they live here
+// (onion-architecture R5); `src/adapters/{astgrep,tokenizer,depgraph}`
+// implement them and `platform/container.ts` wires one instance of each.
+// ---------------------------------------------------------------------------
+
+/** A declaration found by a `CodeParser` — a superset of the regex extractor's row. */
+export interface ParsedSymbol extends ExtractedSymbol {
+  /** True when the declaration is reached through an `export` form. */
+  exported: boolean;
+  /** Declaration head trimmed to MAX_SIGNATURE_CHARS; null for kinds without one. */
+  signature: string | null;
+  /** 1-based line of the closing token of the declaration body. */
+  endLine: number;
+}
+
+export interface ParsedReference extends ExtractedReference {
+  /** Path passed in by the caller — surfaced so consumers can fan-out. */
+  refFile: string;
+}
+
+export interface ParsedImport {
+  name: string;
+  source: string;
+  isType: boolean;
+}
+
+export interface ParsedInvocationHead {
+  /** The bare identifier being invoked (callee name, ctor name, or JSX tag). */
+  name: string;
+  /** 1-based line of the invocation. */
+  line: number;
+  /** Which AST shape produced this head. */
+  kind: 'call' | 'new' | 'jsx';
+}
+
+/**
+ * In-memory TS/JS parser (AST-accurate). Pure over `(file, source)`: no fs,
+ * no DB. Every parse method returns `[]` for a file `langForFile` rejects.
+ */
+export interface CodeParser {
+  /** Grammar id for a parseable file, `null` when the file is not TS/JS. */
+  langForFile(file: string): string | null;
+  /** Declarations; class methods are emitted twice (`Class.method` and `method`). */
+  parseSymbols(file: string, source: string): ParsedSymbol[];
+  /** Call / `new` / JSX usage sites, excluding imports and declaration lines. */
+  parseReferences(file: string, source: string): ParsedReference[];
+  /** Import bindings (default, named, namespace; `isType` for type-only). */
+  parseImports(file: string, source: string): ParsedImport[];
+  /** Bare-identifier invocation heads only (phantom-gate input). */
+  parseInvocationHeads(file: string, source: string): ParsedInvocationHead[];
+}
+
+/** Token counter for the repo-map budget search. Must never throw. */
+export interface Tokenizer {
+  count(text: string): number;
+}
+
+/** Heuristic token count (`ceil(chars / 4)`), the fallback of every `Tokenizer`. */
+export function approxTokens(text: string): number {
+  return Math.ceil(text.length / 4);
+}
+
+/** Import edge between two repo-relative files: `from` imports `to`. */
+export interface FileEdge {
+  from: string;
+  to: string;
+}
+
+export interface DepGraph {
+  /**
+   * Resolve the local import edges among `files` (repo-relative) under `root`.
+   * Never throws — returns `[]` on any failure.
+   */
+  buildEdges(root: string, files: string[]): Promise<FileEdge[]>;
 }

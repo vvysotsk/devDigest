@@ -17,7 +17,7 @@ separate type.
 
 ## Version
 
-**1.0.1** — see `metadata.version` in `SKILL.md` and the row in
+**1.1.0** — see `metadata.version` in `SKILL.md` and the row in
 `.claude/skills/README.md`.
 
 When you change `SKILL.md`, bump the version and add a Changelog line:
@@ -27,6 +27,7 @@ When you change `SKILL.md`, bump the version and add a Changelog line:
 
 ## Changelog
 
+- **1.1.0 — 2026-09-27** — R5: a port used by one module lives in that module's `types.ts`, ports shared across modules or with the client stay in `vendor/shared/adapters.ts`, adapters only implement ports; Map "Ports" row lists `modules/repo-intel/types.ts` (`RepoIntel`, `CodeParser`, `Tokenizer`, `DepGraph`), and the domain-core row gains `modules/_shared/{diff-parser,job-kinds}.ts` and `modules/repo-intel/extract.ts` (stage d of `specs/refactor-onion.md`).
 - **1.0.1 — 2026-09-26** — metadata only, no rule changes: `applies_to` narrowed and fixed from a YAML list to a string: `server/src/**, reviewer-core/src/**, server/.dependency-cruiser.cjs`, tests excluded and `blocking: "true"`, read by `pr-self-review` for routing (comma-separated string, as Agent Skills metadata values are strings).
 - **1.0.0 — 2026-09-26** — first version: rules R1–R9 (contracts as domain
   types, thin-module exception, response schema + shape test, use-case

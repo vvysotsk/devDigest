@@ -16,7 +16,7 @@ the Phantom-API gate (L06) — by calling `repoIntel.*`, not by re-indexing.
 ```mermaid
 flowchart LR
   CLONE["git clone / fetch"] --> WALK["walk.ts<br/>discover source files"]
-  WALK --> AST["ast-grep adapter<br/>symbols + references"]
+  WALK --> AST["CodeParser port (ast-grep adapter)<br/>symbols + references"]
   AST --> EDGES["import graph<br/>(dependency-cruiser)"]
   EDGES --> RANK["rank.ts<br/>PageRank + git hotness → file rank"]
   RANK --> MAP["repo-map.ts<br/>compact repo skeleton (cached)"]
