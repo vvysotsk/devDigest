@@ -122,3 +122,11 @@ Never rewrite existing entries — correct with a dated note.
   `src/components/findings-preview/FindingsHoverCard.tsx:1`,
   `src/components/run-cost-badge/RunCostBadge.tsx:1`,
   `src/lib/hooks/reviews.ts:28`).
+- 2026-09-27: UPDATE to 2026-09-26 `features/reviews/` entry — the user
+  deferred the move (evidence: `docs/ui-architecture.md:130-135`). Revisit
+  trigger: a FOURTH `reviews` widget lands in `src/components/` (today three:
+  `severity-summary`, `findings-preview`, `run-cost-badge`), or the
+  `features/<domain>/` trigger fires for a second domain. When either
+  happens, propose the move to the user again; until then add new `reviews`
+  UI to the existing layout (`_components/`, `components/`,
+  `lib/hooks/reviews.ts`).
