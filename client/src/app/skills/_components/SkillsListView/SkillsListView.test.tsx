@@ -22,7 +22,7 @@ vi.mock("next/navigation", () => ({ useRouter: () => ({ push: h.push, replace: v
 vi.mock("@/components/app-shell", () => ({
   AppShell: ({ children }: { children: React.ReactNode }) => <>{children}</>,
 }));
-vi.mock("@/lib/hooks/skills", async () => {
+vi.mock("@/features/skills/hooks", async () => {
   const { fakeMutation } = await import("@/test/mutation-mock");
   return {
     useSkills: () => ({ data: h.skills, isLoading: false, isError: false, refetch: vi.fn() }),

@@ -23,7 +23,7 @@ const h = vi.hoisted(() => ({
 }));
 
 vi.mock("next/navigation", () => ({ useRouter: () => ({ push: h.push, replace: vi.fn() }) }));
-vi.mock("@/lib/hooks/skills", async () => {
+vi.mock("@/features/skills/hooks", async () => {
   const { fakeMutation } = await import("@/test/mutation-mock");
   const subscribe = (l: () => void) => {
     h.store.listeners.add(l);

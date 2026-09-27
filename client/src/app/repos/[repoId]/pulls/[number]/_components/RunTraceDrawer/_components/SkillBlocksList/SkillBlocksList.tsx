@@ -3,7 +3,7 @@
 import React from "react";
 import { useTranslations } from "next-intl";
 import type { SkillBlock } from "@devdigest/shared";
-import { SkillSourceChip } from "@/components/skill-source-chip";
+import { SkillSourceChip } from "@/features/skills/components/skill-source-chip";
 import { s } from "./styles";
 
 /** One row per injected skill (prompt order): name, version, source, ≈ tokens of its rendered block (D7). */

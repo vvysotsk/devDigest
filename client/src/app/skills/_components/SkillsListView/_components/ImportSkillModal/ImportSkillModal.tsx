@@ -5,7 +5,7 @@ import { useRouter } from "next/navigation";
 import { useTranslations } from "next-intl";
 import { Button, FormField, Modal, SectionLabel } from "@devdigest/ui";
 import type { SkillImportRequest } from "@devdigest/shared";
-import { useImportPreview, useImportSkill } from "@/lib/hooks/skills";
+import { useImportPreview, useImportSkill } from "@/features/skills/hooks";
 import { useToast } from "@/lib/toast";
 import { SkillMetaFields, type SkillMeta } from "../../../SkillMetaFields";
 import { isSkillMetaValid, skillErrorMessage } from "../../../../helpers";

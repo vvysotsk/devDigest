@@ -16,7 +16,7 @@ import { skill } from "@/test/fixtures";
 const h = vi.hoisted(() => ({ push: vi.fn(), preview: vi.fn(), save: vi.fn() }));
 
 vi.mock("next/navigation", () => ({ useRouter: () => ({ push: h.push, replace: vi.fn() }) }));
-vi.mock("@/lib/hooks/skills", async () => {
+vi.mock("@/features/skills/hooks", async () => {
   const { fakeMutation } = await import("@/test/mutation-mock");
   return {
     useImportPreview: fakeMutation((v: unknown) => h.preview(v)),

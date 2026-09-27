@@ -4,7 +4,7 @@ import React from "react";
 import { useTranslations } from "next-intl";
 import { Badge, Button, FormField } from "@devdigest/ui";
 import type { Skill } from "@devdigest/shared";
-import { useUpdateSkill } from "@/lib/hooks/skills";
+import { useUpdateSkill } from "@/features/skills/hooks";
 import { useToast } from "@/lib/toast";
 import { isSkillMetaValid, skillErrorMessage } from "@/app/skills/helpers";
 import { SkillMetaFields, type SkillMeta } from "@/app/skills/_components/SkillMetaFields";

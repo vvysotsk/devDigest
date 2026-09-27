@@ -1,6 +1,6 @@
 # client — ui-architecture
 
-Last verified: 2026-09-28 (L02 Stage 9: features/reviews)
+Last verified: 2026-09-28 (L02 Stage 9: features/reviews, features/skills)
 
 ## Purpose
 
@@ -19,10 +19,10 @@ browser.
 | `src/app/layout.tsx` | Root layout: `next-intl` provider with all namespaces, theme no-flash script, `Providers`. |
 | `src/app/**/page.tsx` | Routes (`/`, `/onboarding`, `/repos/[repoId]/pulls`, `/repos/[repoId]/pulls/[number]`, `/agents`, `/agents/[id]`, `/skills`, `/skills/[id]`, `/settings/[section]`). Thin: a page mounts one view or composes `_components/`. |
 | `src/app/**/_components/<Name>/` | Route-private components: `<Name>.tsx` + `constants.ts`, `helpers.ts`, `styles.ts`, `index.ts`, tests beside the source. |
-| `src/components/<kebab>/` | Shared components that belong to no domain feature (`app-shell`, `diff-viewer`, `page-shell`, `repo-not-found`, `mermaid-diagram`, `showcase`, `skill-type-badge`, `skill-source-chip`). They never import `features/`. |
-| `src/features/<domain>/` | Domain features (frontend-architecture R4, 2.0.0): a grown domain's shared UI (`components/<kebab>/`), data hooks (`hooks.ts`) and pure functions (`lib/<topic>.ts`), no barrel at the root. `features/reviews/`: `components/{severity-summary,findings-preview,run-cost-badge}`, `hooks.ts`, `lib/{severity,finding-format,cost-format}.ts`. Features import no other feature and no `app/`; `app/` composes them. |
+| `src/components/<kebab>/` | Shared components that belong to no domain feature (`app-shell`, `diff-viewer`, `page-shell`, `repo-not-found`, `mermaid-diagram`, `showcase`). They never import `features/`. |
+| `src/features/<domain>/` | Domain features (frontend-architecture R4, 2.0.0): a grown domain's shared UI (`components/<kebab>/`), data hooks (`hooks.ts`) and pure functions (`lib/<topic>.ts`), no barrel at the root. `features/reviews/`: `components/{severity-summary,findings-preview,run-cost-badge}`, `hooks.ts`, `lib/{severity,finding-format,cost-format}.ts`; `features/skills/`: `components/{skill-type-badge,skill-source-chip}`, `hooks.ts`. Features import no other feature and no `app/`; `app/` composes them. |
 | `src/lib/api.ts` | `apiFetch` + `api.get/post/put/patch/del`; base URL from `NEXT_PUBLIC_API_BASE`; every failure becomes `ApiError { status, code, details }`. |
-| `src/lib/hooks/<domain>.ts` | TanStack Query hooks of domains that are not features (`core`, `agents`, `trace`, `repo-intel`, `skills`); a feature keeps its hooks in `src/features/<domain>/hooks.ts` (`reviews`). Imported from the domain file (`@/lib/hooks/core`); there is no `hooks/index.ts` barrel (see `.claude/skills/frontend-architecture`, R1). |
+| `src/lib/hooks/<domain>.ts` | TanStack Query hooks of domains that are not features (`core`, `agents`, `trace`, `repo-intel`); a feature keeps its hooks in `src/features/<domain>/hooks.ts` (`reviews`, `skills`). Imported from the domain file (`@/lib/hooks/core`); there is no `hooks/index.ts` barrel (see `.claude/skills/frontend-architecture`, R1). |
 | `src/lib/providers.tsx` | `QueryClient` (retry 1, staleTime 30 s, no refetch on focus, global error toasts) → `ThemeProvider` → `ToastProvider` → `RepoProvider`. |
 | `src/lib/repo-context.tsx` | Active repo: URL `:repoId` > `localStorage("dd-repo")` > first repo; `useRepoNotFound`. |
 | `src/lib/theme.tsx`, `src/lib/toast.tsx` | `data-theme` on `<html>` + `localStorage("dd-theme")`; toast context plus the module-level `notify` bridge used outside React. |
@@ -197,6 +197,12 @@ when" condition appears.
   fired for `reviews` and `skills`, not `trace`, and its one consumer (the
   trace drawer) is in `app/`, which may compose features. Behaviour
   unchanged. frontend-architecture 2.0.0 records the layer.
+- 2026-09-28 — `features/skills/` introduced (L02 Stage 9):
+  `skill-type-badge`, `skill-source-chip` → `src/features/skills/components/`,
+  `lib/hooks/skills.ts` → `src/features/skills/hooks.ts` (including
+  `useAgentSkills` / `useSetAgentSkills`, used from `app/agents`, which may
+  compose features). Route-private skills UI stays in `app/skills/` and
+  `app/agents/…/SkillsTab/`. Behaviour unchanged.
 
 ## Open questions
 

@@ -4,8 +4,8 @@ import React from "react";
 import { useTranslations } from "next-intl";
 import { Icon } from "@devdigest/ui";
 import type { Skill } from "@devdigest/shared";
-import { SkillTypeBadge } from "@/components/skill-type-badge";
-import { SkillSourceChip } from "@/components/skill-source-chip";
+import { SkillTypeBadge } from "@/features/skills/components/skill-type-badge";
+import { SkillSourceChip } from "@/features/skills/components/skill-source-chip";
 import { SkillEnabledToggle } from "../../../SkillEnabledToggle";
 import { s } from "./styles";
 

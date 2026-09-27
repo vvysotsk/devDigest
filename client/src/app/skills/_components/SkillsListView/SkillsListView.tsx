@@ -7,7 +7,7 @@ import { useRouter } from "next/navigation";
 import { useTranslations } from "next-intl";
 import { Button, Dropdown, EmptyState, ErrorState, Icon, Skeleton } from "@devdigest/ui";
 import { AppShell } from "@/components/app-shell";
-import { useSkills } from "@/lib/hooks/skills";
+import { useSkills } from "@/features/skills/hooks";
 import { filterSkills } from "../../helpers";
 import { SkillCard } from "./_components/SkillCard";
 import { CreateSkillModal } from "./_components/CreateSkillModal";

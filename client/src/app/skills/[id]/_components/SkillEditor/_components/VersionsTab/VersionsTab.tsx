@@ -4,7 +4,7 @@ import React from "react";
 import { useTranslations } from "next-intl";
 import { Badge, ErrorState, Skeleton } from "@devdigest/ui";
 import type { Skill } from "@devdigest/shared";
-import { useSkillVersions } from "@/lib/hooks/skills";
+import { useSkillVersions } from "@/features/skills/hooks";
 import { versionRows } from "./helpers";
 import { s } from "./styles";
 

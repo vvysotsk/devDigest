@@ -5,7 +5,7 @@ import Link from "next/link";
 import { useTranslations } from "next-intl";
 import { Badge, Button, EmptyState, ErrorState, Icon, Skeleton } from "@devdigest/ui";
 import type { Agent } from "@devdigest/shared";
-import { useAgentSkills, useSetAgentSkills, useSkills } from "@/lib/hooks/skills";
+import { useAgentSkills, useSetAgentSkills, useSkills } from "@/features/skills/hooks";
 import { useToast } from "@/lib/toast";
 import { SkillRow } from "./_components/SkillRow";
 import {

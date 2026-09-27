@@ -158,6 +158,9 @@ Never rewrite existing entries — correct with a dated note.
   `src/features/reviews/lib/…` and `src/features/reviews/hooks.ts` (same
   file contents; line numbers unchanged). Boundaries are enforced by
   `src/test/import-boundaries.test.ts`.
+  The `skills` domain followed: `src/components/skill-{type-badge,source-chip}/`
+  → `src/features/skills/components/…`, `src/lib/hooks/skills.ts` →
+  `src/features/skills/hooks.ts`.
 
 - 2026-09-26: Added the `frontend-architecture` skill (placement map, R1–R7,
   review signals, architecture-change triggers; research in

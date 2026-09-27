@@ -342,9 +342,11 @@ no client caller) is removed. Services own `db.transaction`; repositories take
   AND globally enabled (the `skill_count` rule), M = linked.
 - Trace: `RunTraceDrawer/_components/SkillBlocksList/` renders the per-skill
   rows; `skillsSummary` (`RunTraceDrawer/helpers.ts`) the label.
-- Shared (used by `/skills` and the agent tab): `components/skill-type-badge/`,
-  `components/skill-source-chip/`.
-- Hooks `client/src/lib/hooks/skills.ts`: `useSkills`, `useSkill`,
+- Shared (used by `/skills`, the agent tab and the trace drawer), in the
+  `skills` domain feature since Stage 9:
+  `client/src/features/skills/components/skill-type-badge/`,
+  `client/src/features/skills/components/skill-source-chip/`.
+- Hooks `client/src/features/skills/hooks.ts` (was `lib/hooks/skills.ts`): `useSkills`, `useSkill`,
   `useCreateSkill`, `useUpdateSkill`, `useDeleteSkill`, `useSkillVersions`,
   `useImportPreview`, `useImportSkill`, `useAgentSkills`, `useSetAgentSkills` (keys `["skills"]`,
   `["skill", id]`, `["skill-versions", id]`, `["agent-skills", agentId]`;
@@ -410,7 +412,7 @@ One commit per stage; each stage has its own gate.
 | 7 | `feat(seed,e2e): seed skills, agents and experiment PRs; skills flow` | server tests; `npm run e2e:hermetic` with `e2e/specs/08-skills.flow.json` (read-only: `/skills` cards, a skill opens, agent Skills tab "3 of 6 enabled"; `wait --text` before every `find … click`); `e2e/specs/flows-contract.md` preconditions: 5 agents, PRs #482–#484 |
 | 7a | `chore(skills): make pr-self-review user-invoked` (D9) | the skill's script self-check; then the user runs `/pr-self-review` |
 | 8 | control experiment — manual, real LLM key, no code; results table appended here in a `docs(specs)` commit | each agent × its PR, without and with skills, two runs per side |
-| 9 | `refactor(client): move reviews and skills into features/` — in `lesson-2` right after Wave 3 and 7a (independent of Stage 8), separate commits, behaviour unchanged; includes the `frontend-architecture` skill change (R4 and the Map gain the `features/` layer → MAJOR 2.0.0 per its README, Changelog, catalog row); details go to the user for approval first. The user's final `/pr-self-review` runs after Stage 9, so it covers the refactor | client typecheck + all client tests + `npm run e2e:hermetic` |
+| 9 | **done 2026-09-28** (`ac6c5d7` skill 2.0.0, `e572601` reviews, then the skills commit; import boundaries enforced by `client/src/test/import-boundaries.test.ts`) `refactor(client): move reviews and skills into features/` — in `lesson-2` right after Wave 3 and 7a (independent of Stage 8), separate commits, behaviour unchanged; includes the `frontend-architecture` skill change (R4 and the Map gain the `features/` layer → MAJOR 2.0.0 per its README, Changelog, catalog row); details go to the user for approval first. The user's final `/pr-self-review` runs after Stage 9, so it covers the refactor | client typecheck + all client tests + `npm run e2e:hermetic` |
 
 Every stage ends with the engineering-insights checkpoint and package-docs;
 its report ends with the `INSIGHTS:` and `docs/specs:` lines.

@@ -4,7 +4,7 @@ import React from "react";
 import { useRouter } from "next/navigation";
 import { useTranslations } from "next-intl";
 import { Button, FormField, Modal, Textarea } from "@devdigest/ui";
-import { useCreateSkill } from "@/lib/hooks/skills";
+import { useCreateSkill } from "@/features/skills/hooks";
 import { SkillMetaFields, type SkillMeta } from "../../../SkillMetaFields";
 import { isSkillMetaValid, skillErrorMessage } from "../../../../helpers";
 import { EMPTY_META, MODAL_WIDTH } from "./constants";

@@ -3,7 +3,7 @@
 import React from "react";
 import { useTranslations } from "next-intl";
 import { Checkbox, Icon, IconBtn } from "@devdigest/ui";
-import { SkillTypeBadge } from "@/components/skill-type-badge";
+import { SkillTypeBadge } from "@/features/skills/components/skill-type-badge";
 import type { SkillRowModel } from "../../helpers";
 import { s } from "./styles";
 

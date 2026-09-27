@@ -20,7 +20,7 @@ const h = vi.hoisted(() => ({
   put: vi.fn(),
 }));
 
-vi.mock("@/lib/hooks/skills", async () => {
+vi.mock("@/features/skills/hooks", async () => {
   const { fakeMutation } = await import("@/test/mutation-mock");
   return {
     useSkills: () => ({ data: h.skills, isLoading: false, isError: false, refetch: vi.fn() }),

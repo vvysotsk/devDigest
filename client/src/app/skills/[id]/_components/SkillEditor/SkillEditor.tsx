@@ -5,9 +5,9 @@
 import React from "react";
 import { useTranslations } from "next-intl";
 import { Badge, EmptyState, ErrorState, Icon, Skeleton, Tabs } from "@devdigest/ui";
-import { SkillTypeBadge } from "@/components/skill-type-badge";
-import { SkillSourceChip } from "@/components/skill-source-chip";
-import { useSkill } from "@/lib/hooks/skills";
+import { SkillTypeBadge } from "@/features/skills/components/skill-type-badge";
+import { SkillSourceChip } from "@/features/skills/components/skill-source-chip";
+import { useSkill } from "@/features/skills/hooks";
 import { ApiError } from "@/lib/api";
 import { ConfigTab } from "./_components/ConfigTab";
 import { PreviewTab } from "./_components/PreviewTab";

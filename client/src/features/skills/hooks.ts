@@ -3,7 +3,7 @@
 "use client";
 
 import { useQuery, useMutation, useQueryClient, type QueryClient } from "@tanstack/react-query";
-import { api } from "../api";
+import { api } from "@/lib/api";
 import type {
   AgentSkill,
   AgentSkillsPut,

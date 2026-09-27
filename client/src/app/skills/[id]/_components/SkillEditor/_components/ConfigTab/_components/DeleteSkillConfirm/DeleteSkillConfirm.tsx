@@ -5,7 +5,7 @@ import { useRouter } from "next/navigation";
 import { useTranslations } from "next-intl";
 import { Button, Modal } from "@devdigest/ui";
 import type { Skill } from "@devdigest/shared";
-import { useDeleteSkill } from "@/lib/hooks/skills";
+import { useDeleteSkill } from "@/features/skills/hooks";
 import { skillErrorMessage } from "@/app/skills/helpers";
 import { s } from "./styles";
 

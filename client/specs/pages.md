@@ -1,6 +1,6 @@
 # client — pages
 
-Last verified: 2026-09-27 (L02 Stage 6: agent skills tab, trace skills)
+Last verified: 2026-09-28 (L02 Stage 9: features/ paths)
 
 ## Scope
 
@@ -173,7 +173,7 @@ for the PR page (`FindingsPanel/FindingsPanel.tsx`, `RunHistory/RunHistory.tsx`,
   (`src/app/skills/page.tsx`, `src/app/skills/[id]/page.tsx`,
   `src/app/skills/_components/SkillsListView/SkillsListView.tsx`). Data:
   `useSkills` → `GET /skills`, `useSkill(id)` → `GET /skills/:id`
-  (`src/lib/hooks/skills.ts`).
+  (`src/features/skills/hooks.ts`).
 - Card: name, enabled switch, description, type badge, source chip
   (Manual / Imported / Extracted / Community), "N agents" from `agent_count`;
   search filters name + description client-side. Clicking a card opens

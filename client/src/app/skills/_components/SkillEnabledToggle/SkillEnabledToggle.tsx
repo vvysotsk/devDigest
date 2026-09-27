@@ -3,7 +3,7 @@
 import React from "react";
 import { Toggle } from "@devdigest/ui";
 import type { Skill } from "@devdigest/shared";
-import { useUpdateSkill } from "@/lib/hooks/skills";
+import { useUpdateSkill } from "@/features/skills/hooks";
 import { needsInjectionAck } from "../../helpers";
 import { EnableImportedConfirm } from "./_components/EnableImportedConfirm";
 
