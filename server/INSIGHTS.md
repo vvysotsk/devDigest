@@ -55,7 +55,7 @@ Never rewrite existing entries — correct with a dated note.
   executor breaks it. Log only when there is something to report (L02 logs one
   line per injected skill and nothing for an agent without skills) or update
   the golden on purpose (evidence: `test/reviews-golden.it.test.ts:271`,
-  `src/modules/reviews/run-executor.ts:358-371`).
+  `src/modules/reviews/run-executor.ts:358-373`).
 
 - 2026-09-27: A port shared by two modules cannot live in `src/vendor/shared`
   while contracts are frozen, and the consumer may not import it from the
@@ -201,6 +201,14 @@ Never rewrite existing entries — correct with a dated note.
     `src/modules/repo-intel/pipeline/repo-map.ts:64`).
 
 ## Recurring Errors & Fixes
+
+- 2026-09-27: A `.it.test.ts` file can report green while running NOTHING:
+  `dockerAvailable()` (`test/helpers/pg.ts:28-37`) caches a failed
+  `docker info` and the file calls `describe.skip`. With 15 integration files
+  starting containers in parallel, the old 5 s timeout expired and
+  `test/skill-import.it.test.ts` was skipped ("4 skipped" in the summary).
+  Timeout is now 30 s; still read the summary for `skipped` / `↓` lines,
+  not only for failures.
 
 - 2026-09-27: `pnpm typecheck` checks only `src/` (`tsconfig.json:28`
   `"include": ["src/**/*.ts"]`) and vitest does not typecheck, so a change to
