@@ -89,6 +89,12 @@ describe("SkillsListView", () => {
 
     await user.click(within(imported).getByRole("switch"));
     const dialog = screen.getByRole("dialog");
+    // Portalled to <body>: never nested in (and never styled by) the disabled card.
+    expect(imported.contains(dialog)).toBe(false);
+    expect(dialog.closest('[role="button"]')).toBeNull();
+    // The card itself is not dimmed (a dim wrapper would dim an overlay too); its content is.
+    expect(imported.style.opacity).toBe("");
+    expect(within(imported).getByText("api-deprecation-policy").style.opacity).toBe("0.6");
     expect(h.update).not.toHaveBeenCalled();
     const enable = within(dialog).getByRole("button", { name: "Enable skill" });
     expect(enable).toBeDisabled();

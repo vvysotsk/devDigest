@@ -30,10 +30,13 @@ export function ImportSkillModal({ onClose }: { onClose: () => void }) {
   const [meta, setMeta] = React.useState<SkillMeta | null>(null);
   const [localError, setLocalError] = React.useState<string | null>(null);
   const [reading, setReading] = React.useState(false);
+  const [fileName, setFileName] = React.useState<string | null>(null);
+  const fileInput = React.useRef<HTMLInputElement>(null);
 
   const onFile = async (file: File | undefined) => {
     preview.reset();
     save.reset();
+    setFileName(file?.name ?? null);
     setUpload(null);
     setMeta(null);
     setLocalError(null);
@@ -55,6 +58,8 @@ export function ImportSkillModal({ onClose }: { onClose: () => void }) {
   };
 
   const data = preview.data;
+  // Save only after a preview has loaded for the chosen file — the preview is
+  // the trust point (raw text + warnings) the user has to see first.
   const canSave = !!upload && !!data && !!meta && isSkillMetaValid(meta) && !save.isPending;
   const submit = () => {
     if (!upload || !data || !meta) return;
@@ -96,13 +101,24 @@ export function ImportSkillModal({ onClose }: { onClose: () => void }) {
     >
       <div style={s.body}>
         <FormField label={t("import.fileLabel")}>
-          <input
-            type="file"
-            aria-label={t("import.fileLabel")}
-            accept={ACCEPT_ATTR}
-            onChange={(e) => void onFile(e.target.files?.[0])}
-            style={s.file}
-          />
+          <div style={s.fileRow}>
+            {/* Native input kept for a11y and tests, visually replaced by a kit Button. */}
+            <input
+              ref={fileInput}
+              type="file"
+              aria-label={t("import.fileLabel")}
+              accept={ACCEPT_ATTR}
+              onChange={(e) => void onFile(e.target.files?.[0])}
+              style={s.hiddenInput}
+              tabIndex={-1}
+            />
+            <Button icon="Upload" onClick={() => fileInput.current?.click()}>
+              {t("import.chooseFile")}
+            </Button>
+            <span className="mono" style={s.fileName}>
+              {fileName ?? t("import.noFile")}
+            </span>
+          </div>
         </FormField>
         {(reading || preview.isPending) && <p style={s.muted}>{t("import.reading")}</p>}
         {error && (

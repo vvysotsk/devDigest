@@ -2,15 +2,17 @@ import type { CSSProperties } from "react";
 
 /** Co-located styles for SkillCard. */
 export const s = {
-  card: (active: boolean, enabled: boolean): CSSProperties => ({
+  // No opacity on the card itself: a dialog opened from the card's toggle would
+  // inherit it. The disabled look is applied to the content (`dim`).
+  card: (active: boolean): CSSProperties => ({
     padding: 12,
     borderRadius: 8,
     cursor: "pointer",
     border: "1px solid " + (active ? "var(--border-strong)" : "var(--border)"),
     background: active ? "var(--bg-hover)" : "var(--bg-elevated)",
-    opacity: enabled ? 1 : 0.7,
     marginBottom: 8,
   }),
+  dim: (enabled: boolean): CSSProperties => ({ opacity: enabled ? 1 : 0.6 }),
   headerRow: { display: "flex", alignItems: "center", gap: 10 } satisfies CSSProperties,
   iconBox: {
     width: 24,

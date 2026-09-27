@@ -1,6 +1,13 @@
 import React from "react";
+import { createPortal } from "react-dom";
 import { IconBtn } from "../primitives";
 
+/**
+ * Modal dialog. Rendered through a portal to `document.body`, so it never
+ * inherits the opener's styles (opacity, transform, overflow, z-index of a
+ * card or a `<label>` it was opened from) and its DOM is never nested inside
+ * the opener. Mounts after hydration (portals need `document`).
+ */
 export function Modal({
   width = 720,
   title,
@@ -16,7 +23,10 @@ export function Modal({
   children?: React.ReactNode;
   footer?: React.ReactNode;
 }) {
-  return (
+  const [mounted, setMounted] = React.useState(false);
+  React.useEffect(() => setMounted(true), []);
+  if (!mounted) return null;
+  return createPortal(
     <div style={{ position: "fixed", inset: 0, display: "grid", placeItems: "center", zIndex: 50, padding: 28 }}>
       <div
         onClick={onClose}
@@ -64,6 +74,7 @@ export function Modal({
           </div>
         )}
       </div>
-    </div>
+    </div>,
+    document.body,
   );
 }

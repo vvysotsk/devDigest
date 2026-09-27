@@ -185,11 +185,15 @@ for the PR page (`FindingsPanel/FindingsPanel.tsx`, `RunHistory/RunHistory.tsx`,
   as instructions"; confirming sends `{ enabled: true, acknowledge_injection:
   true }`. An unsaved Config draft survives the toggle and its refetch.
 - "Add Skill ▾": **Create** → `CreateSkillModal` → `POST /skills` (manual)
-  → navigates to the new skill; **Import file** → `ImportSkillModal`: a `.md`
-  / `.zip` ≤ 512 KB (checked before any request) → bare base64 →
+  → navigates to the new skill; **Import file** → `ImportSkillModal`: a
+  "Choose file" kit button (over a visually hidden, labelled file input)
+  and the chosen file name; a `.md` / `.zip` ≤ 512 KB (checked before any
+  request) → bare base64 →
   `POST /skills/import/preview` → editable name / description / type, the
   **raw** `raw_source` (never rendered), the file table (imported / reference
-  / skipped + reason), every warning, the trust notice → "Save skill" =
+  / skipped + reason), every warning, the trust notice → "Save skill" (disabled
+  until the preview for the chosen file has loaded — the preview is the trust
+  point) =
   `POST /skills/import` with the file + only the fields that differ from the
   draft (never a body); saved disabled. `SkillErrorCode`s map to
   `skills.errors.*` messages (`src/app/skills/helpers.ts`).

@@ -26,10 +26,23 @@ Never rewrite existing entries — correct with a dated note.
 
 ## Codebase Patterns
 
+- 2026-09-28: Opacity (and transform / filter / overflow) on an element that
+  CONTAINS an overlay is inherited by the overlay: the "enable an imported
+  skill" confirm opened from a disabled `SkillCard` (`opacity: 0.7` on the
+  card) was nearly transparent and the page showed through. The kit `Modal`
+  now renders through `createPortal(…, document.body)` after mount, and a
+  disabled card dims its content, not itself. Tests assert the dialog is not
+  a descendant of its opener (evidence: `src/vendor/ui/kit/Modal.tsx:26-30`,
+  `src/app/skills/_components/SkillsListView/_components/SkillCard/styles.ts:15`,
+  `src/app/skills/_components/SkillsListView/SkillsListView.test.tsx:93`).
+
 - 2026-09-27: Do not put a toggle that can open a dialog inside a `<label>`:
   the kit `Modal` renders inside it and the label forwards every click in the
   dialog back to the switch. Use a `div` for the caption (evidence:
   `src/app/skills/[id]/_components/SkillEditor/_components/ConfigTab/ConfigTab.tsx:52-53`).
+  - 2026-09-28 note: root cause was that the kit `Modal` rendered in place;
+    it now portals to `document.body` (`src/vendor/ui/kit/Modal.tsx:26-30`), so a
+    dialog is never inside a label or card any more. Keep the `div` anyway.
 - 2026-09-27: A clickable card (`role="button"`) that contains a switch must
   ignore bubbled keys — `if (e.key === "Enter" && e.target === e.currentTarget)`
   — and the switch's wrapper stops clicks (the switch's and its dialog's) from

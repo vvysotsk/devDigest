@@ -125,6 +125,23 @@ describe("ImportSkillModal", () => {
     expect(h.save).not.toHaveBeenCalled();
   });
 
+  it("picks the file with a kit button and keeps Save disabled until a preview has loaded", async () => {
+    const user = userEvent.setup();
+    h.preview.mockReturnValue(new Promise(() => {})); // preview never resolves
+    renderModal();
+
+    const save = screen.getByRole("button", { name: "Save skill" });
+    expect(save).toBeDisabled(); // no file yet
+    expect(screen.getByRole("button", { name: "Choose file" })).toBeInTheDocument();
+    expect(screen.getByText("No file chosen")).toBeInTheDocument();
+
+    await user.upload(screen.getByLabelText("Skill file (.md or .zip)"), zip());
+    expect(screen.getByText("api-deprecation-policy.zip")).toBeInTheDocument();
+    expect(await screen.findByText("Reading file…")).toBeInTheDocument();
+    expect(screen.getByRole("button", { name: "Save skill" })).toBeDisabled(); // preview still loading
+    expect(h.save).not.toHaveBeenCalled();
+  });
+
   it("rejects an oversized file before any request", async () => {
     const user = userEvent.setup();
     renderModal();

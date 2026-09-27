@@ -110,6 +110,7 @@ describe("SkillEditor — Config tab", () => {
 
     await user.click(screen.getByRole("button", { name: "Delete skill" }));
     const dialog = screen.getByRole("dialog");
+    expect(dialog.parentElement!.parentElement).toBe(document.body); // portalled to <body>
     expect(within(dialog).getByText("Delete skill no-then-chains?")).toBeInTheDocument();
     expect(within(dialog).getByText("Used by 2 agents — their links will be removed.")).toBeInTheDocument();
     expect(h.del).not.toHaveBeenCalled();
@@ -125,6 +126,8 @@ describe("SkillEditor — Config tab", () => {
 
     await user.click(screen.getByRole("switch"));
     const dialog = screen.getByRole("dialog");
+    expect(screen.getByRole("switch").closest("div")!.contains(dialog)).toBe(false); // portalled
+    expect(dialog.closest("label")).toBeNull();
     await user.click(within(dialog).getByRole("checkbox"));
     await user.click(within(dialog).getByRole("button", { name: "Enable skill" }));
     expect(h.update).toHaveBeenCalledWith({ id: "s9", patch: { enabled: true, acknowledge_injection: true } });

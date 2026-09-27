@@ -6,5 +6,14 @@ export const s = {
   error: { fontSize: 13, color: "var(--crit)", marginRight: "auto" } satisfies CSSProperties,
   body: { padding: 24 } satisfies CSSProperties,
   muted: { fontSize: 13, color: "var(--text-muted)", marginBottom: 12 } satisfies CSSProperties,
-  file: { fontSize: 13, color: "var(--text-secondary)" } satisfies CSSProperties,
+  fileRow: { display: "flex", alignItems: "center", gap: 12 } satisfies CSSProperties,
+  // Visually hidden but still focusable by label / testable (not display:none).
+  hiddenInput: {
+    position: "absolute",
+    width: 1,
+    height: 1,
+    opacity: 0,
+    overflow: "hidden",
+  } satisfies CSSProperties,
+  fileName: { fontSize: 13, color: "var(--text-secondary)" } satisfies CSSProperties,
 } as const;

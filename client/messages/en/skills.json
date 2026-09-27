@@ -171,6 +171,8 @@
     "title": "Import skill from file",
     "subtitle": "A SKILL.md file or a .zip with SKILL.md at its root or in one top-level folder (≤ 512 KB).",
     "fileLabel": "Skill file (.md or .zip)",
+    "chooseFile": "Choose file",
+    "noFile": "No file chosen",
     "reading": "Reading file…",
     "draft": "Draft",
     "rawSource": "Raw SKILL.md (exactly as it will be parsed — never rendered)",
