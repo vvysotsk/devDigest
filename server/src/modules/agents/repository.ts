@@ -228,13 +228,24 @@ export class AgentsRepository {
     return rows;
   }
 
-  /** Enabled skill links per agent (`Agent.skill_count`); agents without links are absent. */
+  /**
+   * Effective skills per agent (`Agent.skill_count`): links with
+   * `agent_skills.enabled AND skills.enabled` — exactly the skills that reach the
+   * prompt. Agents without any are absent from the map.
+   */
   async enabledSkillCounts(agentIds: string[]): Promise<Map<string, number>> {
     if (agentIds.length === 0) return new Map();
     const rows = await this.db
       .select({ agentId: t.agentSkills.agentId, n: count() })
       .from(t.agentSkills)
-      .where(and(inArray(t.agentSkills.agentId, agentIds), eq(t.agentSkills.enabled, true)))
+      .innerJoin(t.skills, eq(t.agentSkills.skillId, t.skills.id))
+      .where(
+        and(
+          inArray(t.agentSkills.agentId, agentIds),
+          eq(t.agentSkills.enabled, true),
+          eq(t.skills.enabled, true),
+        ),
+      )
       .groupBy(t.agentSkills.agentId);
     return new Map(rows.map((r) => [r.agentId, r.n]));
   }

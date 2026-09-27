@@ -1,6 +1,6 @@
 # server — skills
 
-Last verified: 2026-09-27 (L02 Stage 1: schema + contracts; no skills routes yet)
+Last verified: 2026-09-27 (L02 Stages 1–1b: schema + contracts; no skills routes yet)
 
 ## Scope
 
@@ -32,16 +32,24 @@ Paths are relative to `server/`. `knowledge.ts`, `trace.ts` →
 
 - `Skill` (`knowledge.ts`) carries `agent_count`, `body_tokens` (cl100k),
   `acknowledged_at` (ISO or null), `created_at`, `updated_at`.
-- Inputs: `SkillInput` (kebab-case `SkillName`, `source` only `manual` |
-  `imported_file`), `SkillPatch` (non-empty; `acknowledge_injection` is the
+- Inputs: `SkillInput` (manual create only: kebab-case `SkillName`,
+  `source` is the literal `manual`), `SkillImportSave` (the import save: the
+  file again + optional `name` / `description` / `type` overrides — never a
+  body, source or enabled flag; the server re-parses the file and sets
+  `source = imported_file`, `enabled = false`, `acknowledged_at = null`),
+  `SkillPatch` (non-empty; `acknowledge_injection` is the
   literal `true`), `AgentSkillsPut` (ordered, unique `skill_id`s, ≤ 100).
 - Outputs: `SkillVersion`, `AgentSkill`, `AgentSkillsResult {version,
   skills}`, `SkillImportPreview` (`raw_source`, `frontmatter`, `files`,
-  `warnings` with kinds `SkillImportWarningKind`), error codes
-  `SkillErrorCode`.
-- `Agent.skill_count` = the agent's enabled links; every `Agent` the agents
-  module returns carries it (`AgentsRepository.enabledSkillCounts`,
-  `src/modules/agents/repository.ts:232`; used by `service.ts:58-72,114` and
+  `warnings` with kinds `SkillImportWarningKind`; `warnings[].line` is a
+  1-based line of `raw_source`), error codes `SkillErrorCode` (incl.
+  `import_description_missing`, `import_invalid_name` for the save).
+- `Skill.agent_count` = agents with a link to the skill, enabled or not
+  (the delete confirm's "Used by N agents").
+- `Agent.skill_count` = the agent's **effective** skills
+  (`agent_skills.enabled AND skills.enabled` — what reaches the prompt); every
+  `Agent` the agents module returns carries it
+  (`AgentsRepository.enabledSkillCounts`, `src/modules/agents/repository.ts:236`; used by `service.ts:58-72,114` and
   `repository.ts:66-78`).
 - Agent version snapshots store `skills: [{skill_id, order, enabled}]`
   (`AgentsRepository.skillLinksForSnapshot`,
@@ -50,11 +58,18 @@ Paths are relative to `server/`. `knowledge.ts`, `trace.ts` →
 - `PromptAssembly.skill_blocks` (`trace.ts`) is optional: traces saved before
   L02 stay valid.
 
+## Known limitations
+
+- `skill_versions` holds only the body: a metadata-only edit bumps
+  `skills.version` with an unchanged body (the UI labels it "metadata
+  change"). No migration planned.
+
 ## Tests
 
 | Rule | Enforced by |
 |---|---|
 | old `string[]` snapshot → ordered enabled links; object links kept | `test/contracts.test.ts` ("L02 skills contracts") |
 | `PromptAssembly` parses with and without `skill_blocks` | `test/contracts.test.ts` |
-| `Skill` requires the L02 fields; `SkillInput` kebab-case + defaults; `SkillPatch` non-empty + ack literal; `AgentSkillsPut` unique ids | `test/contracts.test.ts` |
+| `Skill` requires the L02 fields; `SkillInput` kebab-case + defaults, rejects `source: imported_file`; `SkillImportSave` overrides only (client body/source/enabled dropped); `SkillPatch` non-empty + ack literal; `AgentSkillsPut` unique ids | `test/contracts.test.ts` |
 | agent version snapshots still written and read | `test/agents-versions.it.test.ts` |
+| `skill_count` = effective links only; snapshot stores every link as `{skill_id, order, enabled}` | `test/agents-versions.it.test.ts:179` |

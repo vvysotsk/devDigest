@@ -13,6 +13,16 @@ Never rewrite existing entries — correct with a dated note.
 
 ## What Doesn't Work
 
+- 2026-09-27: A two-step import ("preview returns the parsed text, the client
+  POSTs it back to the normal create route") makes every server-side trust
+  rule client-enforced: the client can send any body and claim any `source`,
+  so the first-enable acknowledgement for imported skills could be skipped by
+  posting the text as `manual`. Save imports on their own route that
+  re-parses the uploaded FILE and sets `source` / `enabled` /
+  `acknowledged_at` itself; the manual create accepts `source: 'manual'` only
+  (evidence: `src/vendor/shared/contracts/knowledge.ts:170`, `:247`;
+  reviewer correction during L02 Stage 1 review).
+
 - 2026-09-27: Updating `specs/review-flow.md` only for the sections a change
   "touches" lets its `path:line` evidence rot: after the onion stages a–e,
   63 of ~135 references were off by 1–10 lines (new imports / types at the

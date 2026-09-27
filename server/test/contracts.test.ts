@@ -22,6 +22,7 @@ import {
   SkillPatch,
   AgentSkillsPut,
   SkillImportPreview,
+  SkillImportSave,
 } from '@devdigest/shared';
 
 /**
@@ -281,6 +282,24 @@ describe('L02 skills contracts', () => {
     expect(ok).toMatchObject({ source: 'manual', enabled: true });
     expect(() => SkillInput.parse({ ...ok, name: 'No Then' })).toThrow();
     expect(() => SkillInput.parse({ ...ok, source: 'community' })).toThrow();
+  });
+
+  it('SkillInput is manual-only: source imported_file is rejected', () => {
+    const base = { name: 'x', description: 'd', type: 'custom', body: 'b' };
+    expect(() => SkillInput.parse({ ...base, source: 'imported_file' })).toThrow();
+    expect(SkillInput.parse({ ...base, source: 'manual' }).source).toBe('manual');
+  });
+
+  it('SkillImportSave parses with and without overrides and rejects a bad name', () => {
+    const file = { filename: 'api-deprecation-policy.zip', content_base64: 'UEsDBA==' };
+    expect(SkillImportSave.parse(file)).toEqual(file);
+    expect(
+      SkillImportSave.parse({ ...file, name: 'api-deprecation-policy', description: 'Use when…', type: 'rubric' }),
+    ).toMatchObject({ name: 'api-deprecation-policy', type: 'rubric' });
+    expect(() => SkillImportSave.parse({ ...file, name: 'Bad Name' })).toThrow();
+    expect(() => SkillImportSave.parse({ ...file, description: '   ' })).toThrow();
+    // body / source / enabled are never accepted from the client
+    expect(SkillImportSave.parse({ ...file, body: 'x', source: 'manual', enabled: true })).toEqual(file);
   });
 
   it('SkillPatch rejects an empty patch and accepts only acknowledge_injection: true', () => {

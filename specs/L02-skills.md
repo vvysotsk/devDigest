@@ -51,7 +51,7 @@ count, line numbers, mono font).
 | `/skills/:id?tab=config` | inline editor: Enabled, Name*, Description (directive caption), Type, body editor (`<name>.md`, line numbers, "unsaved" chip, token count), Save, Delete (confirm "Used by N agents") | — | 5 |
 | `/skills/:id?tab=preview` | rendered Markdown, toggle to raw text | "Empty body" | 5 |
 | `/skills/:id?tab=versions` | read-only list of `skill_versions` (version, date); click → raw body | only the current version | 5 |
-| Import modal | file picker (`.md` / `.zip`) → preview: editable draft (name, description, type), **raw** body, file table (imported / reference / skipped + reason), warnings, trust notice → "Save skill" (saved disabled) / Cancel | parse error with reason | 5 |
+| Import modal | file picker (`.md` / `.zip`) → preview: editable draft (name, description, type), **raw** body, file table (imported / reference / skipped + reason), warnings, trust notice → "Save skill" (`POST /skills/import` with the file + overrides; saved disabled) / Cancel | parse error with reason | 5 |
 | First-enable confirm | "I have read this text; it will be injected into the agent's prompt as instructions" — only for an imported skill never enabled before | — | 5 |
 | Agents › Skills tab | "N of M enabled" pill, filter, hint "Order matters — earlier skills appear earlier in the assembled prompt. Drag to reorder.", rows: drag handle, ↑/↓, checkbox, name, type badge, Detach; "Save skills" / "Discard"; dirty marker on the tab | "No skills yet" + link to `/skills` | 6 |
 | Agent card | "N skills" chip (enabled links) | chip hidden at 0 | 6 |
@@ -87,9 +87,19 @@ count, line numbers, mono font).
     absolute or drive-letter paths and symlink entries are rejected; `\`
     separators are normalised (PowerShell 5.1 `Compress-Archive` writes them).
     Nothing is written to disk, nothing is executed.
-  - The preview stores nothing; the skill is created only by the explicit save
-    (`POST /skills`) with `source = imported_file`. The enum lives only in
-    TypeScript — the SQL column is `text` without a CHECK
+  - The preview stores nothing. The skill is created only by the explicit save
+    `POST /skills/import` (`SkillImportSave`): the client re-sends the **file**
+    plus optional `name` / `description` / `type` overrides; the server re-runs
+    the pipeline, applies only those overrides and itself sets
+    `source = imported_file`, `enabled = false`, `acknowledged_at = null`. The
+    body is always the parsed body — never client-supplied — so the D4
+    acknowledgement cannot be skipped by posting imported text as a manual
+    skill (`POST /skills` accepts `source: 'manual'` only). Pipeline errors use
+    the same `SkillErrorCode`s; a duplicate name → 409 `skill_name_taken`; no
+    description in the file and no override → 422
+    `import_description_missing`; a final name that is not a `SkillName` → 422
+    `import_invalid_name`. The `source` enum lives only in TypeScript — the SQL
+    column is `text` without a CHECK
     (`server/src/db/migrations/0000_init.sql:316-328`) — so no migration.
   - The preview warns (kind `name_exists`) when the workspace already has a
     skill with the draft's name; the name stays editable; saving a duplicate
@@ -196,7 +206,19 @@ count, line numbers, mono font).
 - **Order** — array order of `PUT /agents/:id/skills` = prompt order; the
   server stores `order = index`.
 - **Deleting a skill** removes its links (FK cascade); the confirm dialog shows
-  how many agents use it.
+  "Used by N agents" from `Skill.agent_count`.
+- **Counts** — `Skill.agent_count` = agents with a link to the skill, enabled
+  or not. `Agent.skill_count` = the agent's **effective** skills
+  (`skills.enabled AND agent_skills.enabled`), so the agent card never counts a
+  skill that is absent from the prompt.
+
+## Known limitations
+
+- `skill_versions` holds only the body (no migration planned): a metadata-only
+  edit (name / description / type) bumps `skills.version` with an unchanged
+  body; the Versions tab labels such a row "metadata change".
+- `SkillImportWarning.line` is a 1-based line of `raw_source` (SKILL.md with
+  its frontmatter), not of the parsed body.
 
 ## Data model
 
@@ -213,30 +235,34 @@ edited):
 
 Master copy in `server/src/vendor/shared/contracts/knowledge.ts` (and
 `trace.ts`), mirrored to `client/src/vendor/shared`; since Stage 1 both files
-are byte-identical in the two copies. **Frozen after Stage 1** — the field
+are byte-identical in the two copies. **Frozen after Stage 1b** — the field
 list is in `server/specs/skills.md` and the schemas themselves.
 
 - `Skill` += `agent_count`, `body_tokens`, `acknowledged_at`, `created_at`,
   `updated_at`; `SkillSource` += `imported_file`; `SkillName` (kebab-case,
   ≤ 64).
-- `SkillInput` (create; `source` only `manual` | `imported_file`),
+- `SkillInput` (manual create only; `source` is the literal `manual`),
   `SkillPatch` (+ `acknowledge_injection: true`), `SkillVersion`.
 - `AgentSkill {skill_id, order, enabled, skill: Skill}`;
   `AgentSkillsPut {skills: [{skill_id, enabled}]}`; response
   `AgentSkillsResult {version, skills: AgentSkill[]}`.
-- `SkillImportRequest {filename, content_base64}`;
+- `SkillImportRequest {filename, content_base64}` (preview);
+  `SkillImportSave {filename, content_base64, name?, description?, type?}`
+  (save — overrides only, no body / source / enabled);
   `SkillImportPreview {filename, draft: SkillDraft, raw_source, frontmatter,
   files: [{path, status: imported | reference | skipped, reason, size}],
   warnings: [{kind, line | null, detail}]}`; warning kinds: `html_comment`,
   `invisible_char`, `long_line`, `name_exists`, `name_normalized`,
   `type_defaulted`, `description_missing`. `SkillDraft` is unvalidated (the
-  user fixes it, then saves a `SkillInput`); `raw_source` = SKILL.md exactly as
-  found, frontmatter included.
+  user fixes name / description / type, sent back as `SkillImportSave`
+  overrides); `raw_source` = SKILL.md exactly as found, frontmatter included;
+  `warnings[].line` counts `raw_source` lines.
 - `SkillErrorCode`: `skill_name_taken`, `skill_ack_required`,
   `skill_not_in_workspace`, `import_unsupported_file`, `import_too_large`,
   `import_bad_archive`, `import_unsafe_path`, `import_no_skill_md`,
-  `import_bad_frontmatter`.
-- `Agent` += `skill_count` (enabled links).
+  `import_bad_frontmatter`, `import_description_missing`,
+  `import_invalid_name`.
+- `Agent` += `skill_count` (effective skills, see Semantics).
 - `AgentVersionConfig.skills` → `AgentVersionSkill[]` `{skill_id, order,
   enabled}` (D5).
 - `PromptAssembly` += `skill_blocks?: SkillBlock[]` `{skill_id, name, version,
@@ -250,12 +276,13 @@ Routes — `server/src/modules/skills/{routes,service,repository}.ts` plus
 | Route | Response |
 |---|---|
 | `GET /skills` | `Skill[]` |
-| `POST /skills` | 201 `Skill` (manual create or confirmed import) |
+| `POST /skills` | 201 `Skill` (manual create only) |
 | `GET /skills/:id` | `Skill` |
 | `PUT /skills/:id` | `Skill` (bump + snapshot in one transaction; 409 `skill_ack_required`) |
 | `DELETE /skills/:id` | 204 |
 | `GET /skills/:id/versions` | `SkillVersion[]` |
 | `POST /skills/import/preview` | `SkillImportPreview` (stores nothing) |
+| `POST /skills/import` | 201 `Skill` (server re-parses the file; saved disabled) |
 | `GET /agents/:id/skills` | `AgentSkill[]` |
 | `PUT /agents/:id/skills` | `AgentSkillsResult` (one transaction; 400 for a skill outside the workspace) |
 
@@ -323,7 +350,7 @@ One commit per stage; each stage has its own gate.
 | 1 | `feat(server): skills schema and contracts` — schema, migration 0011, contracts + client mirror | typecheck server, client, reviewer-core; `server/test/contracts.test.ts` |
 | 2 | `feat(server): skills module and agent skill links` — CRUD, ack rule, `PUT /agents/:id/skills` + version bump, agents cleanup, container port | unit + `.it.test` (`skills.it.test.ts`, `agent-skills.it.test.ts`: CRUD, bump + snapshot, 409 duplicate, 409 ack, order / enabled, one bump per save, no bump on unchanged list, cross-workspace 400, snapshot shape, R3); `pnpm deps:check` shows no new violation |
 | 3a | `feat(server): skill import pipeline` — pure functions, `fflate` + `yaml`, fixture, `pack-skill.mjs` | unit: `.md`; zip with SKILL.md in a folder; quoted / colon / `>` / nested frontmatter; `..`; `\` paths; oversize; > 200 entries; executables skipped; missing SKILL.md; each warning kind incl. `name_exists` |
-| 3b | `feat(server): skill import preview route` | route `.it.test` + R3 |
+| 3b | `feat(server): skill import routes` — preview + save | route `.it.test` + R3: preview stores nothing; save re-parses the file, ignores any client body, applies overrides, saves `imported_file` + disabled + `acknowledged_at` null; 409 duplicate; 422 codes |
 | 4a | `feat(reviewer-core): render skills as prompt blocks` | reviewer-core typecheck + tests: order, headers, closing line, empty list → no section |
 | 4b | `feat(server): inject skills into runs and trace` | `.it.test` with a fake LLM: enabled skill in `prompt_assembly.skills`, `skill_blocks[].tokens > 0`, log line; skill disabled by either flag absent everywhere |
 | 5 | `feat(client): skills page` | client typecheck + tests (userEvent): create, edit → v2, toggle, first-enable confirm for an imported skill, import preview raw text + warnings → save, delete confirm "Used by N agents", versions list |

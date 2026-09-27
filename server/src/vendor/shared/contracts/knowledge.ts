@@ -150,7 +150,7 @@ export const Skill = z.object({
   enabled: z.boolean(),
   version: z.number().int(),
   evidence_files: z.array(z.string()).nullish(),
-  /** Agents linking this skill (enabled or not). */
+  /** Agents with a link to this skill, enabled or not ("Used by N agents"). */
   agent_count: z.number().int().nonnegative(),
   /** Tokens of `body` (js-tiktoken cl100k — approximate for other models). */
   body_tokens: z.number().int().nonnegative(),
@@ -161,15 +161,18 @@ export const Skill = z.object({
 });
 export type Skill = z.infer<typeof Skill>;
 
-/** `POST /skills` body — manual create or the confirmed import. */
+/**
+ * `POST /skills` body — MANUAL create only. Imports are saved by
+ * `POST /skills/import` (SkillImportSave), where the server itself parses the
+ * file and sets source/enabled/acknowledged_at — the client never supplies an
+ * imported body or claims a source.
+ */
 export const SkillInput = z.object({
   name: SkillName,
   description: z.string().trim().min(1).max(SKILL_DESCRIPTION_MAX),
   type: SkillType,
   body: z.string().min(1).max(SKILL_BODY_MAX),
-  /** Only these two are user-creatable. */
-  source: z.enum(['manual', 'imported_file']).default('manual'),
-  /** Ignored (forced false) when source = imported_file. */
+  source: z.literal('manual').default('manual'),
   enabled: z.boolean().default(true),
 });
 export type SkillInput = z.infer<typeof SkillInput>;
@@ -196,7 +199,11 @@ export const SkillPatch = z
   );
 export type SkillPatch = z.infer<typeof SkillPatch>;
 
-/** One row of `skill_versions` — the body as of that version. */
+/**
+ * One row of `skill_versions` — the BODY as of that version. Snapshots hold
+ * only the body, so a metadata-only edit (name/description/type) bumps the
+ * version with an unchanged body (the UI labels it "metadata change").
+ */
 export const SkillVersion = z.object({
   skill_id: z.string(),
   version: z.number().int(),
@@ -216,6 +223,8 @@ export const SkillErrorCode = z.enum([
   'import_unsafe_path', // 422 — `..`, absolute, drive-letter or symlink entry
   'import_no_skill_md', // 422 — no SKILL.md at the root or in one top-level folder
   'import_bad_frontmatter', // 422 — frontmatter is not valid YAML or not a mapping
+  'import_description_missing', // 422 — save: no frontmatter description and no override
+  'import_invalid_name', // 422 — save: the final name is not a valid SkillName
 ]);
 export type SkillErrorCode = z.infer<typeof SkillErrorCode>;
 
@@ -228,6 +237,19 @@ export const SkillImportRequest = z.object({
   content_base64: z.string().min(1).max(Math.ceil(SKILL_IMPORT_MAX_BYTES / 3) * 4),
 });
 export type SkillImportRequest = z.infer<typeof SkillImportRequest>;
+
+/**
+ * `POST /skills/import` body → 201 Skill. The server re-runs the import pipeline
+ * on the file, applies ONLY these overrides and itself sets
+ * source = 'imported_file', enabled = false, acknowledged_at = null; the body is
+ * always the parsed body.
+ */
+export const SkillImportSave = SkillImportRequest.extend({
+  name: SkillName.optional(),
+  description: z.string().trim().min(1).max(SKILL_DESCRIPTION_MAX).optional(),
+  type: SkillType.optional(),
+});
+export type SkillImportSave = z.infer<typeof SkillImportSave>;
 
 /** Unvalidated draft extracted from SKILL.md — the user edits it, then saves it as SkillInput. */
 export const SkillDraft = z.object({
@@ -264,7 +286,7 @@ export type SkillImportWarningKind = z.infer<typeof SkillImportWarningKind>;
 
 export const SkillImportWarning = z.object({
   kind: SkillImportWarningKind,
-  /** 1-based line in SKILL.md; null when the warning is not about one line. */
+  /** 1-based line of `raw_source` (frontmatter included); null when not about one line. */
   line: z.number().int().positive().nullable(),
   detail: z.string(),
 });
@@ -340,7 +362,7 @@ export const Agent = z.object({
   // Inject repo-intel context (repo skeleton + callers + rank note) into this
   // agent's review prompt. Default on; gated again by the global flag.
   repo_intel: z.boolean().default(true),
-  /** Enabled skill links of this agent (`agent_skills.enabled`). */
+  /** Effective skills: links with agent_skills.enabled AND skills.enabled (= what reaches the prompt). */
   skill_count: z.number().int().nonnegative(),
 });
 export type Agent = z.infer<typeof Agent>;

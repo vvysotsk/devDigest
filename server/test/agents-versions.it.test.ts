@@ -175,4 +175,53 @@ d('GET /agents/:id/versions', () => {
     expect(await service.listVersions(defaultWs!, foreign.id)).toBeUndefined();
     expect(await service.getVersion(defaultWs!, foreign.id, 1)).toBeUndefined();
   });
+
+  it('L02: skill_count = effective links; a snapshot stores link objects', async () => {
+    const app = await makeApp();
+    const db = pg.handle.db;
+    const agentId = (
+      await app.inject({ method: 'POST', url: '/agents', payload: createBody })
+    ).json().id as string;
+    const [{ id: ws }] = await db
+      .select({ id: t.workspaces.id })
+      .from(t.workspaces)
+      .where(eq(t.workspaces.name, 'default'));
+    const mk = (name: string, enabled: boolean) => ({
+      workspaceId: ws!,
+      name,
+      description: 'd',
+      type: 'custom' as const,
+      source: 'manual' as const,
+      body: 'b',
+      enabled,
+    });
+    const [on, globallyOff, linkOff] = await db
+      .insert(t.skills)
+      .values([mk('l02-on', true), mk('l02-global-off', false), mk('l02-link-off', true)])
+      .returning();
+    await db.insert(t.agentSkills).values([
+      { agentId, skillId: on!.id, order: 0, enabled: true },
+      { agentId, skillId: globallyOff!.id, order: 1, enabled: true },
+      { agentId, skillId: linkOff!.id, order: 2, enabled: false },
+    ]);
+
+    // Only `l02-on` reaches the prompt → the card counts 1, not 3 or 2.
+    const got = await app.inject({ method: 'GET', url: `/agents/${agentId}` });
+    expect(got.json().skill_count).toBe(1);
+    const listed = (await app.inject({ method: 'GET', url: '/agents' })).json() as {
+      id: string;
+      skill_count: number;
+    }[];
+    expect(listed.find((a) => a.id === agentId)?.skill_count).toBe(1);
+
+    // A config edit snapshots every link (enabled or not) as {skill_id, order, enabled}.
+    await app.inject({ method: 'PUT', url: `/agents/${agentId}`, payload: { model: 'gpt-4.1' } });
+    const v2 = (await app.inject({ method: 'GET', url: `/agents/${agentId}/versions/2` })).json();
+    expect(v2.config.skills).toEqual([
+      { skill_id: on!.id, order: 0, enabled: true },
+      { skill_id: globallyOff!.id, order: 1, enabled: true },
+      { skill_id: linkOff!.id, order: 2, enabled: false },
+    ]);
+    await app.close();
+  });
 });
