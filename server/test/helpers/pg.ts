@@ -19,12 +19,17 @@ export interface PgFixture {
 
 let dockerCache: boolean | undefined;
 
-/** Cheap check: can we reach a Docker daemon? */
+/**
+ * Can we reach a Docker daemon? The timeout is generous on purpose: vitest
+ * starts every `*.it.test.ts` file in parallel and each one spins up a
+ * container, so under that load `docker info` can take well over 5 s — a
+ * timeout here silently SKIPS the whole file (it reports as green).
+ */
 export async function dockerAvailable(): Promise<boolean> {
   if (dockerCache !== undefined) return dockerCache;
   try {
     const { execSync } = await import('node:child_process');
-    execSync('docker info', { stdio: 'ignore', timeout: 5000 });
+    execSync('docker info', { stdio: 'ignore', timeout: 30_000 });
     dockerCache = true;
   } catch {
     dockerCache = false;
