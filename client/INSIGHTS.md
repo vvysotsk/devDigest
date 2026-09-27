@@ -67,6 +67,14 @@ Never rewrite existing entries — correct with a dated note.
   handlers or render — so `FindingsHoverCard` fires `onOpen` from an effect
   on `open` becoming true, not from the mouse/focus handlers
   (`src/components/findings-preview/FindingsHoverCard.tsx:61`, `:140`).
+  - 2026-09-27 correction: wrong tool for this case. `onOpen` reacts to an
+    event (hover timer / focus), so it belongs in the open handler, not in an
+    effect (react-best-practices "Hooks"; self-review finding 0d9256a7). It is
+    now called in `doOpen`, and "once per opening" is kept by an `isOpenRef`
+    written only in handlers plus cancelling the pending hover timer — the
+    effect had deduplicated a second `setOpen(true)` silently (evidence:
+    `src/components/findings-preview/FindingsHoverCard.tsx:69-80`, test
+    `FindingsHoverCard.test.tsx:62`).
 - 2026-09-24: Importing a fixture from another `*.test.tsx` makes vitest execute that file's `describe` blocks inside the importer too (duplicated/failing tests); keep shared fixtures in a non-test file such as `test-fixtures.ts` (evidence: `src/components/findings-preview/test-fixtures.ts`).
 - 2026-09-24: UPDATE to the test-fixtures entry — evidence lines:
   `src/components/findings-preview/FindingsHoverCard.test.tsx:9` and
@@ -83,6 +91,17 @@ Never rewrite existing entries — correct with a dated note.
 
 ## Recurring Errors & Fixes
 
+- 2026-09-27: `userEvent` actions hang (test timeout, not an assertion) under
+  vitest fake timers even with `advanceTimers` or `delay: null`: RTL's
+  `asyncWrapper` drains every action with `setTimeout(0)` and advances fake
+  timers only when a global `jest` exists
+  (`node_modules/@testing-library/react/dist/pure.js:91-97`). In a test that
+  uses `userEvent` with fake timers, reinstall them with
+  `vi.useRealTimers(); vi.useFakeTimers({ shouldAdvanceTime: true })` and
+  `userEvent.setup({ advanceTimers: (ms) => vi.advanceTimersByTime(ms) })`;
+  a second `vi.useFakeTimers()` on top of the `beforeEach` one does not
+  change the options (evidence:
+  `src/components/findings-preview/FindingsHoverCard.test.tsx:62-80`).
 - 2026-09-26: When deleting a barrel, grep for its RELATIVE spellings too —
   the alias grep (`lib/hooks"`) found 7 importers of `src/lib/hooks/index.ts`
   but missed `import { useRepos } from "./hooks"` inside `lib/` itself; only

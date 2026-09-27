@@ -5,6 +5,7 @@
  */
 import { describe, it, expect, afterEach, beforeEach, vi } from "vitest";
 import { render, screen, cleanup, fireEvent, act } from "@testing-library/react";
+import userEvent from "@testing-library/user-event";
 import { FindingsHoverCard } from "./FindingsHoverCard";
 import { finding } from "@/test/fixtures";
 
@@ -54,6 +55,25 @@ describe("FindingsHoverCard — opening", () => {
   it("keyboard focus opens immediately even with a hover delay", () => {
     const { onOpen, trigger } = renderCard({ openDelayMs: 180 });
     fireEvent.focus(trigger);
+    expect(dialog()).toBeInTheDocument();
+    expect(onOpen).toHaveBeenCalledTimes(1);
+  });
+
+  it("hover then keyboard focus before the delay opens once: onOpen is called exactly once after the timer", async () => {
+    // RTL drains each userEvent action with setTimeout(0) and advances fake
+    // timers only for a global `jest`; let the fake clock follow real time.
+    vi.useRealTimers();
+    vi.useFakeTimers({ shouldAdvanceTime: true });
+    const user = userEvent.setup({ advanceTimers: (ms) => vi.advanceTimersByTime(ms) });
+    const { onOpen, trigger } = renderCard({ openDelayMs: 180 });
+    await user.hover(trigger); // starts the 180 ms intent timer
+    await user.tab(); // focus opens at once
+    expect(dialog()).toBeInTheDocument();
+    expect(onOpen).toHaveBeenCalledTimes(1);
+
+    await act(async () => {
+      vi.advanceTimersByTime(500); // the pending hover timer must not open (or notify) again
+    });
     expect(dialog()).toBeInTheDocument();
     expect(onOpen).toHaveBeenCalledTimes(1);
   });

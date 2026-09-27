@@ -209,7 +209,7 @@ for the PR page (`FindingsPanel/FindingsPanel.tsx`, `RunHistory/RunHistory.tsx`,
 | Icon + count per severity of the latest batch | `PRRow/PRRow.test.tsx:64` |
 | Quick sweep opens nothing and fetches nothing; settling opens + fetches + filters by `run_ids` | `PRRow/PRRow.test.tsx:71`, `:82` |
 | Keyboard focus opens immediately; fetch error replaces the loading note | `PRRow/PRRow.test.tsx:105`, `:113` |
-| Hover card: delay, grace, Escape, blur, outer scroll closes / inner scroll does not | `src/components/findings-preview/FindingsHoverCard.test.tsx:38-108` |
+| Hover card: delay, grace, Escape, blur, outer scroll closes / inner scroll does not; `onOpen` once per opening (hover timer + focus) | `src/components/findings-preview/FindingsHoverCard.test.tsx:39-143` |
 | Popover: sorted previews, loading / empty / error precedence, `position: fixed` | `src/components/findings-preview/FindingsPopover.test.tsx:14-55` |
 | Pills count after hide-low-confidence; three chips always, zero-count chip disabled; vanished filter dropped | `src/app/repos/[repoId]/pulls/[number]/_components/FindingsPanel/FindingsPanel.test.tsx:74-141` |
 | `visibleFindings` applies hideLow before the severity filter and sorts by severity | `FindingsPanel/helpers.test.ts:33-46` |

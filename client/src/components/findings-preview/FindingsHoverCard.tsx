@@ -2,9 +2,8 @@
 
    Opening: mouseenter (after `openDelayMs`, cancelled if the pointer leaves
    first — so a quick sweep over a list never opens or fetches anything) or
-   keyboard focus (immediately). `onOpen` fires right after each opening (from
-   an effect, via useEffectEvent), which lets the PR list start its lazy fetch
-   only then.
+   keyboard focus (immediately). `onOpen` fires once per opening, from the
+   open handler itself, which lets the PR list start its lazy fetch only then.
 
    Closing: mouseleave with a ~100 ms grace (the popover is a DOM child of the
    wrapper, so moving into it does not count as leaving), blur outside the
@@ -56,9 +55,9 @@ export function FindingsHoverCard({
   const popoverRef = React.useRef<HTMLDivElement | null>(null);
   const openTimer = React.useRef<ReturnType<typeof setTimeout> | null>(null);
   const closeTimer = React.useRef<ReturnType<typeof setTimeout> | null>(null);
-  // Effect event: always sees the latest `onOpen` without re-running the
-  // effect below; called only from that effect (React 19.2 rule).
-  const fireOnOpen = React.useEffectEvent(() => onOpen?.());
+  // Whether the card is open, written only in handlers: two open paths can run
+  // before a re-render (hover timer + focus), and `open` in their closures is stale.
+  const isOpenRef = React.useRef(false);
 
   const clearTimers = () => {
     if (openTimer.current) clearTimeout(openTimer.current);
@@ -67,13 +66,22 @@ export function FindingsHoverCard({
     closeTimer.current = null;
   };
 
-  const doOpen = React.useCallback(() => {
+  /** Open once: a pending hover timer is cancelled, a second open is a no-op. */
+  const doOpen = () => {
+    if (openTimer.current) {
+      clearTimeout(openTimer.current);
+      openTimer.current = null;
+    }
+    if (isOpenRef.current) return;
+    isOpenRef.current = true;
     setAnchor(triggerRef.current?.getBoundingClientRect() ?? null);
     setOpen(true);
-  }, []);
+    onOpen?.();
+  };
 
   const doClose = React.useCallback(() => {
     clearTimers();
+    isOpenRef.current = false;
     setOpen(false);
   }, []);
 
@@ -82,7 +90,7 @@ export function FindingsHoverCard({
       clearTimeout(closeTimer.current);
       closeTimer.current = null;
     }
-    if (open || openTimer.current) return;
+    if (isOpenRef.current || openTimer.current) return;
     if (openDelayMs > 0) {
       openTimer.current = setTimeout(() => {
         openTimer.current = null;
@@ -98,16 +106,15 @@ export function FindingsHoverCard({
       clearTimeout(openTimer.current);
       openTimer.current = null;
     }
-    if (!open) return;
+    if (!isOpenRef.current) return;
     closeTimer.current = setTimeout(() => {
       closeTimer.current = null;
+      isOpenRef.current = false;
       setOpen(false);
     }, CLOSE_GRACE_MS);
   };
 
-  const onFocus = () => {
-    if (!open) doOpen();
-  };
+  const onFocus = () => doOpen();
 
   const onBlur = (e: React.FocusEvent) => {
     const next = e.relatedTarget as Node | null;
@@ -134,11 +141,6 @@ export function FindingsHoverCard({
       window.removeEventListener("resize", doClose);
     };
   }, [open, doClose]);
-
-  // `onOpen` fires once per opening, right after the card opens.
-  React.useEffect(() => {
-    if (open) fireOnOpen();
-  }, [open]);
 
   React.useEffect(() => clearTimers, []);
 
