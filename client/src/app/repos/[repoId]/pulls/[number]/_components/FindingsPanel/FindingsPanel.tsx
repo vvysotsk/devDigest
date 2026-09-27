@@ -13,12 +13,8 @@ import React from "react";
 import { useTranslations } from "next-intl";
 import { Toggle, EmptyState, Chip, SEV } from "@devdigest/ui";
 import type { FindingRecord, Severity } from "@devdigest/shared";
-import {
-  SEVERITIES,
-  SeveritySummary,
-  countBySeverity,
-  totalFindings,
-} from "@/components/severity-summary";
+import { SeveritySummary } from "@/components/severity-summary";
+import { SEVERITIES, countBySeverity, totalFindings } from "@/lib/severity";
 import { FindingCard } from "../FindingCard";
 import { useFindingAction } from "../../../../../../../lib/hooks/reviews";
 import { KEY_TO_ACTION } from "./constants";

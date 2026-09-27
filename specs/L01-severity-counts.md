@@ -20,7 +20,7 @@ toggling a filter never hits `/review`.
 ## Semantics
 
 - **Counting** is `countBySeverity(findings)` from
-  `client/src/components/severity-summary` — one function for every surface.
+  `client/src/lib/severity.ts` — one function for every surface.
 - **Review runs card**: pills count the findings visible **after** the
   "Hide low confidence" toggle and **before** the severity filter, so the number
   on a pill always equals the finding cards of that severity rendered below.
@@ -56,7 +56,8 @@ toggling a filter never hits `/review`.
 ## Client
 
 - `client/src/components/severity-summary/` — `SeveritySummary` (variants
-  `icons`, `pills`) + `countBySeverity` / `presentSeverities` / `totalFindings`.
+  `icons`, `pills`); `countBySeverity` / `presentSeverities` / `totalFindings` /
+  `sortBySeverity` live in `client/src/lib/severity.ts`.
   Severity is typed from `@devdigest/shared` (three values), not from the UI
   kit's `Severity` (which also has INFO).
 - `FindingsPanel` (`[number]/_components/FindingsPanel`) — pills + chips +

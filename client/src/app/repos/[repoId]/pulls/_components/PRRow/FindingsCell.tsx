@@ -9,7 +9,8 @@ import React from "react";
 import { useTranslations } from "next-intl";
 import type { PrMeta } from "@/lib/types";
 import { usePrReviews } from "@/lib/hooks/reviews";
-import { SeveritySummary, totalFindings } from "@/components/severity-summary";
+import { SeveritySummary } from "@/components/severity-summary";
+import { totalFindings } from "@/lib/severity";
 import { FindingsHoverCard } from "@/components/findings-preview";
 import { s } from "../../styles";
 

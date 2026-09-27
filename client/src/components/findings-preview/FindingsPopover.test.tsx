@@ -6,24 +6,10 @@ import { describe, it, expect, afterEach } from "vitest";
 import { render, screen, cleanup } from "@testing-library/react";
 import { finding } from "./test-fixtures";
 import { FindingsPopover } from "./FindingsPopover";
-import { lineLabel, sortBySeverity } from "./helpers";
 
 afterEach(cleanup);
 
 const ANCHOR = { top: 10, bottom: 30, left: 100, right: 160 } as DOMRect;
-
-describe("helpers", () => {
-  it("lineLabel renders a single line or a span", () => {
-    expect(lineLabel({ start_line: 12, end_line: 12 })).toBe("12");
-    expect(lineLabel({ start_line: 45, end_line: 52 })).toBe("45-52");
-  });
-
-  it("sortBySeverity orders CRITICAL → WARNING → SUGGESTION without mutating", () => {
-    const input = [finding({ id: "s", severity: "SUGGESTION" }), finding({ id: "c", severity: "CRITICAL" }), finding({ id: "w" })];
-    expect(sortBySeverity(input).map((f) => f.id)).toEqual(["c", "w", "s"]);
-    expect(input.map((f) => f.id)).toEqual(["s", "c", "w"]);
-  });
-});
 
 describe("FindingsPopover", () => {
   it("shows the title and one read-only preview per finding, sorted by severity", () => {

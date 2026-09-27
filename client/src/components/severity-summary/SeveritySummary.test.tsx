@@ -5,37 +5,9 @@
 import { describe, it, expect, afterEach } from "vitest";
 import { render, screen, cleanup } from "@testing-library/react";
 import { SeveritySummary } from "./SeveritySummary";
-import { countBySeverity, presentSeverities, totalFindings, emptyCounts } from "./helpers";
+import { emptyCounts } from "@/lib/severity";
 
 afterEach(cleanup);
-
-const sev = (s: string) => ({ severity: s as "CRITICAL" | "WARNING" | "SUGGESTION" });
-
-describe("countBySeverity", () => {
-  it("counts each contract severity and ignores unknown values", () => {
-    const counts = countBySeverity([
-      sev("WARNING"),
-      sev("CRITICAL"),
-      sev("SUGGESTION"),
-      sev("WARNING"),
-      sev("INFO"),
-    ]);
-    expect(counts).toEqual({ CRITICAL: 1, WARNING: 2, SUGGESTION: 1 });
-    expect(totalFindings(counts)).toBe(4);
-  });
-
-  it("empty input → all zeros, nothing present", () => {
-    const counts = countBySeverity([]);
-    expect(counts).toEqual(emptyCounts());
-    expect(presentSeverities(counts)).toEqual([]);
-    expect(totalFindings(counts)).toBe(0);
-  });
-
-  it("presentSeverities keeps display order regardless of input order", () => {
-    const counts = countBySeverity([sev("SUGGESTION"), sev("CRITICAL")]);
-    expect(presentSeverities(counts)).toEqual(["CRITICAL", "SUGGESTION"]);
-  });
-});
 
 describe("SeveritySummary", () => {
   it("pills variant renders 'N Label' only for present severities, in order", () => {

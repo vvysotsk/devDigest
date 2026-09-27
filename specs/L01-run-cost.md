@@ -45,5 +45,6 @@ surfaces it. **Zero additional LLM calls.**
 ## Client
 
 `client/src/components/run-cost-badge/` — `RunCostBadge` (variants `cost`,
-`costTokens`) + `formatCost` / `formatTokensCompact`, reused by the PR list
+`costTokens`) + `formatTokensCompact`; `formatCost` lives in
+`client/src/lib/cost-format.ts` (the trace drawer uses it too); reused by the PR list
 (`PRRow`), the timeline (`RunHistory`), and the trace drawer (`TraceBody`).

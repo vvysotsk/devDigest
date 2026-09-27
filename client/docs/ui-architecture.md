@@ -26,6 +26,7 @@ browser.
 | `src/lib/repo-context.tsx` | Active repo: URL `:repoId` > `localStorage("dd-repo")` > first repo; `useRepoNotFound`. |
 | `src/lib/theme.tsx`, `src/lib/toast.tsx` | `data-theme` on `<html>` + `localStorage("dd-theme")`; toast context plus the module-level `notify` bridge used outside React. |
 | `src/lib/types.ts` | Re-exports contract types from `@devdigest/shared`; no local API shapes. |
+| `src/lib/severity.ts`, `src/lib/finding-format.ts`, `src/lib/cost-format.ts` | Pure helpers shared by ≥2 routes: severity order / counts / sort (counts typed with the contract `FindingsBySeverity`), a finding's line label, run-cost formatting; each with its `*.test.ts`. |
 | `src/i18n/request.ts` | Single locale; merges every `messages/en/<ns>.json` into `{ [ns]: … }`. |
 | `messages/en/*.json` | One namespace per file (`prReview`, `runs`, `agents`, `settings`, `shell`, …). |
 | `src/vendor/ui/` | `@devdigest/ui` — the in-house design system (tokens, primitives, kit, shell, charts); see its `README.md`. |
@@ -133,6 +134,13 @@ when" condition appears.
   Decision: deferred by the user; the layout stays `_components/` +
   `components/` + `lib/hooks/<domain>.ts`. Revisit when a fourth `reviews`
   widget lands in `components/` or the trigger fires for a second domain.
+- 2026-09-27 — The severity helpers of the `reviews` domain moved from
+  `components/severity-summary/helpers.ts` (re-exported by its `index.ts`) to
+  `src/lib/severity.ts`, with `lineLabel` → `src/lib/finding-format.ts` and
+  `formatCost` → `src/lib/cost-format.ts`, so component `index.ts` files export
+  only components (R1). When `features/reviews/` is introduced, these files
+  move there. This does not change the deferred trigger's revisit condition
+  above.
 
 ## Open questions
 

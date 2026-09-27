@@ -5,8 +5,8 @@
    callers decide whether to show a dash. */
 import React from "react";
 import { Icon, SEV } from "@devdigest/ui";
-import type { Severity } from "@devdigest/shared";
-import { presentSeverities, type FindingsBySeverity } from "./helpers";
+import type { FindingsBySeverity, Severity } from "@devdigest/shared";
+import { presentSeverities } from "@/lib/severity";
 import { st } from "./styles";
 
 export function SeveritySummary({

@@ -63,7 +63,7 @@ for the PR page (`FindingsPanel/FindingsPanel.tsx`, `RunHistory/RunHistory.tsx`,
   nothing; a fetch failure shows the error text instead of a loading note.
 - **COST** = `RunCostBadge` over `pr.cost_usd` (the server's sum of every
   `done` run); null renders a dash, a genuine 0 renders `$0.00`
-  (`PRRow/PRRow.tsx:61-63`, `src/components/run-cost-badge/helpers.ts:5-13`).
+  (`PRRow/PRRow.tsx:61-63`, `src/lib/cost-format.ts:5-14`).
 - Status badge = `STATUS_META[pr.status]` label + colour; unknown statuses fall
   back to `needs_review` (`PRRow/PRRow.tsx:19`, `constants.ts:10-17`).
 - Clicking a row navigates to `/repos/:repoId/pulls/<number>`
@@ -217,7 +217,7 @@ for the PR page (`FindingsPanel/FindingsPanel.tsx`, `RunHistory/RunHistory.tsx`,
 | Timeline badge outcome (rejected / approved / reviewed / error / running), cost line, severity icons + "N findings in this run" hover | `RunHistory/RunHistory.test.tsx:92-180` |
 | Trace drawer stats, COST stat, Findings section, live-log tab | `RunTraceDrawer/RunTraceDrawer.test.tsx:42-95` |
 | Verdict banner label + score + counts | `VerdictBanner/VerdictBanner.test.tsx:18` |
-| `formatCost` dash vs `$0.00` vs scaled decimals; token compaction | `src/components/run-cost-badge/RunCostBadge.test.tsx:14-54` |
-| `countBySeverity` ignores unknown values; pills / icons render only present severities | `src/components/severity-summary/SeveritySummary.test.tsx:15-61` |
+| `formatCost` dash vs `$0.00` vs scaled decimals; token compaction | `src/lib/cost-format.test.ts:9-24`, `src/components/run-cost-badge/RunCostBadge.test.tsx:13-42` |
+| `countBySeverity` ignores unknown values; pills / icons render only present severities | `src/lib/severity.test.ts:11-43`, `src/components/severity-summary/SeveritySummary.test.tsx:12-37` |
 | Agent card and editor render | `src/app/agents/_components/AgentCard/AgentCard.test.tsx:38`, `src/app/agents/[id]/_components/AgentEditor/AgentEditor.test.tsx:42` |
 | Kit gallery renders in both themes; diff viewer parses a unified patch | `src/test/smoke.test.tsx:15`, `:27` |
