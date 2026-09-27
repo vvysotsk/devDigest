@@ -15,6 +15,7 @@
 export {
   assemblePrompt,
   wrapUntrusted,
+  renderSkillBlock,
   type PromptParts,
   type AssembledPrompt,
   type ReviewSkill,

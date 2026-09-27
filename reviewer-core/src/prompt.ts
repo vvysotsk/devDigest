@@ -66,9 +66,17 @@ function skillHeader(skill: ReviewSkill): string {
   return meta.length > 0 ? `${head} (${meta.join(', ')})` : head;
 }
 
+/**
+ * One skill exactly as it appears in the prompt (header + blank line + body).
+ * Exported so callers can attribute tokens per skill (the server's trace).
+ */
+export function renderSkillBlock(skill: ReviewSkill): string {
+  return `${skillHeader(skill)}\n\n${skill.body}`;
+}
+
 /** One block per skill in the given order, then the closing line. */
 function renderSkills(skills: ReviewSkill[]): string {
-  const blocks = skills.map((s) => `${skillHeader(s)}\n\n${s.body}`);
+  const blocks = skills.map(renderSkillBlock);
   return [...blocks, SKILLS_CLOSING_LINE].join('\n\n');
 }
 

@@ -1,6 +1,11 @@
 import type { Container } from '../../platform/container.js';
-import type { Agent, Provider, Review, RunTrace, UnifiedDiff } from '@devdigest/shared';
-import { reviewPullRequest, countBlockers } from '@devdigest/reviewer-core';
+import type { Agent, Provider, Review, RunTrace, SkillBlock, UnifiedDiff } from '@devdigest/shared';
+import {
+  reviewPullRequest,
+  countBlockers,
+  renderSkillBlock,
+  type ReviewSkill,
+} from '@devdigest/reviewer-core';
 import { RunLogger } from '../../platform/run-logger.js';
 import type { ReviewRepository } from './repository.js';
 import type { PullForReview, ReviewRepoRef } from './types.js';
@@ -40,7 +45,10 @@ export type RunOutcome = {
  * review. Per-agent failures are isolated.
  */
 /** What the executor reads from the container (onion R5). */
-export type ReviewRunDeps = Pick<Container, 'runBus' | 'llm' | 'repoIntel' | 'git'>;
+export type ReviewRunDeps = Pick<
+  Container,
+  'runBus' | 'llm' | 'repoIntel' | 'git' | 'skillsRepo' | 'tokenizer'
+>;
 
 export class ReviewRunExecutor {
   constructor(
@@ -186,6 +194,10 @@ export class ReviewRunExecutor {
 
       const task = taskLine(pull) + rankNote;
 
+      // L02 — the agent's effective skills (link AND skill enabled), in order.
+      // One log line per injected skill; a disabled skill appears nowhere.
+      const { skills, skillBlocks } = await this.resolveSkills(agent.id, runLog);
+
       // ---- Engine: assemble → single-pass → grounding -----------------------
       // The pure review pipeline lives in @devdigest/reviewer-core (shared with
       // the CI runner). The service owns only I/O: repo-intel context resolution
@@ -206,6 +218,8 @@ export class ReviewRunExecutor {
         // PR author's description/body — untrusted; assemblePrompt wraps +
         // truncates it. Omitted when the PR has no body.
         ...(pull.body ? { prDescription: pull.body } : {}),
+        // L02 — trusted `### Skill:` blocks; omitted when the agent has none.
+        ...(skills.length > 0 ? { skills } : {}),
         task,
         sessionId: `${repo.owner}/${repo.name}#${pull.number}:${agent.name}`,
         onEvent: (e) => runLog.event(e.kind, e.msg, e.data),
@@ -276,7 +290,10 @@ export class ReviewRunExecutor {
           findings: findingsCount,
           grounding,
         },
-        prompt_assembly: outcome.assembly,
+        prompt_assembly: {
+          ...outcome.assembly,
+          ...(skillBlocks.length > 0 ? { skill_blocks: skillBlocks } : {}),
+        },
         tool_calls: outcome.chunks.map((c) => ({
           tool: 'review_file',
           args: c.label,
@@ -333,6 +350,29 @@ export class ReviewRunExecutor {
    * rows per `getCallerSignatures` call) so the section stays under ~600
    * tokens even on heavy PRs.
    */
+  /**
+   * L02 — resolve the agent's effective skills for the prompt and attribute
+   * tokens per rendered block (js-tiktoken cl100k via `container.tokenizer`,
+   * approximate for other models) for the trace's `skill_blocks`.
+   */
+  private async resolveSkills(
+    agentId: string,
+    runLog: RunLogger,
+  ): Promise<{ skills: ReviewSkill[]; skillBlocks: SkillBlock[] }> {
+    const effective = await this.deps.skillsRepo.enabledForAgent(agentId);
+    const skills: ReviewSkill[] = [];
+    const skillBlocks: SkillBlock[] = [];
+    for (const s of effective) {
+      const skill: ReviewSkill = { name: s.name, body: s.body, source: s.source, version: s.version };
+      const tokens = this.deps.tokenizer.count(renderSkillBlock(skill));
+      skills.push(skill);
+      skillBlocks.push({ skill_id: s.id, name: s.name, version: s.version, source: s.source, tokens });
+      runLog.info(`Skill "${s.name}" v${s.version} (${s.source}) · ≈ ${tokens} tok`);
+    }
+    if (effective.length === 0) runLog.info('No skills enabled for this agent');
+    return { skills, skillBlocks };
+  }
+
   private async buildCallersDigest(
     repoId: string,
     diff: UnifiedDiff,

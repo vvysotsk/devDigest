@@ -1,6 +1,6 @@
 # server — skills
 
-Last verified: 2026-09-27 (L02 Stage 3b: import routes)
+Last verified: 2026-09-27 (L02 Stage 4b: skills in review runs)
 
 ## Scope
 
@@ -115,6 +115,8 @@ foreign or unknown id is 404 `not_found`.
   (`AgentsRepository.bumpVersion`). An unchanged list writes nothing and
   returns the current version.
 - `Skill.body_tokens` = `container.tokenizer` (cl100k) over the body.
+- **In a review run** the executor reads `skillsRepo.enabledForAgent` and
+  writes `prompt_assembly.skill_blocks` — see `review-flow.md` ("Skills").
 
 ## Import pipeline (`src/modules/skills/import/`, pure — no I/O, no DB)
 

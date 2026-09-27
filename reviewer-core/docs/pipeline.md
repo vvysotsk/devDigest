@@ -126,8 +126,8 @@ to SSE, `test/run.test.ts:69` asserts the grounding line.
 
 - `memory`, `specs` slots (`src/review/run.ts:55-60`) and the
   `toReviewPayload` CI output are exported but have no caller in the starter;
-  they are reserved for later lessons. The `skills` slot gets its server
-  caller in L02 Stage 4b. Unverified whether the CI runner still
+  they are reserved for later lessons. The `skills` slot is fed by the server
+  since L02 (`../server/src/modules/reviews/run-executor.ts`, `resolveSkills`). Unverified whether the CI runner still
   expects the current `ToReviewOptions` shape.
 - `sliceDiff` matches a file header with `line.includes(\` ${path}\`)`
   (`src/review/reduce.ts:64`), which also matches paths that share a suffix;

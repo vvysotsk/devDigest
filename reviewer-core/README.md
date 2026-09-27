@@ -32,13 +32,15 @@ The engine also accepts optional prompt slots the **course lessons** start
 feeding it — `skills` (L02), `memory` (L07), `specs` (L05), `callers` — plus a
 `reduce()`/map-reduce path and a `toReview()` CI payload helper used from L06.
 `skills` are `ReviewSkill` objects (`{ name, body, source?, version? }`)
-rendered as trusted `### Skill:` blocks; the other extra slots are omitted by
-the starter server, so `assemblePrompt` simply leaves those sections out.
+rendered as trusted `### Skill:` blocks; the server passes an agent's
+effective skills since L02. The other extra slots are omitted by the starter
+server, so `assemblePrompt` simply leaves those sections out.
 
 ## Public API
 
-Exported from `src/index.ts`: `assemblePrompt` / `wrapUntrusted` and the
-`ReviewSkill` type (prompt),
+Exported from `src/index.ts`: `assemblePrompt` / `wrapUntrusted`,
+`renderSkillBlock` (one skill exactly as it appears in the prompt — the server
+counts per-skill tokens on it) and the `ReviewSkill` type (prompt),
 `groundFindings` / `groundingSummary` (grounding), `toJsonSchema` / `extractJson`
 / `parseWithRepair` (structured output), plus the `run` entrypoint and
 `reduce`. Contracts (`Review`, `Finding`, `Verdict`, …) come from

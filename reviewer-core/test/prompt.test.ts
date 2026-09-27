@@ -4,7 +4,7 @@
  * truncation, and ordering (before the diff).
  */
 import { describe, it, expect } from 'vitest';
-import { assemblePrompt } from '../src/prompt.js';
+import { assemblePrompt, renderSkillBlock } from '../src/prompt.js';
 
 function userOf(parts: Parameters<typeof assemblePrompt>[0]): string {
   const { messages } = assemblePrompt(parts);
@@ -153,5 +153,15 @@ describe('assemblePrompt — ## Skills / rules', () => {
       expect(messages[1]!.content).not.toContain(CLOSING);
       expect(assembly.skills).toBeNull();
     }
+  });
+});
+
+describe('renderSkillBlock', () => {
+  it('is exactly the block assemblePrompt puts in the section (used for per-skill tokens)', () => {
+    const skill = { name: 'edge-case-hunter', body: 'List the boundary inputs.', source: 'manual', version: 3 };
+    const block = renderSkillBlock(skill);
+    expect(block).toBe('### Skill: edge-case-hunter (manual, v3)\n\nList the boundary inputs.');
+    const { assembly } = assemblePrompt({ system: 's', diff: 'd', skills: [skill] });
+    expect(assembly.skills!.startsWith(block)).toBe(true);
   });
 });

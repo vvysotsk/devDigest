@@ -61,18 +61,27 @@ always written in full.
   `test/reviews-row-fields.it.test.ts` "falls back to the persisted pr_files").
   A diff-load failure marks **every** queued run `failed` with the error,
   persists a trace built from the event buffer and completes the bus
-  (`run-executor.ts:77-107`).
+  (`run-executor.ts:85-115`).
 - Agents run sequentially (`runOneAgent` per job); a failure or cancel in one
-  does not abort the others (`run-executor.ts:110-137`).
+  does not abort the others (`run-executor.ts:118-145`).
 - The provider comes from `container.llm(agent.provider)`; a missing key is a
   `ConfigError` and the run is persisted as `failed` with that message
-  (`run-executor.ts:161-165`, `buildLlm` in `src/platform/container.ts:233-253`).
+  (`run-executor.ts:169-173`, `buildLlm` in `src/platform/container.ts:233-253`).
 - Repo-intel enrichment runs only when `agent.repo_intel !== false`: callers
   digest (≤10 signatures), cached repo map, and a rank note when any changed
   file is in the top 5 % by rank. Each is best-effort: on error or a degraded
   facade the section is omitted and the run continues
-  (`run-executor.ts:171-185`, `336-410`; facade gate `getRepoMap` in
+  (`run-executor.ts:179-193`, `376-450`; facade gate `getRepoMap` in
   `src/modules/repo-intel/service.ts:404-421`).
+- Skills (L02): before the engine call the executor asks
+  `container.skillsRepo.enabledForAgent(agent.id)` for the agent's effective
+  skills (`agent_skills.enabled AND skills.enabled`, in `agent_skills.order`),
+  passes them as `ReviewSkill { name, body, source, version }`, logs exactly
+  one line per injected skill (`Skill "<name>" v<N> (<source>) · ≈ <T> tok`;
+  "No skills enabled for this agent" when none) and counts tokens per
+  rendered block (`renderSkillBlock` from reviewer-core, `container.tokenizer`
+  = cl100k, approximate). A skill disabled by either flag appears in neither
+  the prompt, the trace nor the log (`run-executor.ts:196-199`, `:358-375`).
 - The task line always names the PR and tells the model to review the entire
   diff and never withhold a security/correctness finding
   (`taskLine`, `src/modules/reviews/helpers.ts:41-51`; test
@@ -81,33 +90,35 @@ always written in full.
   `prDescription` only when the PR has a body, `sessionId =
   "<owner>/<repo>#<number>:<agent name>"`, `onEvent` bound to the run logger and
   `checkCancelled` throwing `RunCancelledError`
-  (`run-executor.ts:193-215`, `src/modules/reviews/constants.ts:12`; test
+  (`run-executor.ts:205-229`, `src/modules/reviews/constants.ts:12`; test
   `test/reviews-row-fields.it.test.ts` for map-reduce, `repo_intel: false`,
   `ci_fail_on: never`, `sessionId` and `last_reviewed_sha`).
 - Persisted findings are exactly the engine's grounded set and the persisted
   score is `scoreFromFindings(kept)`, never the model's self-reported score
-  (`run-executor.ts:218-232`; `../reviewer-core/src/review/run.ts:196-208`,
+  (`run-executor.ts:232-246`; `../reviewer-core/src/review/run.ts:196-208`,
   `../reviewer-core/src/review/reduce.ts:13-30`; test
   `test/reviews.it.test.ts:193-215` expects score 65, 1 finding, `1/2 passed`).
 - One `reviews` row (`kind = 'review'`, `runId`, `agentId`, `model =
   agent.model`) and its `findings` rows are inserted, then
   `pull_requests.last_reviewed_sha = head_sha` (`markReviewed`)
-  (`run-executor.ts:221-237`, `src/modules/reviews/repository/review.repo.ts:53-94`,
+  (`run-executor.ts:235-251`, `src/modules/reviews/repository/review.repo.ts:53-94`,
   `src/modules/reviews/repository/pull.repo.ts:50-55`).
 - On success `agent_runs` is updated with `status = 'done'`, `duration_ms`,
   `tokens_in` / `tokens_out`, `cost_usd` as returned by the engine (null when unknown),
   `findings_count`, `grounding`, `score`, `blockers = countBlockers(kept,
-  agent.ci_fail_on)`, `error = null` (`run-executor.ts:243-260`,
+  agent.ci_fail_on)`, `error = null` (`run-executor.ts:257-274`,
   `../reviewer-core/src/output/to-review.ts:48`).
 - One `RunTrace` document is upserted into `run_traces` (PK = run id) with
-  `stats.cost_usd`, `prompt_assembly`, one `tool_calls` entry per engine chunk,
+  `stats.cost_usd`, `prompt_assembly` (plus `skill_blocks`
+  `[{skill_id, name, version, source, tokens}]` when at least one skill was
+  injected; absent otherwise and in pre-L02 traces), one `tool_calls` entry per engine chunk,
   `raw_output`, and `log` = the run's **full** event buffer including the shared
   diff-load lines; the bus is completed only after the trace is saved
-  (`run-executor.ts:262-295`, `run.repo.ts:200-205`).
+  (`run-executor.ts:276-312`, `run.repo.ts:200-205`).
 - On failure or cancel the row gets `status = 'failed' | 'cancelled'`, `error`
   (`'Cancelled by user'` for cancels), zero tokens, `cost_usd = null`,
   `grounding = '0/0 passed'`; a trace built from the buffer is still saved and
-  the bus completed (`run-executor.ts:298-322`, `417-441`).
+  the bus completed (`run-executor.ts:315-339`, `457-481`).
 
 ### Live events — `GET /runs/:id/events`
 
@@ -121,7 +132,7 @@ always written in full.
   msg, t, data? }`; `kind ∈ info | tool | result | error`
   (`routes.ts:80-84`, `src/vendor/shared/contracts/trace.ts:9-28`).
 - Pre-work events (diff load) are published to every run of the batch
-  (`run-executor.ts:67-72`; `RunLogger.event` loops over `runIds`,
+  (`run-executor.ts:75-80`; `RunLogger.event` loops over `runIds`,
   `src/platform/run-logger.ts:50-53`).
 
 ### Cancel — `POST /runs/:id/cancel`
@@ -131,7 +142,7 @@ always written in full.
   `{ ok: true }` even for unknown or finished runs
   (`cancelRun`, `src/modules/reviews/service.ts:105-110`; `run.repo.ts:96-103`).
 - A live runner observes the flag at the engine checkpoint before each chunk
-  LLM call and throws `RunCancelledError` (`run-executor.ts:212-214`,
+  LLM call and throws `RunCancelledError` (`run-executor.ts:226-228`,
   `../reviewer-core/src/review/run.ts:164`).
 - Boot reaping: `buildApp()` sets every `running` run to `failed` (no error
   text) before registering plugins (`src/app.ts:80-85`, `run.repo.ts:107-114`).
@@ -270,6 +281,7 @@ module's `ReviewRepository` via `container.reviewRepo`: `review.repo.ts`
 | Rule | Test |
 |---|---|
 | Grounding drops off-diff findings; score recomputed (65); trace + run row written | `test/reviews.it.test.ts:164` |
+| Effective skills in `prompt_assembly.skills` in order, `skill_blocks` with tokens > 0, one log line each; a skill disabled by either flag absent from prompt, trace, log and LLM request; a trace without `skill_blocks` parses | `test/skills-in-run.it.test.ts` |
 | Same Review shape from the anthropic provider | `test/reviews.it.test.ts:220` |
 | accept / dismiss toggle the timestamps | `test/reviews.it.test.ts:240` |
 | SSE replays the buffer and completes | `test/reviews.it.test.ts:271` |

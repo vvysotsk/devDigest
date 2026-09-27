@@ -1,6 +1,6 @@
 # server — architecture
 
-Last verified: 2026-09-27 (L02 Stage 3a: skills import pipeline)
+Last verified: 2026-09-27 (L02 Stage 4b: skills in review runs)
 
 ## Purpose
 
@@ -104,7 +104,8 @@ flowchart TD
   DIFF --> LOOP["for each agent (sequential)"]
   LOOP --> LLM["container.llm(agent.provider)"]
   LOOP --> CTX["repo-intel context (best-effort):<br/>callers · repo map · rank note"]
-  LLM & CTX --> ENGINE["reviewPullRequest()<br/>@devdigest/reviewer-core<br/>prompt → structured LLM → grounding → score"]
+  LOOP --> SKILLS["skillsRepo.enabledForAgent<br/>effective skills in order<br/>(one log line + tokens each)"]
+  LLM & CTX & SKILLS --> ENGINE["reviewPullRequest()<br/>@devdigest/reviewer-core<br/>prompt → structured LLM → grounding → score"]
   ENGINE -->|"onEvent"| BUS["RunBus → SSE"]
   ENGINE --> PERSIST["insertReview + insertFindings<br/>markReviewed(headSha)<br/>completeAgentRun · saveRunTrace"]
   PERSIST --> DONE["runBus.complete(runId) → SSE ends"]
