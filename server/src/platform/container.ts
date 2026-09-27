@@ -24,6 +24,8 @@ import { estimateCost } from '../adapters/llm/pricing.js';
 import { PriceBook } from './price-book.js';
 import { ConfigError } from './errors.js';
 import { AgentsRepository } from '../modules/agents/repository.js';
+import { SkillsRepository } from '../modules/skills/repository.js';
+import type { SkillsPort } from '../modules/skills/types.js';
 import { ReviewRepository } from '../modules/reviews/repository.js';
 import { PullsRepository } from '../modules/pulls/repository.js';
 import { RepoRepository } from '../modules/repos/repository.js';
@@ -77,6 +79,7 @@ export class Container {
   // runs). Constructed here, in the composition root, so consuming modules use
   // `container.agentsRepo` instead of reaching into another module's folder.
   private _agentsRepo?: AgentsRepository;
+  private _skillsRepo?: SkillsRepository;
   private _reviewRepo?: ReviewRepository;
   private _pullsRepo?: PullsRepository;
   private _reposRepo?: RepoRepository;
@@ -102,8 +105,26 @@ export class Container {
     return this._git;
   }
 
+  /** Owner of `agents` / `agent_versions`; reads skill links through `skillsRepo`. */
   get agentsRepo(): AgentsRepository {
-    return (this._agentsRepo ??= new AgentsRepository(this.db));
+    return (this._agentsRepo ??= new AgentsRepository(this.db, this.skillsRepo));
+  }
+
+  /**
+   * The skills module's own repository (`skills`, `skill_versions`,
+   * `agent_skills`) — for the skills module ONLY. Other modules use the
+   * `skillsRepo` port.
+   */
+  get skillsModuleRepo(): SkillsRepository {
+    return (this._skillsRepo ??= new SkillsRepository(this.db));
+  }
+
+  /**
+   * Cross-module port onto skills and agent links (L02, D16): skill counts,
+   * version-snapshot links, a run's effective skills, workspace skill names.
+   */
+  get skillsRepo(): SkillsPort {
+    return this.skillsModuleRepo;
   }
 
   get reviewRepo(): ReviewRepository {

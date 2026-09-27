@@ -1,11 +1,12 @@
 # server — skills
 
-Last verified: 2026-09-27 (L02 Stages 1–1b: schema + contracts; no skills routes yet)
+Last verified: 2026-09-27 (L02 Stage 2: skills module + agent links; import routes pending)
 
 ## Scope
 
-What must stay true for skills on the server: the tables, the contracts the
-routes will serve, and what agents expose about their skill links. The feature
+What must stay true for skills on the server: the tables, the contracts, the
+skills routes (`src/modules/skills/`) and what agents expose about their skill
+links. The feature
 plan, stages and UI live in the root spec `../specs/L02-skills.md`. Prompt
 rendering of skills belongs to reviewer-core (`../reviewer-core/specs/`).
 
@@ -50,15 +51,59 @@ Paths are relative to `server/`. `knowledge.ts`, `trace.ts` →
   (the delete confirm's "Used by N agents").
 - `Agent.skill_count` = the agent's **effective** skills
   (`agent_skills.enabled AND skills.enabled` — what reaches the prompt); every
-  `Agent` the agents module returns carries it
-  (`AgentsRepository.enabledSkillCounts`, `src/modules/agents/repository.ts:236`; used by `service.ts:58-72,114` and
-  `repository.ts:66-78`).
+  `Agent` the agents module returns carries it, read through the port
+  (`SkillsRepository.effectiveSkillCounts`,
+  `src/modules/skills/repository.ts:218`).
 - Agent version snapshots store `skills: [{skill_id, order, enabled}]`
-  (`AgentsRepository.skillLinksForSnapshot`,
-  `src/modules/agents/repository.ts:218`). `AgentVersionConfig` reads a
+  (`SkillsRepository.links`, `src/modules/skills/repository.ts:172`, written by
+  `AgentsRepository.snapshotVersion` / `bumpVersion`,
+  `src/modules/agents/repository.ts:184-200`). `AgentVersionConfig` reads a
   pre-L02 `string[]` snapshot as `{skill_id, order: index, enabled: true}`.
 - `PromptAssembly.skill_blocks` (`trace.ts`) is optional: traces saved before
   L02 stay valid.
+
+## Routes (`src/modules/skills/routes.ts`)
+
+Every route declares `schema.response`; errors use the envelope
+`{ error: { code, message, details } }`; everything is workspace-scoped and a
+foreign or unknown id is 404 `not_found`.
+
+| Route | Response | Errors |
+|---|---|---|
+| `GET /skills` (`:37`) | `Skill[]`, sorted by name | — |
+| `POST /skills` (`:42`, body `SkillInput`) | 201 `Skill` (v1) | 409 `skill_name_taken` |
+| `GET /skills/:id` (`:52`) | `Skill` | 404 |
+| `PUT /skills/:id` (`:57`, body `SkillPatch`) | `Skill` | 404, 409 `skill_name_taken`, 409 `skill_ack_required` |
+| `DELETE /skills/:id` (`:66`) | 204, empty body (`reply.status(204).send(null)`) | 404 |
+| `GET /skills/:id/versions` (`:76`) | `SkillVersion[]`, newest first | 404 |
+| `GET /agents/:id/skills` (`:85`) | `AgentSkill[]` by `order` | 404 |
+| `PUT /agents/:id/skills` (`:94`, body `AgentSkillsPut`) | `AgentSkillsResult` | 404, 400 `skill_not_in_workspace` (`details.skill_ids`) |
+
+## Rules (`src/modules/skills/service.ts`, `helpers.ts`)
+
+- **Create** (`service.ts:60`): one transaction inserts the skill at v1 and its
+  `skill_versions` v1 row. A unique violation on `skills_ws_name_uq` maps to
+  409 `skill_name_taken` (`helpers.ts:89`).
+- **Update** (`service.ts:87`): one transaction locks the row
+  (`SELECT … FOR UPDATE`, `repository.ts:75`), applies the ack rule and the
+  version rule, writes, and snapshots the body on a bump.
+  - Version rule (`bumpsVersion`, `helpers.ts:25`): a name / description /
+    type / body value **different from the stored one** bumps; sending a
+    field with its current value, or `enabled` only, does not.
+  - Ack rule (`needsAck`, `helpers.ts:39`): `enabled: true` on an
+    `imported_file` skill whose `acknowledged_at` is null needs
+    `acknowledge_injection: true` (else 409 `skill_ack_required`); with it,
+    `acknowledged_at` is stored once and never needed again.
+- **Delete** cascades the skill's versions and agent links (FK).
+- **Link save** (`setAgentSkills`, `service.ts:137`): one transaction locks the
+  agent row (`AgentsRepository.lockVersion`), checks that every skill is in
+  the workspace, compares the new `[{skill_id, order = index, enabled}]` list
+  with the stored one (`linksChanged`, `helpers.ts:53` — stored `order`
+  values count, so a legacy list with gaps changes once), and only when it
+  differs replaces the links and bumps the agent version once with a snapshot
+  (`AgentsRepository.bumpVersion`). An unchanged list writes nothing and
+  returns the current version.
+- `Skill.body_tokens` = `container.tokenizer` (cl100k) over the body.
 
 ## Known limitations
 
@@ -75,3 +120,6 @@ Paths are relative to `server/`. `knowledge.ts`, `trace.ts` →
 | `Skill` requires the L02 fields; `SkillInput` kebab-case + defaults, rejects `source: imported_file`; `SkillImportSave` overrides only (client body/source/enabled dropped); `SkillPatch` non-empty + ack literal; `AgentSkillsPut` unique ids | `test/contracts.test.ts` |
 | agent version snapshots still written and read | `test/agents-versions.it.test.ts` |
 | `skill_count` = effective links only; snapshot stores every link as `{skill_id, order, enabled}` | `test/agents-versions.it.test.ts:179` |
+| CRUD, v1 + snapshot, version rule, no bump on enabled-only / unchanged values, 409 duplicate create + rename, ack 409 → OK → not needed again, `agent_count` incl. disabled links, delete cascade, workspace scope, R3 shapes | `test/skills.it.test.ts` |
+| link order/enabled, one bump per changed save, no bump on unchanged list, detach-all bump, 400 foreign/unknown skill with nothing written, 404 agent, effective `skill_count`, config edit snapshots links, port `enabledForAgent` / `namesInWorkspace`, R3 shapes | `test/agent-skills.it.test.ts` |
+| pure rules: `bumpsVersion`, `needsAck`, `linksChanged`, `missingIds`, DTO mapping, unique-violation detection | `test/skills-helpers.test.ts` |

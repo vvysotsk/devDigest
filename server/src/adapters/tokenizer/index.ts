@@ -8,8 +8,10 @@
  * lazy-initialised (loading the BPE ranks is the heavy part) and any failure
  * falls back to the `ceil(chars / 4)` heuristic — the renderer must never throw.
  *
- * Scope: in-process, ONLY under modules/repo-intel, which owns the `Tokenizer`
- * port (`modules/repo-intel/types.ts`). Swappable in tests via a mock counter
+ * Scope: in-process. The `Tokenizer` port lives in `modules/repo-intel/types.ts`;
+ * consumers reach this adapter only via `container.tokenizer` — repo-intel (repo
+ * map budget) and skills (`Skill.body_tokens`, L02 D7; the skills module types it
+ * as `Container['tokenizer']`). Swappable in tests via a mock counter
  * (ContainerOverrides.tokenizer).
  */
 import { getEncoding, type Tiktoken } from 'js-tiktoken';

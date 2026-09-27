@@ -50,6 +50,20 @@ Never rewrite existing entries — correct with a dated note.
 
 ## Codebase Patterns
 
+- 2026-09-27: A port shared by two modules cannot live in `src/vendor/shared`
+  while contracts are frozen, and the consumer may not import it from the
+  owning module. Declare it in the owner's `types.ts` (types the container
+  getter) and let each consumer declare its own narrow structural interface;
+  the container wires one instance into both (evidence:
+  `src/modules/skills/types.ts:69` `SkillsPort`, `src/modules/agents/types.ts:9`
+  `AgentSkillLinks`, `src/platform/container.ts:109-128`).
+- 2026-09-27: A cross-module write that must share a transaction goes through
+  the owning module's repository method taking `DbOrTx`; the calling service
+  opens `deps.db.transaction` and passes `tx`. Do not import `db/client` in the
+  service even as a type — dependency-cruiser flags it as
+  `no-drizzle-outside-persistence` (evidence: `src/modules/skills/service.ts:143`,
+  `src/modules/agents/repository.ts:170`, `:184`).
+
 - 2026-09-27: `Pick<Container, 'llm' | 'github' | 'embedder' | …>` picks
   METHODS that read `this` (`this.overrides`, `this.secrets`,
   `src/platform/container.ts:195-196`). Pass the container itself as `deps`
@@ -104,6 +118,11 @@ Never rewrite existing entries — correct with a dated note.
   `:37`; `src/db/seed.ts:121-126`; `src/modules/repo-intel/service.ts:467-468`).
 
 ## Tool & Library Notes
+
+- 2026-09-27: With the zod type provider a 204 route declared as
+  `response: { 204: z.null() }` must reply `reply.status(204).send(null)`;
+  `send()` without an argument fails typecheck (TS2554). Fastify sends no body
+  for 204 either way (evidence: `src/modules/skills/routes.ts:66-72`).
 
 - 2026-09-26: To ignore type-only cycles in dependency-cruiser, put the
   filter in `to.viaOnly.dependencyTypesNot: ['type-only']`, not in

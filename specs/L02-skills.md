@@ -178,11 +178,15 @@ count, line numbers, mono font).
   Description caption: "The skill's interface — write it as a directive: 'Use
   when…'". The body editor is a route-local component: mono textarea with a
   line-number gutter, `<name>.md` header, "unsaved" chip, token count.
-- **D16 Onion** — the skills module owns `skills` and `agent_skills`. The agents
-  module reaches skills only through a container port (`container.skillsRepo`
-  typed by a port), never by importing `modules/skills`. The agents repository
-  link functions (`server/src/modules/agents/repository.ts:203-240`, which
-  return Drizzle rows and write without a transaction) are removed.
+- **D16 Onion** — the skills module owns `skills`, `skill_versions` and
+  `agent_skills`. The agents module reaches skills only through a container
+  port (`container.skillsRepo`, typed as `SkillsPort`; the skills routes use
+  the full repository via `container.skillsModuleRepo`), never by importing
+  `modules/skills`; the link save bumps the agent version through the agents
+  repository inside the skills service's transaction. The old agents
+  repository link functions (they returned Drizzle rows and wrote without a
+  transaction) and the old `GET/POST /agents/:id/skills` routes of the agents
+  module are removed.
 - **D17 Agent Skills tab saves like Config** — `ConfigTab.tsx:18-39,55-76` keeps
   every field in local state; one "Save agent" → one `PUT /agents/:id` → at most
   one version bump (`server/src/modules/agents/repository.ts:132-155`, only on

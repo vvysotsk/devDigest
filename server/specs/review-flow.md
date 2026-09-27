@@ -35,7 +35,7 @@ always written in full.
 - `all: true` targets every agent with `enabled = true` in the workspace;
   `agentId` targets that agent or 404 `not_found`; neither → 400
   `invalid_run_request` (`resolveTargets`, `src/modules/reviews/service.ts:51-62`,
-  `src/modules/agents/repository.ts:58-63`).
+  `src/modules/agents/repository.ts:57-62`).
 - PR and its repo must exist in the workspace, else 404
   (`src/modules/reviews/service.ts:129-132`).
 - One `agent_runs` row per target is inserted **before** responding with
@@ -66,7 +66,7 @@ always written in full.
   does not abort the others (`run-executor.ts:110-137`).
 - The provider comes from `container.llm(agent.provider)`; a missing key is a
   `ConfigError` and the run is persisted as `failed` with that message
-  (`run-executor.ts:161-165`, `buildLlm` in `src/platform/container.ts:205-225`).
+  (`run-executor.ts:161-165`, `buildLlm` in `src/platform/container.ts:233-253`).
 - Repo-intel enrichment runs only when `agent.repo_intel !== false`: callers
   digest (≤10 signatures), cached repo map, and a rank note when any changed
   file is in the top 5 % by rank. Each is best-effort: on error or a degraded
@@ -248,8 +248,8 @@ module's `ReviewRepository` via `container.reviewRepo`: `review.repo.ts`
   'validation_error', … } }` (`src/app.ts:118-127`; test
   `test/routes-smoke.test.ts:56-66` for the envelope shape).
 - **No provider key** → run row `failed`, `error = '<KEY> is not configured'`,
-  trace saved, SSE ends (`ConfigError` throws in `container.ts:208`, `216`,
-  `223`).
+  trace saved, SSE ends (`ConfigError` throws in `container.ts:236`, `244`,
+  `251`).
 - **Server restart mid-run** → the row becomes `failed` at next boot; cancel
   still works on it because it updates the DB directly (`src/app.ts:80-85`;
   `cancelRun`, `service.ts:105-110`).

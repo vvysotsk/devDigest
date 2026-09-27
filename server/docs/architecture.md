@@ -1,6 +1,6 @@
 # server — architecture
 
-Last verified: 2026-09-26 against dfd7ab8
+Last verified: 2026-09-27 (L02 Stage 2: skills module)
 
 ## Purpose
 
@@ -29,11 +29,12 @@ workspace (`src/adapters/auth/local.ts`).
 | `src/platform/price-book.ts` | `PriceBook`: live OpenRouter prices with the static `adapters/llm/pricing.ts` table as fallback; synchronous `estimate()`. |
 | `src/platform/resilience.ts` | `withTimeout` / `withRetry` used by adapters, jobs and the indexer. |
 | `src/platform/grounding.ts`, `prompt.ts`, `structured.ts` | Re-export shims over `@devdigest/reviewer-core` for older import paths. |
-| `src/modules/index.ts` | Static module registry (8 plugins). |
+| `src/modules/index.ts` | Static module registry (9 plugins). |
 | `src/modules/<name>/` | `routes.ts` (Fastify plugin + zod schemas) → `service.ts` → `repository.ts` (Drizzle). `workspace`, `settings` still query Drizzle from the route directly (the thin-module exception). `pulls` (service + repository) and `polling` (service only — it owns no table and writes through `container.pullsRepo` / `container.reposRepo`) are layered since the onion refactor, see `../specs/refactor-onion.md`. |
 | `src/modules/_shared/` | `context.ts` (tenancy), `schemas.ts` (`IdParams`), `run-cost.ts`, `latest-batch.ts`, `diff-parser.ts` (`parseUnifiedDiff`, also used by the git adapter and its mock), `job-kinds.ts` (JobRunner kind strings that `repos` enqueues and `repo-intel` handles) — helpers two modules need without importing each other. |
+| `src/modules/skills/` | Skills (L02): owns `skills`, `skill_versions` and `agent_skills`. `routes.ts` (`/skills*`, `/agents/:id/skills`, every route with `schema.response`) → `service.ts` (transactions) → `repository.ts`; `errors.ts` (`SkillErrorCode` errors), `helpers.ts` (pure: DTO mapping, version-bump / link-change rules), `types.ts` (the `SkillsPort` other modules reach via `container.skillsRepo`). See `../specs/skills.md`. |
 | `src/modules/repo-intel/` | Facade `RepoIntel` (`src/modules/repo-intel/types.ts`) + indexer pipeline; `extract.ts` is the pure regex extractor (endpoints, crons, fallback symbols/references), also used by the ripgrep `codeindex` adapter; see its `README.md`. |
-| `src/adapters/` | Real implementations of the ports and `mocks.ts` fakes for tests: the interfaces in `src/vendor/shared/adapters.ts` (llm, github, git, codeindex, embedder, secrets, auth) and the repo-intel-only ports in `src/modules/repo-intel/types.ts` (`CodeParser` ← `astgrep`, `Tokenizer` ← `tokenizer`, `DepGraph` ← `depgraph`). Adapters implement ports; they do not declare them. |
+| `src/adapters/` | Real implementations of the ports and `mocks.ts` fakes for tests: the interfaces in `src/vendor/shared/adapters.ts` (llm, github, git, codeindex, embedder, secrets, auth) and the repo-intel-only ports in `src/modules/repo-intel/types.ts` (`CodeParser` ← `astgrep`, `Tokenizer` ← `tokenizer`, `DepGraph` ← `depgraph`); the tokenizer is also read by the skills module (`Skill.body_tokens`) through `container.tokenizer`. Adapters implement ports; they do not declare them. |
 | `src/db/` | `client.ts` (postgres-js + Drizzle), `schema.ts` barrel over `schema/*.ts` (13 domain files + `src/db/schema/_shared.ts`), `migrations/` (drizzle-kit output), `migrate.ts`, `seed.ts` (CLI entry detected by `isEntryPoint()` in `cli.ts`, Windows-safe), `rows.ts` (shared row types). |
 | `src/vendor/shared/` | Master copy of `@devdigest/shared` (zod contracts + adapter interfaces), aliased via `tsconfig.json` `paths`. |
 | `test/` | Vitest suites; `helpers/pg.ts` starts Postgres via testcontainers, `helpers/runs.ts` waits for background runs. |
@@ -46,8 +47,9 @@ workspace (`src/adapters/auth/local.ts`).
    off when `logLevel === 'silent'`); zod `validatorCompiler` +
    `serializerCompiler` are installed. The validator runs for every route
    schema; the serializer runs only for routes that declare
-   `schema.response` — today the four `pulls` routes and
-   `POST /repos/:id/poll` do (`src/modules/pulls/routes.ts`, `src/modules/polling/routes.ts`); the rest go out through plain
+   `schema.response` — today the four `pulls` routes, `POST /repos/:id/poll`
+   and every `skills` route do (`src/modules/pulls/routes.ts`,
+   `src/modules/polling/routes.ts`, `src/modules/skills/routes.ts`); the rest go out through plain
    `JSON.stringify` (see "Architecture decisions").
 3. `new Container(config, db, overrides)` is decorated as `app.container`.
 4. **Before any plugin**, `ReviewService.reapStaleRuns()` is awaited: every
@@ -130,10 +132,11 @@ jsonb document in `run_traces` (PK = `agent_runs.id`).
 | `codeIndex` | `RipgrepCodeIndex(git)` | `codeIndex` |
 | `repoIntelService` | the one `RepoIntelService(this)` (takes `RepoIntelDeps`, a `Pick<Container>` of repoIntelRepo, config, git, jobs, codeIndex, depgraph, tokenizer, codeParser); the repo-intel plugin registers its job handlers on it | — |
 | `repoIntel` | the `RepoIntel` facade: the override if given, else `repoIntelService` (job handlers stay on `repoIntelService` either way) | `repoIntel` |
-| `depgraph`, `tokenizer` | `DepCruiseGraph`, `TiktokenTokenizer` (indexer only) | `depgraph`, `tokenizer` |
+| `depgraph`, `tokenizer` | `DepCruiseGraph`, `TiktokenTokenizer` (repo-intel indexer; skills `body_tokens`) | `depgraph`, `tokenizer` |
 | `codeParser` | `AstGrepCodeParser` (`@ast-grep/napi`), the `CodeParser` port of repo-intel — facade and indexer pipelines; fake: `MockCodeParser` | `codeParser` |
 | `priceBook` | `PriceBook(openrouter /models lister, estimateCost)` | — |
-| `agentsRepo`, `reviewRepo` | shared repositories for cross-module reads (`reviewRepo` is the one `ReviewRepository`: `ReviewService` uses it, and it feeds the PR-list aggregates of `PullsService`; `agentsRepo` gives `ReviewService` its targets as the `Agent` contract via `listEnabledAgents` / `getAgent`) | — |
+| `agentsRepo`, `reviewRepo` | shared repositories for cross-module reads (`reviewRepo` is the one `ReviewRepository`: `ReviewService` uses it, and it feeds the PR-list aggregates of `PullsService`; `agentsRepo` gives `ReviewService` its targets as the `Agent` contract via `listEnabledAgents` / `getAgent`; it is built with `skillsRepo` for `Agent.skill_count` and version snapshots) | — |
+| `skillsRepo`, `skillsModuleRepo` | one `SkillsRepository`, exposed twice: `skillsRepo` typed as the cross-module `SkillsPort` (`effectiveSkillCounts`, `snapshotLinks`, `enabledForAgent`, `namesInWorkspace`; `src/modules/skills/types.ts:69`), `skillsModuleRepo` as the full repository for the skills routes only (`src/platform/container.ts:118-128`) | — |
 | `pullsRepo`, `reposRepo` | `PullsRepository` (owner of `pull_requests`, `pr_files`, `pr_commits`) and `RepoRepository` (owner of `repos`; other modules use `getRef`) | — |
 | `repoIntelRepo` | `RepoIntelRepository` (repo-intel's index tables), built here and handed to `RepoIntelService` | — |
 
@@ -201,7 +204,16 @@ assumed (the boot reaper would misfire with replicas).
   executor (`src/db/client.ts`). Today: the PR-detail sync in
   `PullsService.getDetail` (`src/modules/pulls/service.ts`) and the PR-list
   poll in `PollingService.poll` (`src/modules/polling/service.ts`: every upsert
-  plus `last_polled_at`, after the GitHub fetch).
+  plus `last_polled_at`, after the GitHub fetch), and the skills writes in
+  `SkillsService` (`src/modules/skills/service.ts`): create = skill + v1 body
+  snapshot; update = row lock, ack rule, version bump + snapshot; link save =
+  agent row lock, link replacement and at most one agent version bump. The
+  link save is a **cross-module transaction**: the skills service opens it and
+  calls the agents repository's `lockVersion` / `bumpVersion`
+  (`src/modules/agents/repository.ts:170`, `:184`), which take the `DbOrTx`
+  from `container.agentsRepo`; neither module imports the other (the agents
+  side declares its own narrow `AgentSkillLinks` interface,
+  `src/modules/agents/types.ts:9`).
   Schema edits go `src/db/schema/*` → `pnpm db:generate` → `pnpm db:migrate`;
   migration files are never edited.
 - **Tenancy.** `workspace_id` scoping is done per query using the id from

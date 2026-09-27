@@ -1,14 +1,13 @@
 import type { Container } from '../../platform/container.js';
 import type {
   Agent,
-  AgentSkillLink,
   AgentVersion,
   CiFailOn,
   ModelInfo,
   Provider,
   ReviewStrategy,
 } from '@devdigest/shared';
-import { AgentsRepository, type AgentRow } from './repository.js';
+import type { AgentRow } from './repository.js';
 import { toAgentDto, toAgentVersionDto } from './helpers.js';
 
 /**
@@ -17,6 +16,8 @@ import { toAgentDto, toAgentVersionDto } from './helpers.js';
  *
  * An Agent = provider + model + system_prompt + linked skills + output_schema +
  * enabled. Config changes are versioned via `agent_versions` (repository).
+ * Skill links are owned by the skills module (L02): `skill_count` comes from
+ * `container.skillsRepo`, and `/agents/:id/skills` is served by that module.
  */
 
 // Re-exported for backwards compatibility; implementation lives in ./helpers.
@@ -49,15 +50,17 @@ export interface UpdateAgentInput {
 }
 
 export class AgentsService {
-  private repo: AgentsRepository;
+  private repo: Container['agentsRepo'];
+  private skills: Container['skillsRepo'];
 
   constructor(private container: Container) {
-    this.repo = new AgentsRepository(container.db);
+    this.repo = container.agentsRepo;
+    this.skills = container.skillsRepo;
   }
 
   async list(workspaceId: string): Promise<Agent[]> {
     const rows = await this.repo.list(workspaceId);
-    const counts = await this.repo.enabledSkillCounts(rows.map((r) => r.id));
+    const counts = await this.skills.effectiveSkillCounts(rows.map((r) => r.id));
     return rows.map((r) => toAgentDto(r, counts.get(r.id) ?? 0));
   }
 
@@ -67,7 +70,7 @@ export class AgentsService {
   }
 
   private async withSkillCount(row: AgentRow): Promise<Agent> {
-    const counts = await this.repo.enabledSkillCounts([row.id]);
+    const counts = await this.skills.effectiveSkillCounts([row.id]);
     return toAgentDto(row, counts.get(row.id) ?? 0);
   }
 
@@ -139,42 +142,6 @@ export class AgentsService {
     if (!agent) return undefined;
     const row = await this.repo.getVersion(agentId, version);
     return row ? toAgentVersionDto(row) : undefined;
-  }
-
-  /** Linked skills for an agent as AgentSkillLink[] (ordered). */
-  async skillLinks(agentId: string): Promise<AgentSkillLink[]> {
-    const links = await this.repo.linkedSkills(agentId);
-    return links.map((l) => ({ agent_id: agentId, skill_id: l.skill.id, order: l.order }));
-  }
-
-  /**
-   * Set / reorder the agent's linked skills. If `skillIds` is provided, replaces
-   * the whole set in that order. Returns the resulting ordered links.
-   */
-  async setSkills(
-    workspaceId: string,
-    agentId: string,
-    skillIds: string[],
-  ): Promise<AgentSkillLink[] | undefined> {
-    const agent = await this.repo.getById(workspaceId, agentId);
-    if (!agent) return undefined;
-    await this.repo.setSkills(agentId, skillIds);
-    return this.skillLinks(agentId);
-  }
-
-  /** Link a single skill (append or set order) — additive to existing links. */
-  async linkSkill(
-    workspaceId: string,
-    agentId: string,
-    skillId: string,
-    order?: number,
-  ): Promise<AgentSkillLink[] | undefined> {
-    const agent = await this.repo.getById(workspaceId, agentId);
-    if (!agent) return undefined;
-    const existing = await this.repo.linkedSkills(agentId);
-    const resolvedOrder = order ?? existing.length;
-    await this.repo.linkSkill(agentId, skillId, resolvedOrder);
-    return this.skillLinks(agentId);
   }
 
   /**

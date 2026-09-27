@@ -10,7 +10,7 @@ import type { AgentRow, AgentVersionRow } from './repository.js';
 
 /**
  * Map a persisted agent row to the public `Agent` DTO. `skillCount` = the
- * agent's enabled skill links (`AgentsRepository.enabledSkillCounts`).
+ * agent's effective skills (`container.skillsRepo.effectiveSkillCounts`).
  */
 export function toAgentDto(row: AgentRow, skillCount: number): Agent {
   return {
