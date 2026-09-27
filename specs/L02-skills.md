@@ -98,7 +98,10 @@ count, line numbers, mono font).
     the same `SkillErrorCode`s; a duplicate name → 409 `skill_name_taken`; no
     description in the file and no override → 422
     `import_description_missing`; a final name that is not a `SkillName` → 422
-    `import_invalid_name`. The `source` enum lives only in TypeScript — the SQL
+    `import_invalid_name`; a description over 500 chars, a body over 50,000
+    chars or an empty body → 422 `import_invalid_field` with
+    `details: {field, limit}` (empty body: `field: body, limit: 1`). The
+    `source` enum lives only in TypeScript — the SQL
     column is `text` without a CHECK
     (`server/src/db/migrations/0000_init.sql:316-328`) — so no migration.
   - The preview warns (kind `name_exists`) when the workspace already has a
@@ -261,7 +264,7 @@ list is in `server/specs/skills.md` and the schemas themselves.
   `skill_not_in_workspace`, `import_unsupported_file`, `import_too_large`,
   `import_bad_archive`, `import_unsafe_path`, `import_no_skill_md`,
   `import_bad_frontmatter`, `import_description_missing`,
-  `import_invalid_name`.
+  `import_invalid_name`, `import_invalid_field` (details `{field, limit}`).
 - `Agent` += `skill_count` (effective skills, see Semantics).
 - `AgentVersionConfig.skills` → `AgentVersionSkill[]` `{skill_id, order,
   enabled}` (D5).

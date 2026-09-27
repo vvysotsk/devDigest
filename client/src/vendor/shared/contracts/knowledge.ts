@@ -225,6 +225,9 @@ export const SkillErrorCode = z.enum([
   'import_bad_frontmatter', // 422 — frontmatter is not valid YAML or not a mapping
   'import_description_missing', // 422 — save: no frontmatter description and no override
   'import_invalid_name', // 422 — save: the final name is not a valid SkillName
+  // 422 — save: a field breaks a SkillInput limit; details { field, limit }:
+  // description > SKILL_DESCRIPTION_MAX, body > SKILL_BODY_MAX, empty body (limit 1)
+  'import_invalid_field',
 ]);
 export type SkillErrorCode = z.infer<typeof SkillErrorCode>;
 

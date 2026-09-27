@@ -43,7 +43,9 @@ Paths are relative to `server/`. `knowledge.ts`, `trace.ts` →
   skills}`, `SkillImportPreview` (`raw_source`, `frontmatter`, `files`,
   `warnings` with kinds `SkillImportWarningKind`; `warnings[].line` is a
   1-based line of `raw_source`), error codes `SkillErrorCode` (incl.
-  `import_description_missing`, `import_invalid_name` for the save).
+  `import_description_missing`, `import_invalid_name` and
+  `import_invalid_field` — `details: {field, limit}` for a description > 500,
+  a body > 50,000 or an empty body — for the save).
 - `Skill.agent_count` = agents with a link to the skill, enabled or not
   (the delete confirm's "Used by N agents").
 - `Agent.skill_count` = the agent's **effective** skills

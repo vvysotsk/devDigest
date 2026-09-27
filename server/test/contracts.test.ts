@@ -23,6 +23,7 @@ import {
   AgentSkillsPut,
   SkillImportPreview,
   SkillImportSave,
+  SkillErrorCode,
 } from '@devdigest/shared';
 
 /**
@@ -307,6 +308,12 @@ describe('L02 skills contracts', () => {
     expect(() => SkillPatch.parse({ acknowledge_injection: true })).toThrow();
     expect(() => SkillPatch.parse({ enabled: true, acknowledge_injection: false })).toThrow();
     expect(SkillPatch.parse({ enabled: true, acknowledge_injection: true }).enabled).toBe(true);
+  });
+
+  it('SkillErrorCode has import_invalid_field for SkillInput limits on import save', () => {
+    expect(SkillErrorCode.parse('import_invalid_field')).toBe('import_invalid_field');
+    expect(SkillErrorCode.options).toContain('import_description_missing');
+    expect(SkillErrorCode.options).toContain('import_invalid_name');
   });
 
   it('AgentSkillsPut rejects duplicate skill ids', () => {
