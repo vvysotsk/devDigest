@@ -43,10 +43,11 @@ Cross-module access ONLY through the DI container (`container.agentsRepo`,
 - `pnpm-lock.yaml` — never edit by hand or regenerate unprompted; it changes
   only with an intentional `package.json` change, committed together.
 - `src/vendor/shared` — master copy of `@devdigest/shared`; mirror every edit
-  to `client/src/vendor/shared`. WARNING: the copies ALREADY differ in 5 files
-  (`adapters.ts`, `contracts/eval-ci.ts`, `contracts/knowledge.ts`,
-  `contracts/productionize.ts`, `contracts/trace.ts` — e.g. LLMProvider knows
-  `openrouter`/`sessionId` only server-side). Diff before assuming sync;
+  to `client/src/vendor/shared`. WARNING: the copies ALREADY differ in 3 files
+  (`adapters.ts`, `contracts/eval-ci.ts`, `contracts/productionize.ts` — e.g.
+  LLMProvider knows `openrouter`/`sessionId` only server-side;
+  `contracts/knowledge.ts` and `contracts/trace.ts` are identical since L02
+  Stage 1 — keep them so). Diff before assuming sync;
   mirror only the parts your change touches, don't blind-copy whole files.
 - Stale-run reaping order in reviews (awaited before listeners) and SSE
   cancellation checkpoints — the await order prevents races; comments in

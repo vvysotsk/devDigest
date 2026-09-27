@@ -212,25 +212,35 @@ edited):
 ## Contracts
 
 Master copy in `server/src/vendor/shared/contracts/knowledge.ts` (and
-`trace.ts`), mirrored to `client/src/vendor/shared` in the same commit (only
-the touched parts — the copies already differ in five files). **Frozen after
-Stage 1.**
+`trace.ts`), mirrored to `client/src/vendor/shared`; since Stage 1 both files
+are byte-identical in the two copies. **Frozen after Stage 1** — the field
+list is in `server/specs/skills.md` and the schemas themselves.
 
 - `Skill` += `agent_count`, `body_tokens`, `acknowledged_at`, `created_at`,
-  `updated_at`; `SkillSource` += `imported_file`.
-- `SkillInput` (create), `SkillPatch` (+ `acknowledge_injection?`),
-  `SkillVersion {skill_id, version, body, created_at}`.
+  `updated_at`; `SkillSource` += `imported_file`; `SkillName` (kebab-case,
+  ≤ 64).
+- `SkillInput` (create; `source` only `manual` | `imported_file`),
+  `SkillPatch` (+ `acknowledge_injection: true`), `SkillVersion`.
 - `AgentSkill {skill_id, order, enabled, skill: Skill}`;
   `AgentSkillsPut {skills: [{skill_id, enabled}]}`; response
   `AgentSkillsResult {version, skills: AgentSkill[]}`.
 - `SkillImportRequest {filename, content_base64}`;
-  `SkillImportPreview {draft: SkillInput, raw_body, frontmatter, files: [{path,
-  status: imported | reference | skipped, reason}], warnings: [{kind:
-  html_comment | invisible_char | long_line | name_exists, line?, detail}]}`.
+  `SkillImportPreview {filename, draft: SkillDraft, raw_source, frontmatter,
+  files: [{path, status: imported | reference | skipped, reason, size}],
+  warnings: [{kind, line | null, detail}]}`; warning kinds: `html_comment`,
+  `invisible_char`, `long_line`, `name_exists`, `name_normalized`,
+  `type_defaulted`, `description_missing`. `SkillDraft` is unvalidated (the
+  user fixes it, then saves a `SkillInput`); `raw_source` = SKILL.md exactly as
+  found, frontmatter included.
+- `SkillErrorCode`: `skill_name_taken`, `skill_ack_required`,
+  `skill_not_in_workspace`, `import_unsupported_file`, `import_too_large`,
+  `import_bad_archive`, `import_unsafe_path`, `import_no_skill_md`,
+  `import_bad_frontmatter`.
 - `Agent` += `skill_count` (enabled links).
-- `AgentVersionConfig.skills` → `[{skill_id, order, enabled}]` (D5).
-- `PromptAssembly` += `skill_blocks?: [{skill_id, name, version, source,
-  tokens}]` (optional: old traces stay valid).
+- `AgentVersionConfig.skills` → `AgentVersionSkill[]` `{skill_id, order,
+  enabled}` (D5).
+- `PromptAssembly` += `skill_blocks?: SkillBlock[]` `{skill_id, name, version,
+  source, tokens}` (optional: old traces stay valid).
 
 Routes — `server/src/modules/skills/{routes,service,repository}.ts` plus
 `import/`; every route declares `schema.response` and has an R3 shape test

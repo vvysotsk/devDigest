@@ -15,6 +15,13 @@ import {
   Settings,
   Repo,
   PrDetail,
+  AgentVersionConfig,
+  PromptAssembly,
+  Skill,
+  SkillInput,
+  SkillPatch,
+  AgentSkillsPut,
+  SkillImportPreview,
 } from '@devdigest/shared';
 
 /**
@@ -204,6 +211,110 @@ describe('platform DTOs', () => {
         status: 'open',
         files: [],
         commits: [],
+      }),
+    ).not.toThrow();
+  });
+});
+
+describe('L02 skills contracts', () => {
+  const baseConfig = {
+    provider: 'openrouter',
+    model: 'm',
+    system_prompt: 's',
+    output_schema: null,
+    strategy: 'single-pass',
+    ci_fail_on: 'critical',
+    repo_intel: true,
+  };
+
+  it('AgentVersionConfig reads a pre-L02 string[] snapshot as ordered enabled links', () => {
+    const cfg = AgentVersionConfig.parse({ ...baseConfig, skills: ['s-a', 's-b'] });
+    expect(cfg.skills).toEqual([
+      { skill_id: 's-a', order: 0, enabled: true },
+      { skill_id: 's-b', order: 1, enabled: true },
+    ]);
+  });
+
+  it('AgentVersionConfig keeps object links as stored (enabled=false survives)', () => {
+    const skills = [{ skill_id: 's-a', order: 0, enabled: false }];
+    expect(AgentVersionConfig.parse({ ...baseConfig, skills }).skills).toEqual(skills);
+  });
+
+  it('PromptAssembly without skill_blocks (pre-L02 trace) still parses', () => {
+    const pa = PromptAssembly.parse({ system: 's', skills: null, user: 'u' });
+    expect(pa.skill_blocks).toBeUndefined();
+  });
+
+  it('PromptAssembly with skill_blocks parses', () => {
+    const pa = PromptAssembly.parse({
+      system: 's',
+      skills: '### Skill: a (manual, v1)\n…',
+      skill_blocks: [{ skill_id: 'id', name: 'a', version: 1, source: 'manual', tokens: 12 }],
+      user: 'u',
+    });
+    expect(pa.skill_blocks).toHaveLength(1);
+  });
+
+  it('Skill requires the L02 fields', () => {
+    const skill = {
+      id: 'id',
+      name: 'edge-case-hunter',
+      description: 'Use when…',
+      type: 'rubric',
+      source: 'imported_file',
+      body: 'b',
+      enabled: false,
+      version: 1,
+      agent_count: 0,
+      body_tokens: 1,
+      acknowledged_at: null,
+      created_at: '2026-09-27T00:00:00.000Z',
+      updated_at: '2026-09-27T00:00:00.000Z',
+    };
+    expect(() => Skill.strict().parse(skill)).not.toThrow();
+    const { agent_count: _omit, ...withoutCount } = skill;
+    expect(() => Skill.parse(withoutCount)).toThrow();
+  });
+
+  it('SkillInput enforces kebab-case names and defaults source/enabled', () => {
+    const ok = SkillInput.parse({ name: 'no-then-chains', description: 'd', type: 'convention', body: 'b' });
+    expect(ok).toMatchObject({ source: 'manual', enabled: true });
+    expect(() => SkillInput.parse({ ...ok, name: 'No Then' })).toThrow();
+    expect(() => SkillInput.parse({ ...ok, source: 'community' })).toThrow();
+  });
+
+  it('SkillPatch rejects an empty patch and accepts only acknowledge_injection: true', () => {
+    expect(() => SkillPatch.parse({})).toThrow();
+    expect(() => SkillPatch.parse({ acknowledge_injection: true })).toThrow();
+    expect(() => SkillPatch.parse({ enabled: true, acknowledge_injection: false })).toThrow();
+    expect(SkillPatch.parse({ enabled: true, acknowledge_injection: true }).enabled).toBe(true);
+  });
+
+  it('AgentSkillsPut rejects duplicate skill ids', () => {
+    const id = '00000000-0000-4000-8000-000000000001';
+    expect(() => AgentSkillsPut.parse({ skills: [{ skill_id: id, enabled: true }] })).not.toThrow();
+    expect(() =>
+      AgentSkillsPut.parse({
+        skills: [
+          { skill_id: id, enabled: true },
+          { skill_id: id, enabled: false },
+        ],
+      }),
+    ).toThrow();
+  });
+
+  it('SkillImportPreview parses a draft with warnings', () => {
+    expect(() =>
+      SkillImportPreview.strict().parse({
+        filename: 'api-deprecation-policy.zip',
+        draft: { name: 'api-deprecation-policy', description: '', type: 'custom', body: 'b' },
+        raw_source: '---\nname: x\n---\nb',
+        frontmatter: { name: 'x', metadata: { version: '1.0' } },
+        files: [{ path: 'scripts/install.sh', status: 'skipped', reason: 'skipped — never executed or stored', size: 10 }],
+        warnings: [
+          { kind: 'description_missing', line: null, detail: 'no description' },
+          { kind: 'name_exists', line: null, detail: 'exists' },
+        ],
       }),
     ).not.toThrow();
   });

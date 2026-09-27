@@ -175,6 +175,13 @@ Never rewrite existing entries — correct with a dated note.
     in Git Bash now prints `✓ migrations applied` and `✓ seeded`;
     `test/db-cli-entry.test.ts` guards the CLI branch (evidence:
     `src/db/migrate.ts:38`, `src/db/seed.ts:228`).
+  - 2026-09-27 note: on an already-migrated DB `pnpm db:migrate` prints three
+    Postgres NOTICE objects (`42710` vector exists, `42P06` schema drizzle
+    exists, `42P07` `__drizzle_migrations` exists, `file: 'parse_utilcmd.c'`)
+    before `✓ migrations applied` — they come from the `IF NOT EXISTS`
+    statements (`src/db/migrate.ts:24,31`) and are not failures; judge success
+    by `select count(*) from drizzle.__drizzle_migrations` = number of journal
+    entries (12 after `0011_white_sumo`).
 
 - 2026-09-27: `waitForPrRuns` does not make `GET /runs/:id/trace` safe: the
   executor writes `agent_runs.status = done` (`completeAgentRun`) before

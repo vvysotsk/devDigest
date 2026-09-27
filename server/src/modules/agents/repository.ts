@@ -1,7 +1,7 @@
-import { and, asc, desc, eq } from 'drizzle-orm';
+import { and, asc, count, desc, eq, inArray } from 'drizzle-orm';
 import type { Db } from '../../db/client.js';
 import * as t from '../../db/schema.js';
-import type { Agent, CiFailOn, Provider, ReviewStrategy } from '@devdigest/shared';
+import type { Agent, AgentVersionSkill, CiFailOn, Provider, ReviewStrategy } from '@devdigest/shared';
 import { DEFAULT_AGENT_DESCRIPTION, INITIAL_AGENT_VERSION } from './constants.js';
 import { isConfigChange, toAgentDto } from './helpers.js';
 
@@ -64,13 +64,17 @@ export class AgentsRepository {
 
   /** Enabled agents as the `Agent` contract — for other modules (reviews). */
   async listEnabledAgents(workspaceId: string): Promise<Agent[]> {
-    return (await this.listEnabled(workspaceId)).map(toAgentDto);
+    const rows = await this.listEnabled(workspaceId);
+    const counts = await this.enabledSkillCounts(rows.map((r) => r.id));
+    return rows.map((r) => toAgentDto(r, counts.get(r.id) ?? 0));
   }
 
   /** One agent as the `Agent` contract — for other modules (reviews). */
   async getAgent(workspaceId: string, id: string): Promise<Agent | undefined> {
     const row = await this.getById(workspaceId, id);
-    return row ? toAgentDto(row) : undefined;
+    if (!row) return undefined;
+    const counts = await this.enabledSkillCounts([row.id]);
+    return toAgentDto(row, counts.get(row.id) ?? 0);
   }
 
   async getById(workspaceId: string, id: string): Promise<AgentRow | undefined> {
@@ -157,7 +161,7 @@ export class AgentsRepository {
   }
 
   private async snapshotVersion(row: AgentRow, version: number): Promise<void> {
-    const skills = await this.skillIdsForAgent(row.id);
+    const skills = await this.skillLinksForSnapshot(row.id);
     await this.db
       .insert(t.agentVersions)
       .values({
@@ -210,9 +214,29 @@ export class AgentsRepository {
     return rows.map((r) => ({ skill: r.skill, order: r.order }));
   }
 
-  async skillIdsForAgent(agentId: string): Promise<string[]> {
-    const links = await this.linkedSkills(agentId);
-    return links.map((l) => l.skill.id);
+  /** The agent's links as stored in a version snapshot (`AgentVersionConfig.skills`). */
+  async skillLinksForSnapshot(agentId: string): Promise<AgentVersionSkill[]> {
+    const rows = await this.db
+      .select({
+        skill_id: t.agentSkills.skillId,
+        order: t.agentSkills.order,
+        enabled: t.agentSkills.enabled,
+      })
+      .from(t.agentSkills)
+      .where(eq(t.agentSkills.agentId, agentId))
+      .orderBy(asc(t.agentSkills.order));
+    return rows;
+  }
+
+  /** Enabled skill links per agent (`Agent.skill_count`); agents without links are absent. */
+  async enabledSkillCounts(agentIds: string[]): Promise<Map<string, number>> {
+    if (agentIds.length === 0) return new Map();
+    const rows = await this.db
+      .select({ agentId: t.agentSkills.agentId, n: count() })
+      .from(t.agentSkills)
+      .where(and(inArray(t.agentSkills.agentId, agentIds), eq(t.agentSkills.enabled, true)))
+      .groupBy(t.agentSkills.agentId);
+    return new Map(rows.map((r) => [r.agentId, r.n]));
   }
 
   /** Link a skill to an agent at a given order (idempotent: upserts order). */
