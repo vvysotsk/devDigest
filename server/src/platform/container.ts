@@ -27,6 +27,7 @@ import { AgentsRepository } from '../modules/agents/repository.js';
 import { ReviewRepository } from '../modules/reviews/repository.js';
 import { PullsRepository } from '../modules/pulls/repository.js';
 import { RepoRepository } from '../modules/repos/repository.js';
+import { RepoIntelRepository } from '../modules/repo-intel/repository.js';
 import type { CodeParser, DepGraph, RepoIntel, Tokenizer } from '../modules/repo-intel/types.js';
 import { RepoIntelService } from '../modules/repo-intel/service.js';
 import { DepCruiseGraph } from '../adapters/depgraph/index.js';
@@ -79,6 +80,7 @@ export class Container {
   private _reviewRepo?: ReviewRepository;
   private _pullsRepo?: PullsRepository;
   private _reposRepo?: RepoRepository;
+  private _repoIntelRepo?: RepoIntelRepository;
   private _repoIntelService?: RepoIntelService;
   private _depgraph?: DepGraph;
   private _tokenizer?: Tokenizer;
@@ -116,6 +118,11 @@ export class Container {
   /** Owner of `repos` (repos module) — other modules read repo coordinates here. */
   get reposRepo(): RepoRepository {
     return (this._reposRepo ??= new RepoRepository(this.db));
+  }
+
+  /** repo-intel's own tables (symbols, file_rank, repo_index_state, …). */
+  get repoIntelRepo(): RepoIntelRepository {
+    return (this._repoIntelRepo ??= new RepoIntelRepository(this.db));
   }
 
   get codeIndex(): CodeIndex {

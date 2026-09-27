@@ -28,6 +28,16 @@ describe('repo-intel service instance and job registration', () => {
     await app.close();
   });
 
+  it('gives the service the container-owned RepoIntelRepository', async () => {
+    const app = await buildApp({ config });
+    const c = app.container;
+
+    expect(c.repoIntelRepo).toBe(c.repoIntelRepo);
+    expect((c.repoIntelService as unknown as { repo: unknown }).repo).toBe(c.repoIntelRepo);
+
+    await app.close();
+  });
+
   it('keeps the real handlers when a test overrides the read facade', async () => {
     const fake = {} as RepoIntel;
     const app = await buildApp({ config, overrides: { repoIntel: fake } });

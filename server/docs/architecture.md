@@ -128,13 +128,14 @@ jsonb document in `run_traces` (PK = `agent_runs.id`).
 | `llm(id)` | `OpenAIProvider` / `AnthropicProvider` / `OpenRouterProvider` (from reviewer-core, wired to `priceBook`); cached per id; `ConfigError` when the key is unset | `llm: { openai?, anthropic?, openrouter? }` |
 | `embedder()` | `OpenAIEmbedder` over `llm('openai')`; throws unless `EMBEDDINGS_ENABLED=true` | `embedder` |
 | `codeIndex` | `RipgrepCodeIndex(git)` | `codeIndex` |
-| `repoIntelService` | the one `RepoIntelService(this)` (takes `RepoIntelDeps`, a `Pick<Container>` of db, config, git, jobs, codeIndex, depgraph, tokenizer, codeParser); the repo-intel plugin registers its job handlers on it | — |
+| `repoIntelService` | the one `RepoIntelService(this)` (takes `RepoIntelDeps`, a `Pick<Container>` of repoIntelRepo, config, git, jobs, codeIndex, depgraph, tokenizer, codeParser); the repo-intel plugin registers its job handlers on it | — |
 | `repoIntel` | the `RepoIntel` facade: the override if given, else `repoIntelService` (job handlers stay on `repoIntelService` either way) | `repoIntel` |
 | `depgraph`, `tokenizer` | `DepCruiseGraph`, `TiktokenTokenizer` (indexer only) | `depgraph`, `tokenizer` |
 | `codeParser` | `AstGrepCodeParser` (`@ast-grep/napi`), the `CodeParser` port of repo-intel — facade and indexer pipelines; fake: `MockCodeParser` | `codeParser` |
 | `priceBook` | `PriceBook(openrouter /models lister, estimateCost)` | — |
 | `agentsRepo`, `reviewRepo` | shared repositories for cross-module reads (`reviewRepo` is the one `ReviewRepository`: `ReviewService` uses it, and it feeds the PR-list aggregates of `PullsService`; `agentsRepo` gives `ReviewService` its targets as the `Agent` contract via `listEnabledAgents` / `getAgent`) | — |
 | `pullsRepo`, `reposRepo` | `PullsRepository` (owner of `pull_requests`, `pr_files`, `pr_commits`) and `RepoRepository` (owner of `repos`; other modules use `getRef`) | — |
+| `repoIntelRepo` | `RepoIntelRepository` (repo-intel's index tables), built here and handed to `RepoIntelService` | — |
 
 Services built from the container take only the members they read
 (`Pick<Container, …>`, onion R5): `PullsService`, `PollingService`,

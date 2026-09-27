@@ -25,7 +25,7 @@ import type { Container } from '../../platform/container.js';
 import { extractEndpoints } from './extract.js';
 import { readFile } from 'node:fs/promises';
 import { extname, join } from 'node:path';
-import { RepoIntelRepository, type FullSymbolRow } from './repository.js';
+import type { RepoIntelRepository, FullSymbolRow } from './repository.js';
 import type {
   BlastCallerRow,
   BlastChangedSymbol,
@@ -101,14 +101,14 @@ const PHANTOM_GLOBALS_ALLOWLIST: ReadonlySet<string> = new Set([
 /** What `RepoIntelService` reads from the container (onion R5). */
 export type RepoIntelDeps = Pick<
   Container,
-  'db' | 'config' | 'git' | 'jobs' | 'codeIndex' | 'depgraph' | 'tokenizer' | 'codeParser'
+  'repoIntelRepo' | 'config' | 'git' | 'jobs' | 'codeIndex' | 'depgraph' | 'tokenizer' | 'codeParser'
 >;
 
 export class RepoIntelService implements RepoIntel {
   private readonly repo: RepoIntelRepository;
 
   constructor(private deps: RepoIntelDeps) {
-    this.repo = new RepoIntelRepository(deps.db);
+    this.repo = deps.repoIntelRepo;
   }
 
   // -------------------------------------------------------------------------
