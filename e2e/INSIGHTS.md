@@ -52,3 +52,12 @@ Never rewrite existing entries — correct with a dated note.
   line-check script.
 
 ## Open Questions
+
+- 2026-09-27: Flow `specs/05-pr-diff.flow.json:7` ("open the PR row",
+  `find text … click`) failed once in two hermetic runs (Windows, Git Bash
+  recipe from `CLAUDE.md`); the same click in flow 02 passed in that run.
+  Cause not established. Unverified hypothesis: flow 05 clicks right after
+  `wait --url /pulls`, with no `wait --text` for the row as flow 02 has
+  (`specs/02-repo-pulls-detail.flow.json:7`), and the API log shows the PR
+  list re-syncing (GitHub 404 → persisted PRs) at that moment. If it fails
+  again, investigate before adding a retry.
