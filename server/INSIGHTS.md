@@ -193,6 +193,14 @@ Never rewrite existing entries — correct with a dated note.
 
 ## Recurring Errors & Fixes
 
+- 2026-09-27: `pnpm typecheck` checks only `src/` (`tsconfig.json:28`
+  `"include": ["src/**/*.ts"]`) and vitest does not typecheck, so a change to
+  a reviewer-core or contract API can leave `test/*.ts` calling the old shape
+  with a green typecheck: L02 Stage 4a (`ReviewSkill[]` instead of `string[]`)
+  broke `test/prompt-structured.test.ts:17` and only the unit run caught it.
+  After an API change in reviewer-core or `src/vendor/shared`, run the server
+  unit tests too, not just the typecheck.
+
 - 2026-09-27: In a fresh checkout or git worktree, `pnpm typecheck` fails
   with `Cannot find module 'openai'` / `'zod'` inside
   `../reviewer-core/src/llm/*.ts` until `cd reviewer-core && npm ci`: the
