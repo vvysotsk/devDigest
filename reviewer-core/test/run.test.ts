@@ -135,4 +135,23 @@ describe('reviewPullRequest (engine)', () => {
     expect(seen.length).toBeGreaterThan(0);
     expect(seen.every((s) => s === 'sess-abc')).toBe(true);
   });
+
+  it('passes ReviewInput.skills through to the prompt and the trace assembly', async () => {
+    const llm = new MockLLMProvider('openai', { structured: fixture });
+    const diff = await new MockGitClient().diff();
+    const outcome = await reviewPullRequest({
+      systemPrompt: 's',
+      model: 'm',
+      diff,
+      llm,
+      strategy: 'single-pass',
+      skills: [{ name: 'no-secrets', body: 'Flag committed secrets.', source: 'manual', version: 2 }],
+    });
+    const req = llm.calls.find((c) => c.method === 'completeStructured')!.req as {
+      messages: { role: string; content: string }[];
+    };
+    const user = req.messages.find((m) => m.role === 'user')!.content;
+    expect(user).toContain('## Skills / rules\n### Skill: no-secrets (manual, v2)\n\nFlag committed secrets.');
+    expect(outcome.assembly.skills).toContain('### Skill: no-secrets (manual, v2)');
+  });
 });

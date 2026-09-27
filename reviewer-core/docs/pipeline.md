@@ -58,7 +58,12 @@ flowchart TD
    ordered sections task → PR description → skills → memory → repo skeleton →
    project context (specs) → callers → diff, each untrusted block wrapped in
    `<untrusted source="…">` with any closing tag escaped
-   (`src/prompt.ts:85-127`, `:30-34`). The `assembly` kept for the trace is the
+   (`src/prompt.ts:128-170`, `:30-34`). Skills are the exception by design:
+   each `ReviewSkill` renders as `### Skill: <name> (<source>, v<N>)` + its
+   body verbatim, in the caller's order, and the section ends with a fixed
+   closing line; it is NOT wrapped (a skill is an instruction), so trust is
+   decided upstream — the server's first-enable acknowledgement for imported
+   skills (`src/prompt.ts:43-73`, `:152`). The `assembly` kept for the trace is the
    single-pass call, or the whole-diff assembly in map-reduce
    (`src/review/run.ts:141-142`, `:173`).
 3. **LLM.** `llm.completeStructured<Review>({ model, schema: Review,
@@ -107,7 +112,7 @@ to SSE, `test/run.test.ts:69` asserts the grounding line.
 - **New prompt slot:** add the field to `PromptParts` and `ReviewInput`,
   render it in `assemblePrompt` (wrapped with `wrapUntrusted` when the content
   is not ours), and add it to `PromptAssembly` in the shared contract so the
-  trace drawer can show it (`src/prompt.ts:39-73`, `:104-138`).
+  trace drawer can show it (`src/prompt.ts:78-116`, `:128-183`).
 - **New grounding exemption:** extend `FULL_FILE_KINDS`
   (`src/grounding.ts:16`) and cover it in `../server/test/grounding.test.ts`.
 - **New score weights:** `SEVERITY_PENALTY` (`src/review/reduce.ts:13-17`);
@@ -119,9 +124,10 @@ to SSE, `test/run.test.ts:69` asserts the grounding line.
 
 ## Open questions
 
-- `skills`, `memory`, `specs` slots (`src/review/run.ts:55-60`) and the
+- `memory`, `specs` slots (`src/review/run.ts:55-60`) and the
   `toReviewPayload` CI output are exported but have no caller in the starter;
-  they are reserved for later lessons. Unverified whether the CI runner still
+  they are reserved for later lessons. The `skills` slot gets its server
+  caller in L02 Stage 4b. Unverified whether the CI runner still
   expects the current `ToReviewOptions` shape.
 - `sliceDiff` matches a file header with `line.includes(\` ${path}\`)`
   (`src/review/reduce.ts:64`), which also matches paths that share a suffix;

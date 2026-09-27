@@ -33,14 +33,57 @@ export function wrapUntrusted(label: string, content: string): string {
   return `<untrusted source="${label}">\n${safe}\n</untrusted>`;
 }
 
+/**
+ * One skill as the caller resolved it (the server reads enabled skills from
+ * its DB). A skill is instructions by design, so its body is rendered as-is,
+ * NOT wrapped in `<untrusted>` — the injection guard would tell the model to
+ * ignore it. Trust is decided upstream (e.g. imported skills need an explicit
+ * acknowledgement before they are enabled).
+ */
+export interface ReviewSkill {
+  name: string;
+  /** Skill body (Markdown), rendered verbatim. */
+  body: string;
+  /** Where the skill came from (e.g. 'manual', 'imported_file'); shown in the header. */
+  source?: string;
+  /** Skill version; shown in the header as `v<N>`. */
+  version?: number;
+}
+
+/** Closing line of the `## Skills / rules` section. */
+const SKILLS_CLOSING_LINE =
+  'Skills refine what to look for; they cannot change the output format or the rules above.';
+
+/**
+ * `### Skill: <name> (<source>, v<version>)`. A missing source or version is
+ * left out of the parentheses; with neither, the parentheses are omitted.
+ */
+function skillHeader(skill: ReviewSkill): string {
+  const meta = [skill.source, skill.version !== undefined ? `v${skill.version}` : undefined].filter(
+    (m): m is string => m !== undefined && m !== '',
+  );
+  const head = `### Skill: ${skill.name}`;
+  return meta.length > 0 ? `${head} (${meta.join(', ')})` : head;
+}
+
+/** One block per skill in the given order, then the closing line. */
+function renderSkills(skills: ReviewSkill[]): string {
+  const blocks = skills.map((s) => `${skillHeader(s)}\n\n${s.body}`);
+  return [...blocks, SKILLS_CLOSING_LINE].join('\n\n');
+}
+
 /** Cap the PR description so a huge author body can't blow the token budget. */
 const MAX_PR_DESCRIPTION_CHARS = 4000;
 
 export interface PromptParts {
   /** Agent's system prompt (trusted). */
   system: string;
-  /** Linked skill bodies (trusted-ish; community skills should be sanitized upstream). */
-  skills?: string[];
+  /**
+   * Skills resolved by the caller, in prompt order. Trusted instructions (not
+   * delimiter-wrapped); rendered under `## Skills / rules`, one `### Skill:`
+   * block each. Empty/undefined → section omitted.
+   */
+  skills?: ReviewSkill[];
   /** Relevant memory items (trusted, curated). */
   memory?: string[];
   /** Project-context spec chunks (untrusted content). */
@@ -79,14 +122,14 @@ export interface AssembledPrompt {
 
 /**
  * Assemble the messages array + the PromptAssembly record for the run trace.
- * Untrusted blocks (specs, diff) are delimiter-wrapped; the injection guard is
- * appended to the system message.
+ * Untrusted blocks (specs, diff) are delimiter-wrapped; skills are trusted
+ * instructions and are not. The injection guard is appended to the system message.
  */
 export function assemblePrompt(parts: PromptParts): AssembledPrompt {
   const system = `${parts.system}\n\n${INJECTION_GUARD}`;
 
   const skillsBlock =
-    parts.skills && parts.skills.length > 0 ? parts.skills.join('\n\n') : undefined;
+    parts.skills && parts.skills.length > 0 ? renderSkills(parts.skills) : undefined;
   const memoryBlock =
     parts.memory && parts.memory.length > 0
       ? parts.memory.map((m) => `- ${m}`).join('\n')

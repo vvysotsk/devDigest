@@ -456,6 +456,11 @@ README.md, references/plan.md}`; `.claude/skills/README.md`.
 
 ## Risks
 
+- A skill body is inserted verbatim, so its own `##` / `### Skill:` headings
+  can imitate prompt sections (e.g. an imported "## Output format") —
+  mitigated by the raw preview and the first-enable acknowledgement, not by
+  code (reviewer-core deliberately does not escape skill bodies).
+
 - LLM non-determinism in the experiment → two runs per side; tune the skill's
   wording, never the PR.
 - A hostile skill steers the reviewer → raw preview with warnings, saved

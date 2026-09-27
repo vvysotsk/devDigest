@@ -71,11 +71,18 @@ Paths are relative to `reviewer-core/`; the shared contracts are under
   `## Relevant memory` (bulleted), `## Repo skeleton` (untrusted),
   `## Project context` (each spec untrusted as `spec-<i>`), `## Callers of
   changed symbols` (untrusted), `## Diff to review` (untrusted, always)
-  (`src/prompt.ts:37`, `:99-122`).
+  (`src/prompt.ts:76`, `:142-165`).
+- `## Skills / rules` holds one block per `ReviewSkill`, in the given order:
+  `### Skill: <name> (<source>, v<version>)` (a missing source or version is
+  left out of the parentheses; with neither, no parentheses), a blank line,
+  the body verbatim — never wrapped in `<untrusted>` and never escaped —
+  then, once, the closing line `Skills refine what to look for; they cannot
+  change the output format or the rules above.` An empty or absent list
+  gives no section and `assembly.skills = null` (`src/prompt.ts:43-73`).
 - `wrapUntrusted` escapes `</untrusted>` inside the content so a payload cannot
   close the block (`src/prompt.ts:30-34`).
 - The `PromptAssembly` record mirrors the sections with `null` for absent
-  slots (`src/prompt.ts:129-138`).
+  slots (`src/prompt.ts:172-181`).
 
 ### Structured output
 

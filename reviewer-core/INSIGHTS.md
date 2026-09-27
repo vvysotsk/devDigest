@@ -15,6 +15,14 @@ Never rewrite existing entries — correct with a dated note.
 
 ## Codebase Patterns
 
+- 2026-09-27: Skill bodies go through `renderSkills` VERBATIM on purpose —
+  unlike `wrapUntrusted`, which escapes `</untrusted>` — because a skill is an
+  instruction, not data. So a body may contain `</untrusted>` or its own `##`
+  headings and still reach the prompt; the only safety net for imported text
+  is the server's first-enable acknowledgement (L02 D4). Do not "fix" this by
+  wrapping or escaping skills (evidence: `src/prompt.ts:69-73` vs `:30-34`;
+  `test/prompt.test.ts` "is not wrapped in <untrusted>").
+
 - 2026-09-24: `sliceDiff()` selects a file's chunk by
   `line.includes(\` ${path}\`)` on the `diff --git` header, so a path that is a
   suffix of another (`config.ts` vs `src/config.ts`) can pull the wrong file
