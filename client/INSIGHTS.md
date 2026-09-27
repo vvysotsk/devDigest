@@ -102,6 +102,11 @@ Never rewrite existing entries — correct with a dated note.
   a second `vi.useFakeTimers()` on top of the `beforeEach` one does not
   change the options (evidence:
   `src/components/findings-preview/FindingsHoverCard.test.tsx:62-80`).
+  - 2026-09-27 note: `shouldAdvanceTime` lets real time move the fake clock, so
+    keep delays in such tests far above the test's own duration (10 s, and
+    assert the timer has not fired yet) — otherwise a slow run lets the timer
+    fire first and the test passes without its scenario
+    (`FindingsHoverCard.test.tsx:68-72`).
 - 2026-09-26: When deleting a barrel, grep for its RELATIVE spellings too —
   the alias grep (`lib/hooks"`) found 7 importers of `src/lib/hooks/index.ts`
   but missed `import { useRepos } from "./hooks"` inside `lib/` itself; only

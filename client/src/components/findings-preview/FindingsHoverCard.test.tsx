@@ -65,14 +65,18 @@ describe("FindingsHoverCard — opening", () => {
     vi.useRealTimers();
     vi.useFakeTimers({ shouldAdvanceTime: true });
     const user = userEvent.setup({ advanceTimers: (ms) => vi.advanceTimersByTime(ms) });
-    const { onOpen, trigger } = renderCard({ openDelayMs: 180 });
-    await user.hover(trigger); // starts the 180 ms intent timer
+    // The fake clock follows real time here, so the delay must be far above the
+    // test's own duration: the timer must still be pending when focus opens.
+    const { onOpen, trigger } = renderCard({ openDelayMs: 10_000 });
+    await user.hover(trigger); // starts the 10 s intent timer
+    expect(dialog()).not.toBeInTheDocument(); // the timer has not fired
+    expect(onOpen).not.toHaveBeenCalled();
     await user.tab(); // focus opens at once
     expect(dialog()).toBeInTheDocument();
     expect(onOpen).toHaveBeenCalledTimes(1);
 
     await act(async () => {
-      vi.advanceTimersByTime(500); // the pending hover timer must not open (or notify) again
+      vi.advanceTimersByTime(10_000); // the pending hover timer must not open (or notify) again
     });
     expect(dialog()).toBeInTheDocument();
     expect(onOpen).toHaveBeenCalledTimes(1);
