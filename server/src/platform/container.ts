@@ -79,7 +79,7 @@ export class Container {
   private _reviewRepo?: ReviewRepository;
   private _pullsRepo?: PullsRepository;
   private _reposRepo?: RepoRepository;
-  private _repoIntel?: RepoIntel;
+  private _repoIntelService?: RepoIntelService;
   private _depgraph?: DepGraph;
   private _tokenizer?: Tokenizer;
   private _codeParser?: CodeParser;
@@ -125,14 +125,21 @@ export class Container {
   }
 
   /**
+   * The one real `RepoIntelService`. The repo-intel route plugin registers the
+   * index/refresh/resync job handlers on it at boot; readers use `repoIntel`.
+   */
+  get repoIntelService(): RepoIntelService {
+    return (this._repoIntelService ??= new RepoIntelService(this));
+  }
+
+  /**
    * The repo-intel facade (T1.1). All higher-level features (reviews,
    * blast/onboarding migrations, phantom-gate) code against this interface.
-   * Tests inject a mock via `ContainerOverrides.repoIntel`.
+   * Tests inject a mock via `ContainerOverrides.repoIntel`; the job handlers
+   * stay on `repoIntelService` either way.
    */
   get repoIntel(): RepoIntel {
-    if (this.overrides.repoIntel) return this.overrides.repoIntel;
-    this._repoIntel ??= new RepoIntelService(this);
-    return this._repoIntel;
+    return this.overrides.repoIntel ?? this.repoIntelService;
   }
 
   /** Import-graph builder (dependency-cruiser). T3 indexer pipeline only. */

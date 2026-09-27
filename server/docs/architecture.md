@@ -60,7 +60,8 @@ workspace (`src/adapters/auth/local.ts`).
    down) — both exempt from rate limiting.
 7. The structured error handler is set, then every plugin in
    `src/modules/index.ts` is registered. Module plugins also register their
-   job handlers at this point (`repos/routes.ts:24`, `repo-intel/routes.ts:30`).
+   job handlers at this point (`repos/routes.ts:24`; `repo-intel/routes.ts:29`
+   on the container's single `container.repoIntelService`).
 8. `onClose` closes the pool the app created.
 
 Migrations never run here: `pnpm db:migrate` (`src/db/migrate.ts`) is a
@@ -127,12 +128,20 @@ jsonb document in `run_traces` (PK = `agent_runs.id`).
 | `llm(id)` | `OpenAIProvider` / `AnthropicProvider` / `OpenRouterProvider` (from reviewer-core, wired to `priceBook`); cached per id; `ConfigError` when the key is unset | `llm: { openai?, anthropic?, openrouter? }` |
 | `embedder()` | `OpenAIEmbedder` over `llm('openai')`; throws unless `EMBEDDINGS_ENABLED=true` | `embedder` |
 | `codeIndex` | `RipgrepCodeIndex(git)` | `codeIndex` |
-| `repoIntel` | `RepoIntelService(this)` | `repoIntel` |
+| `repoIntelService` | the one `RepoIntelService(this)` (takes `RepoIntelDeps`, a `Pick<Container>` of db, config, git, jobs, codeIndex, depgraph, tokenizer, codeParser); the repo-intel plugin registers its job handlers on it | — |
+| `repoIntel` | the `RepoIntel` facade: the override if given, else `repoIntelService` (job handlers stay on `repoIntelService` either way) | `repoIntel` |
 | `depgraph`, `tokenizer` | `DepCruiseGraph`, `TiktokenTokenizer` (indexer only) | `depgraph`, `tokenizer` |
 | `codeParser` | `AstGrepCodeParser` (`@ast-grep/napi`), the `CodeParser` port of repo-intel — facade and indexer pipelines; fake: `MockCodeParser` | `codeParser` |
 | `priceBook` | `PriceBook(openrouter /models lister, estimateCost)` | — |
 | `agentsRepo`, `reviewRepo` | shared repositories for cross-module reads (`reviewRepo` is the one `ReviewRepository`: `ReviewService` uses it, and it feeds the PR-list aggregates of `PullsService`; `agentsRepo` gives `ReviewService` its targets as the `Agent` contract via `listEnabledAgents` / `getAgent`) | — |
 | `pullsRepo`, `reposRepo` | `PullsRepository` (owner of `pull_requests`, `pr_files`, `pr_commits`) and `RepoRepository` (owner of `repos`; other modules use `getRef`) | — |
+
+Services built from the container take only the members they read
+(`Pick<Container, …>`, onion R5): `PullsService`, `PollingService`,
+`ReviewService` (`ReviewDeps`; its `ReviewRunExecutor` takes `ReviewRunDeps`
+and `loadDiff` only `git`), `RepoIntelService` (`RepoIntelDeps`) and the
+indexer pipelines (`IndexPipelineDeps`, `src/modules/repo-intel/pipeline/full.ts`).
+`AgentsService` and `RepoService` still take the whole `Container`.
 
 `invalidateSecretCaches()` drops the llm/github/embedder caches after
 `POST /settings/test-connection` stores a new key.
@@ -146,7 +155,7 @@ the registered handler under `withTimeout` + `withRetry`, updating
 | Kind | Enqueued by | Handler registered in |
 |---|---|---|
 | `clone` | `repos/service.ts` `add()` / `refresh()` | `repos/routes.ts:24` → `RepoService.registerCloneJobHandler` |
-| `repo-intel-index` | `repos/service.ts` after a clone completes | `repo-intel/routes.ts:30` → `RepoIntelService.registerIndexJobHandlers` |
+| `repo-intel-index` | `repos/service.ts` after a clone completes | `repo-intel/routes.ts:29` → `container.repoIntelService.registerIndexJobHandlers` |
 | `repo-intel-refresh` | `repos/service.ts` `refresh()` | same |
 | `repo-intel-resync` | `POST /repos/:id/resync` | same |
 

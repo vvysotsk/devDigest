@@ -31,6 +31,13 @@ Never rewrite existing entries — correct with a dated note.
 
 ## Codebase Patterns
 
+- 2026-09-27: `Pick<Container, 'llm' | 'github' | 'embedder' | …>` picks
+  METHODS that read `this` (`this.overrides`, `this.secrets`,
+  `src/platform/container.ts:195-196`). Pass the container itself as `deps`
+  and call `this.deps.llm(id)` (`src/modules/reviews/run-executor.ts:163`);
+  never destructure (`const { llm } = deps`) or pass `deps.llm` as a
+  callback — the call then runs with `this` undefined and throws. Getters
+  (`git`, `repoIntel`, `jobs`) are safe either way.
 - 2026-09-27: A service that needs another module's repository types it as
   `Container['reposRepo']` / `Container['reviewRepo']`, never with
   `import type { RepoRepository } from '../repos/repository.js'`: the
@@ -188,5 +195,11 @@ Never rewrite existing entries — correct with a dated note.
   `container.codeParser`, fake `MockCodeParser` in `src/adapters/mocks.ts`,
   service rule pinned by `test/repo-intel-phantom.test.ts`);
   dependency-cruiser baseline 10 → 1 (`src/modules/repos/helpers.ts`).
+- 2026-09-27: Onion stage e: one `RepoIntelService` per container
+  (`container.repoIntelService`, `src/platform/container.ts`); the repo-intel
+  plugin registers job handlers on it, `repoIntel` = override ?? it.
+  `RepoIntelService`, the pipelines and `ReviewService` (+ executor,
+  `loadDiff`) take `Pick<Container, …>`; `test/repo-intel-registration.test.ts`
+  pins the single instance and the three job kinds via `JobRunner.hasHandler`.
 
 ## Open Questions

@@ -3,7 +3,7 @@ import type { Agent, FindingActionKind, RunEventKind, RunTrace } from '@devdiges
 import { AppError, NotFoundError } from '../../platform/errors.js';
 import type { ReviewRepository } from './repository.js';
 import type { ReviewDto, ReviewDtoFinding } from './helpers.js';
-import { ReviewRunExecutor, type Logger } from './run-executor.js';
+import { ReviewRunExecutor, type Logger, type ReviewRunDeps } from './run-executor.js';
 import { actOnFinding as actOnFindingImpl } from './findings.js';
 import { resolveRunCost } from '../_shared/run-cost.js';
 
@@ -22,16 +22,23 @@ export type { ReviewDto, ReviewDtoFinding } from './helpers.js';
  * Also: the finding accept/dismiss actions. The bulky run execution lives in
  * run-executor; this class keeps the public method surface.
  */
+/**
+ * What `ReviewService` reads from the container (onion R5): its shared
+ * repositories, `runBus` / `priceBook`, and what it hands to the executor.
+ */
+export type ReviewDeps = Pick<Container, 'reviewRepo' | 'agentsRepo' | 'runBus' | 'priceBook'> &
+  ReviewRunDeps;
+
 export class ReviewService {
   private repo: ReviewRepository;
   private agents: Container['agentsRepo'];
   private executor: ReviewRunExecutor;
 
-  constructor(private container: Container) {
+  constructor(private deps: ReviewDeps) {
     // Shared instances from the composition root (onion skill R5).
-    this.repo = container.reviewRepo;
-    this.agents = container.agentsRepo;
-    this.executor = new ReviewRunExecutor(container, this.repo, this.agents);
+    this.repo = deps.reviewRepo;
+    this.agents = deps.agentsRepo;
+    this.executor = new ReviewRunExecutor(deps, this.repo, this.agents);
   }
 
   // ===========================================================================
@@ -79,7 +86,7 @@ export class ReviewService {
           tokensIn: r.tokens_in,
           tokensOut: r.tokens_out,
         },
-        (model, tokensIn, tokensOut) => this.container.priceBook.estimate(model, tokensIn, tokensOut),
+        (model, tokensIn, tokensOut) => this.deps.priceBook.estimate(model, tokensIn, tokensOut),
       ),
     }));
   }
@@ -97,9 +104,9 @@ export class ReviewService {
    */
   async cancelRun(runId: string): Promise<void> {
     this.publish(runId, 'info', 'Cancellation requested — stopping…');
-    this.container.runBus.cancel(runId);
+    this.deps.runBus.cancel(runId);
     await this.repo.cancelRunIfRunning(runId);
-    this.container.runBus.complete(runId);
+    this.deps.runBus.complete(runId);
   }
 
   /** Reap runs left 'running' by a previous (now-dead) process. Called on boot. */
@@ -155,7 +162,7 @@ export class ReviewService {
   }
 
   private publish(runId: string, kind: RunEventKind, msg: string, data?: unknown) {
-    return this.container.runBus.publish(runId, kind, msg, data);
+    return this.deps.runBus.publish(runId, kind, msg, data);
   }
 
   // ===========================================================================
@@ -200,7 +207,7 @@ export class ReviewService {
     const run = await this.repo.getCostableRun(runId);
     const cost = run
       ? resolveRunCost(run, (model, tokensIn, tokensOut) =>
-          this.container.priceBook.estimate(model, tokensIn, tokensOut),
+          this.deps.priceBook.estimate(model, tokensIn, tokensOut),
         )
       : null;
     return { ...trace, stats: { ...trace.stats, cost_usd: cost } };

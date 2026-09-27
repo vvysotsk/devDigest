@@ -10,7 +10,7 @@ import type { PullForReview, ReviewRepoRef } from './types.js';
  * patches (so the reviewer works even before a clone completes / in tests).
  */
 export async function loadDiff(
-  container: Container,
+  container: Pick<Container, 'git'>,
   repo: ReviewRepository,
   workspaceId: string,
   pull: Pick<PullForReview, 'id' | 'base' | 'headSha'>,

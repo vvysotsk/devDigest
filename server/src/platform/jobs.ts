@@ -46,6 +46,14 @@ export class JobRunner {
     this.handlers.set(kind, handler);
   }
 
+  /**
+   * Read-only: whether a handler is registered for `kind`. Exists so tests can
+   * check the handler registration done at boot; it changes nothing.
+   */
+  hasHandler(kind: string): boolean {
+    return this.handlers.has(kind);
+  }
+
   async enqueue(workspaceId: string, kind: string, payload: unknown): Promise<EnqueuedJob> {
     const handler = this.handlers.get(kind);
     if (!handler) throw new Error(`No job handler registered for kind '${kind}'`);

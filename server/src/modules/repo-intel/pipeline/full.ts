@@ -67,8 +67,11 @@ const PARSE_DEGRADED_CAP = 50;
  * stamp a `status='failed'` row before re-throwing — the handler is
  * idempotent on retry.
  */
+/** What the indexer pipelines read from the container (onion R5). */
+export type IndexPipelineDeps = Pick<Container, 'git' | 'depgraph' | 'tokenizer' | 'codeParser'>;
+
 export async function runFullIndex(
-  container: Container,
+  deps: IndexPipelineDeps,
   repository: RepoIntelRepository,
   payload: IndexPayload,
 ): Promise<IndexResult> {
@@ -93,7 +96,7 @@ export async function runFullIndex(
   }
 
   const ref: RepoRef = { owner: repo.owner, name: repo.name };
-  const currentSha = await safeCurrentHead(container, ref);
+  const currentSha = await safeCurrentHead(deps, ref);
 
   // Walk + filter -------------------------------------------------------
   const walk = await walkClone(repo.clonePath);
@@ -133,7 +136,7 @@ export async function runFullIndex(
     }
 
     void parseQ.add(async () => {
-      const lang = container.codeParser.langForFile(relPath);
+      const lang = deps.codeParser.langForFile(relPath);
       if (!lang) {
         filesSkipped += 1;
         return;
@@ -153,8 +156,8 @@ export async function runFullIndex(
       try {
         const parsed = await withTimeout(
           Promise.resolve().then(() => ({
-            symbols: container.codeParser.parseSymbols(relPath, source),
-            references: container.codeParser.parseReferences(relPath, source),
+            symbols: deps.codeParser.parseSymbols(relPath, source),
+            references: deps.codeParser.parseReferences(relPath, source),
           })),
           MAX_PARSE_MS_PER_FILE,
         );
@@ -212,7 +215,7 @@ export async function runFullIndex(
   let rankCount = 0;
   if (!softBudgetReached) {
     try {
-      const edges = await container.depgraph.buildEdges(repo.clonePath, walk.files);
+      const edges = await deps.depgraph.buildEdges(repo.clonePath, walk.files);
       edgeRows = edges.map((e) => ({ fromFile: e.from, toFile: e.to }));
     } catch (err) {
       graphFailed = asMessage(err);
@@ -230,7 +233,7 @@ export async function runFullIndex(
 
     // Repo-map render → cache. Drop stale entries (prior SHAs) first.
     const candidates = await repository.getRepoMapCandidates(repoId);
-    const map = renderRepoMap(candidates, container.tokenizer, DEFAULT_REPO_MAP_TOKEN_BUDGET);
+    const map = renderRepoMap(candidates, deps.tokenizer, DEFAULT_REPO_MAP_TOKEN_BUDGET);
     await repository.deleteRepoMapCache(repoId);
     if (currentSha) {
       await repository.putRepoMapCache(
@@ -297,9 +300,9 @@ function sha1(s: string): string {
   return createHash('sha1').update(s).digest('hex');
 }
 
-async function safeCurrentHead(container: Container, ref: RepoRef): Promise<string> {
+async function safeCurrentHead(deps: Pick<Container, 'git'>, ref: RepoRef): Promise<string> {
   try {
-    return await container.git.currentHead(ref);
+    return await deps.git.currentHead(ref);
   } catch {
     return '';
   }
