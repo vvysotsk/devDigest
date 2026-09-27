@@ -11,7 +11,7 @@ import {
 import {
   INDEX_JOB_KIND,
   REFRESH_JOB_KIND,
-} from '../repo-intel/constants.js';
+} from '../_shared/job-kinds.js';
 
 /**
  * F1 — repos service. Business logic for the Repositories feature:

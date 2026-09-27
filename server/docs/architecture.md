@@ -31,8 +31,8 @@ workspace (`src/adapters/auth/local.ts`).
 | `src/platform/grounding.ts`, `prompt.ts`, `structured.ts` | Re-export shims over `@devdigest/reviewer-core` for older import paths. |
 | `src/modules/index.ts` | Static module registry (8 plugins). |
 | `src/modules/<name>/` | `routes.ts` (Fastify plugin + zod schemas) → `service.ts` → `repository.ts` (Drizzle). `workspace`, `settings` still query Drizzle from the route directly (the thin-module exception). `pulls` (service + repository) and `polling` (service only — it owns no table and writes through `container.pullsRepo` / `container.reposRepo`) are layered since the onion refactor, see `../specs/refactor-onion.md`. |
-| `src/modules/_shared/` | `context.ts` (tenancy), `schemas.ts` (`IdParams`), `run-cost.ts`, `latest-batch.ts` — helpers two modules need without importing each other. |
-| `src/modules/repo-intel/` | Facade `RepoIntel` (`src/modules/repo-intel/types.ts`) + indexer pipeline; see its `README.md`. |
+| `src/modules/_shared/` | `context.ts` (tenancy), `schemas.ts` (`IdParams`), `run-cost.ts`, `latest-batch.ts`, `diff-parser.ts` (`parseUnifiedDiff`, also used by the git adapter and its mock), `job-kinds.ts` (JobRunner kind strings that `repos` enqueues and `repo-intel` handles) — helpers two modules need without importing each other. |
+| `src/modules/repo-intel/` | Facade `RepoIntel` (`src/modules/repo-intel/types.ts`) + indexer pipeline; `extract.ts` is the pure regex extractor (endpoints, crons, fallback symbols/references), also used by the ripgrep `codeindex` adapter; see its `README.md`. |
 | `src/adapters/` | Real implementations of the interfaces in `src/vendor/shared/adapters.ts` (llm, github, git, codeindex, astgrep, depgraph, embedder, tokenizer, secrets, auth) and `mocks.ts` for tests. |
 | `src/db/` | `client.ts` (postgres-js + Drizzle), `schema.ts` barrel over `schema/*.ts` (13 domain files + `src/db/schema/_shared.ts`), `migrations/` (drizzle-kit output), `migrate.ts`, `seed.ts` (CLI entry detected by `isEntryPoint()` in `cli.ts`, Windows-safe), `rows.ts` (shared row types). |
 | `src/vendor/shared/` | Master copy of `@devdigest/shared` (zod contracts + adapter interfaces), aliased via `tsconfig.json` `paths`. |
@@ -206,8 +206,10 @@ assumed (the boot reaper would misfire with replicas).
 - **New adapter:** interface in `src/vendor/shared/adapters.ts` (mirror to
   client), implementation under `src/adapters/<kind>/`, a getter and an
   `ContainerOverrides` key in `container.ts`, a mock in `adapters/mocks.ts`.
-- **New job kind:** a `<MODULE>_JOB_KIND` constant, `container.jobs.register`
-  in the module's route plugin, `container.jobs.enqueue` at the call site.
+- **New job kind:** a `<MODULE>_JOB_KIND` constant (in
+  `src/modules/_shared/job-kinds.ts` when another module enqueues it),
+  `container.jobs.register` in the module's route plugin,
+  `container.jobs.enqueue` at the call site.
 - **New env var:** extend `EnvSchema` and `AppConfig` in
   `src/platform/config.ts`; feature code reads `container.config` only.
 - **New table / column:** edit `src/db/schema/<domain>.ts`, generate and
