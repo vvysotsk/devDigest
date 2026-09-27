@@ -63,6 +63,8 @@ Never rewrite existing entries — correct with a dated note.
   service even as a type — dependency-cruiser flags it as
   `no-drizzle-outside-persistence` (evidence: `src/modules/skills/service.ts:143`,
   `src/modules/agents/repository.ts:170`, `:184`).
+  - 2026-09-27 note: after the Stage 3b import methods the transaction is at
+    `src/modules/skills/service.ts:178`.
 
 - 2026-09-27: `Pick<Container, 'llm' | 'github' | 'embedder' | …>` picks
   METHODS that read `this` (`this.overrides`, `this.secrets`,

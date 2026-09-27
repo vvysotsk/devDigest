@@ -6,6 +6,9 @@ import {
   AgentSkillsPut,
   AgentSkillsResult,
   Skill,
+  SkillImportPreview,
+  SkillImportRequest,
+  SkillImportSave,
   SkillInput,
   SkillPatch,
   SkillVersion,
@@ -19,6 +22,8 @@ import { SkillsService } from './service.js';
  * `schema.response` (R3). Errors use the envelope with `SkillErrorCode`s.
  *   GET    /skills                → Skill[] (workspace, by name)
  *   POST   /skills                → 201 Skill (manual create only)
+ *   POST   /skills/import/preview → SkillImportPreview (parses the upload, stores nothing)
+ *   POST   /skills/import         → 201 Skill (re-parses the file; imported_file, disabled)
  *   GET    /skills/:id            → Skill
  *   PUT    /skills/:id            → Skill (bump + snapshot; 409 skill_ack_required / skill_name_taken)
  *   DELETE /skills/:id            → 204 (links cascade)
@@ -45,6 +50,25 @@ export default async function skillsRoutes(appBase: FastifyInstance) {
     async (req, reply) => {
       const { workspaceId } = await getContext(container, req);
       const skill = await service.create(workspaceId, req.body);
+      return reply.status(201).send(skill);
+    },
+  );
+
+  app.post(
+    '/skills/import/preview',
+    { schema: { body: SkillImportRequest, response: { 200: SkillImportPreview } } },
+    async (req) => {
+      const { workspaceId } = await getContext(container, req);
+      return service.previewImport(workspaceId, req.body);
+    },
+  );
+
+  app.post(
+    '/skills/import',
+    { schema: { body: SkillImportSave, response: { 201: Skill } } },
+    async (req, reply) => {
+      const { workspaceId } = await getContext(container, req);
+      const skill = await service.saveImport(workspaceId, req.body);
       return reply.status(201).send(skill);
     },
   );

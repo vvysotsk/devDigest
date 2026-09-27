@@ -43,3 +43,16 @@ export class SkillNotInWorkspaceError extends SkillError {
     });
   }
 }
+
+/** HTTP status of each import failure code (L02 D3). */
+const IMPORT_STATUS: Partial<Record<SkillErrorCode, number>> = {
+  import_unsupported_file: 415,
+  import_too_large: 413,
+};
+
+/** A failure of the pure import pipeline as a `SkillError` (413 / 415, else 422). */
+export class SkillImportError extends SkillError {
+  constructor(failure: { code: SkillErrorCode; message: string; details?: unknown }) {
+    super(failure.code, failure.message, IMPORT_STATUS[failure.code] ?? 422, failure.details);
+  }
+}

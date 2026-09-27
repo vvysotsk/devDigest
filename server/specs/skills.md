@@ -1,6 +1,6 @@
 # server — skills
 
-Last verified: 2026-09-27 (L02 Stage 3a: import pipeline as pure functions; import routes pending)
+Last verified: 2026-09-27 (L02 Stage 3b: import routes)
 
 ## Scope
 
@@ -70,21 +70,23 @@ foreign or unknown id is 404 `not_found`.
 
 | Route | Response | Errors |
 |---|---|---|
-| `GET /skills` (`:37`) | `Skill[]`, sorted by name | — |
-| `POST /skills` (`:42`, body `SkillInput`) | 201 `Skill` (v1) | 409 `skill_name_taken` |
-| `GET /skills/:id` (`:52`) | `Skill` | 404 |
-| `PUT /skills/:id` (`:57`, body `SkillPatch`) | `Skill` | 404, 409 `skill_name_taken`, 409 `skill_ack_required` |
-| `DELETE /skills/:id` (`:66`) | 204, empty body (`reply.status(204).send(null)`) | 404 |
-| `GET /skills/:id/versions` (`:76`) | `SkillVersion[]`, newest first | 404 |
-| `GET /agents/:id/skills` (`:85`) | `AgentSkill[]` by `order` | 404 |
-| `PUT /agents/:id/skills` (`:94`, body `AgentSkillsPut`) | `AgentSkillsResult` | 404, 400 `skill_not_in_workspace` (`details.skill_ids`) |
+| `GET /skills` (`:42`) | `Skill[]`, sorted by name | — |
+| `POST /skills` (`:47`, body `SkillInput`) | 201 `Skill` (v1) | 409 `skill_name_taken` |
+| `POST /skills/import/preview` (`:57`, body `SkillImportRequest`) | `SkillImportPreview`; stores nothing | 413 `import_too_large`, 415 `import_unsupported_file`, 422 other `import_*` |
+| `POST /skills/import` (`:66`, body `SkillImportSave`) | 201 `Skill` — `imported_file`, disabled, `acknowledged_at` null, v1 | as above + 409 `skill_name_taken`, 422 `import_description_missing` / `import_invalid_name` / `import_invalid_field` |
+| `GET /skills/:id` (`:76`) | `Skill` | 404 |
+| `PUT /skills/:id` (`:81`, body `SkillPatch`) | `Skill` | 404, 409 `skill_name_taken`, 409 `skill_ack_required` |
+| `DELETE /skills/:id` (`:90`) | 204, empty body (`reply.status(204).send(null)`) | 404 |
+| `GET /skills/:id/versions` (`:100`) | `SkillVersion[]`, newest first | 404 |
+| `GET /agents/:id/skills` (`:109`) | `AgentSkill[]` by `order` | 404 |
+| `PUT /agents/:id/skills` (`:118`, body `AgentSkillsPut`) | `AgentSkillsResult` | 404, 400 `skill_not_in_workspace` (`details.skill_ids`) |
 
 ## Rules (`src/modules/skills/service.ts`, `helpers.ts`)
 
-- **Create** (`service.ts:60`): one transaction inserts the skill at v1 and its
+- **Create** (`service.ts:64`): one transaction inserts the skill at v1 and its
   `skill_versions` v1 row. A unique violation on `skills_ws_name_uq` maps to
   409 `skill_name_taken` (`helpers.ts:89`).
-- **Update** (`service.ts:87`): one transaction locks the row
+- **Update** (`service.ts:122`): one transaction locks the row
   (`SELECT … FOR UPDATE`, `repository.ts:75`), applies the ack rule and the
   version rule, writes, and snapshots the body on a bump.
   - Version rule (`bumpsVersion`, `helpers.ts:25`): a name / description /
@@ -94,8 +96,17 @@ foreign or unknown id is 404 `not_found`.
     `imported_file` skill whose `acknowledged_at` is null needs
     `acknowledge_injection: true` (else 409 `skill_ack_required`); with it,
     `acknowledged_at` is stored once and never needed again.
+- **Import** (`previewImport`, `saveImport` in `service.ts`): both decode the
+  upload and run `buildImportPreview` with the workspace's skill names
+  (`namesInWorkspace` → `name_exists`); the save re-runs it on the FILE,
+  applies only the name / description / type overrides via
+  `resolveImportSave`, and inserts the skill itself as `imported_file`,
+  disabled, unacknowledged, with a v1 body snapshot — a body, source or
+  enabled flag sent by the client is dropped by the `SkillImportSave` schema.
+  Pipeline failures become `SkillImportError` (413 / 415 / 422,
+  `errors.ts`).
 - **Delete** cascades the skill's versions and agent links (FK).
-- **Link save** (`setAgentSkills`, `service.ts:137`): one transaction locks the
+- **Link save** (`setAgentSkills`, `service.ts:172`): one transaction locks the
   agent row (`AgentsRepository.lockVersion`), checks that every skill is in
   the workspace, compares the new `[{skill_id, order = index, enabled}]` list
   with the stored one (`linksChanged`, `helpers.ts:53` — stored `order`
@@ -184,5 +195,6 @@ defects (see `../specs/L02-skills.md` D8).
 | `skill_count` = effective links only; snapshot stores every link as `{skill_id, order, enabled}` | `test/agents-versions.it.test.ts:179` |
 | CRUD, v1 + snapshot, version rule, no bump on enabled-only / unchanged values, 409 duplicate create + rename, ack 409 → OK → not needed again, `agent_count` incl. disabled links, delete cascade, workspace scope, R3 shapes | `test/skills.it.test.ts` |
 | link order/enabled, one bump per changed save, no bump on unchanged list, detach-all bump, 400 foreign/unknown skill with nothing written, 404 agent, effective `skill_count`, config edit snapshots links, port `enabledForAgent` / `namesInWorkspace`, R3 shapes | `test/agent-skills.it.test.ts` |
+| import routes + trust path: preview stores nothing and lists skipped scripts; save ignores a client body/source/enabled, stores `imported_file` disabled with the parsed body; `name_exists` then 409 duplicate; enable → 409 `skill_ack_required` → with ack 200 + `acknowledged_at`, no bump; overrides on a `.md`; 415 / 422 codes incl. `import_invalid_field` details; R3 shapes | `test/skill-import.it.test.ts` |
 | pure rules: `bumpsVersion`, `needsAck`, `linksChanged`, `missingIds`, DTO mapping, unique-violation detection | `test/skills-helpers.test.ts` |
 | import: `.md` and folder zip; quoted / colon / `>` / `\|` / nested frontmatter; `..`, absolute, drive, backslash, symlink paths; > 200 entries; declared and inflated size + CRC; references and skipped files; no or several SKILL.md; bad frontmatter; unsupported file; base64 limit and malformed base64; every warning kind; `resolveImportSave` overrides, `import_description_missing`, `import_invalid_name`, `import_invalid_field` (description, empty body, long body), body never overridable | `test/skill-import.test.ts` |

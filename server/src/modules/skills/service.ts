@@ -3,13 +3,17 @@ import type {
   AgentSkillsPut,
   AgentSkillsResult,
   Skill,
+  SkillImportPreview,
+  SkillImportRequest,
+  SkillImportSave,
   SkillInput,
   SkillPatch,
   SkillVersion,
 } from '@devdigest/shared';
 import type { Container } from '../../platform/container.js';
 import { NotFoundError } from '../../platform/errors.js';
-import { SkillAckRequiredError, SkillNotInWorkspaceError } from './errors.js';
+import { SkillAckRequiredError, SkillImportError, SkillNotInWorkspaceError } from './errors.js';
+import { buildImportPreview, decodeImportBase64, resolveImportSave } from './import/index.js';
 import {
   INITIAL_SKILL_VERSION,
   bumpsVersion,
@@ -21,7 +25,7 @@ import {
   toSkillDto,
 } from './helpers.js';
 import type { SkillsRepository } from './repository.js';
-import type { SkillUpdateValues } from './types.js';
+import type { NewSkillValues, SkillUpdateValues } from './types.js';
 
 export type SkillsServiceDeps = Pick<Container, 'db' | 'tokenizer'>;
 
@@ -58,21 +62,52 @@ export class SkillsService {
 
   /** Manual create: the skill at v1 plus its `skill_versions` v1 row, atomically. */
   async create(workspaceId: string, input: SkillInput): Promise<Skill> {
+    return this.insertAtV1(workspaceId, {
+      name: input.name,
+      description: input.description,
+      type: input.type,
+      source: input.source,
+      body: input.body,
+      enabled: input.enabled,
+    });
+  }
+
+  /** `POST /skills/import/preview` — parse the upload; stores nothing (D3). */
+  async previewImport(workspaceId: string, req: SkillImportRequest): Promise<SkillImportPreview> {
+    return this.parseUpload(workspaceId, req.filename, req.content_base64);
+  }
+
+  /**
+   * `POST /skills/import` — re-run the pipeline on the uploaded FILE, apply only
+   * the name / description / type overrides, and save it ourselves as
+   * `imported_file`, disabled, unacknowledged. The body is always the parsed
+   * one: the client never supplies it, so the first-enable acknowledgement (D4)
+   * cannot be bypassed.
+   */
+  async saveImport(workspaceId: string, req: SkillImportSave): Promise<Skill> {
+    const preview = await this.parseUpload(workspaceId, req.filename, req.content_base64);
+    const resolved = resolveImportSave(preview, {
+      name: req.name,
+      description: req.description,
+      type: req.type,
+    });
+    if (!resolved.ok) throw new SkillImportError(resolved);
+    return this.insertAtV1(workspaceId, { ...resolved.skill, source: 'imported_file', enabled: false });
+  }
+
+  private async parseUpload(workspaceId: string, filename: string, contentBase64: string): Promise<SkillImportPreview> {
+    const decoded = decodeImportBase64(contentBase64);
+    if (!decoded.ok) throw new SkillImportError(decoded);
+    const names = new Set(await this.repos.skills.namesInWorkspace(workspaceId));
+    const built = buildImportPreview({ filename, bytes: decoded.bytes }, names);
+    if (!built.ok) throw new SkillImportError(built);
+    return built.preview;
+  }
+
+  private async insertAtV1(workspaceId: string, values: NewSkillValues): Promise<Skill> {
     const id = await this.deps.db.transaction(async (tx) => {
-      const skillId = await this.repos.skills.insert(
-        tx,
-        workspaceId,
-        {
-          name: input.name,
-          description: input.description,
-          type: input.type,
-          source: input.source,
-          body: input.body,
-          enabled: input.enabled,
-        },
-        INITIAL_SKILL_VERSION,
-      );
-      await this.repos.skills.insertVersion(tx, skillId, INITIAL_SKILL_VERSION, input.body);
+      const skillId = await this.repos.skills.insert(tx, workspaceId, values, INITIAL_SKILL_VERSION);
+      await this.repos.skills.insertVersion(tx, skillId, INITIAL_SKILL_VERSION, values.body);
       return skillId;
     });
     return this.get(workspaceId, id);
