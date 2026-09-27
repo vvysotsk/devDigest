@@ -1,4 +1,4 @@
-# onion-architecture — README (for humans)
+# onion-architecture — README
 
 The agent loads `SKILL.md` only; this file is for people maintaining the skill.
 

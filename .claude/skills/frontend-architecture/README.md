@@ -1,4 +1,4 @@
-# frontend-architecture — README (for humans)
+# frontend-architecture — README
 
 The agent loads `SKILL.md` only; this file is for people maintaining the skill.
 

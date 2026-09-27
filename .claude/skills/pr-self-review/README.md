@@ -1,4 +1,4 @@
-# pr-self-review — README (for humans)
+# pr-self-review — README
 
 The agent loads `SKILL.md` only; this file is for people maintaining the skill.
 
