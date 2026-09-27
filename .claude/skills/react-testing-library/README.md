@@ -16,6 +16,37 @@ The rewrite shifts the philosophy toward **fewer, longer integration-style tests
 | Reference-heavy, strategy-light | **Philosophy section + complete spec templates** |
 | Flat "What to Test" checklist | **User-flow-oriented** testing (render → interact → verify) |
 
+## How it works
+
+1. **When it loads.** The agent picks the skill by its `description` when it
+   writes, reviews or sets up a component or hook test.
+2. **What it reads.** Everything is in `SKILL.md`: the philosophy, test
+   scenarios per component type, spec templates, query priority, `userEvent`,
+   async patterns and mocking.
+3. **In self-review.** `pr-self-review` sends a changed file to this skill
+   when the file matches `metadata.applies_to`: client test files,
+   `client/src/test/**` and `client/vitest.config.*`. The skill is not
+   blocking, so its findings are WARNING or SUGGESTION. Only a concrete
+   runtime defect is CRITICAL.
+4. **Project state.** The client already runs Vitest, React Testing Library
+   and jest-dom (`client/src/test/setup.ts`), so "Setup from Scratch" is
+   done. The skill prefers MSW and `userEvent`, but neither package is
+   installed yet: current tests mock with `vi.mock`. Adding one is a
+   deliberate change to `package.json` and the lock file in one commit.
+   Existing tests are rewritten only on request.
+
+## Changes in this repo
+
+- 2026-09-26 — `metadata.applies_to` added for `pr-self-review` routing. No
+  rule changes.
+
+## Maintaining
+
+The skill has no `metadata.version`, so `pr-self-review` keys its checks by
+a hash of `SKILL.md`: any edit to `SKILL.md` re-checks every file the skill
+covers. Edits to this README or to the reference files do not. When you edit
+`SKILL.md`, add a line to "Changes in this repo".
+
 ## Sources
 
 These sources informed the rewrite:

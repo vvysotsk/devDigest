@@ -12,6 +12,32 @@ architecture. It fires when the agent creates, moves or splits a component,
 hook, helper or constant in `client/`, adds a route, or has to decide where
 code should live.
 
+## How it works
+
+The skill is a set of decisions for this repo, not a general style guide.
+The agent uses it in four steps:
+
+1. **Place.** The Map says where each kind of code lives: route-local
+   `_components/`, shared `components/`, hooks by domain in `lib/hooks/`,
+   helpers in `helpers.ts` or `lib/<topic>.ts`. The placement ladder:
+   colocate first, promote on the second consumer.
+2. **Write to the rules.** R1–R7: `index.ts` is a component boundary and
+   never a layer barrel, pure helpers are named by scope, error boundaries
+   sit at the root (and next to a nested layout), there is no Next.js
+   server layer, and API types come only from the contract.
+3. **Check signals.** Size and shape limits (lines, props, effects,
+   nesting) are signals, not caps. A changed file that trips one gets a
+   `Signals:` line in the report: kept with a reason, or split.
+4. **Escalate, do not improvise.** When a trigger fires (for example, a
+   domain spreads over several folders and routes), the agent proposes the
+   change to the user. The decision goes to `client/docs/ui-architecture.md`
+   → "Architecture decisions". A deferred trigger is not proposed again
+   until its condition changes.
+
+**In self-review.** The skill is blocking and covers `client/src/` and
+`client/messages/`, but not the mirrored `vendor/`. A broken must/never rule
+is CRITICAL. A signal is at most a SUGGESTION.
+
 ## Version
 
 **1.0.1** — see `metadata.version` in `SKILL.md` and the row in

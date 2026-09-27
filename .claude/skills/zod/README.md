@@ -1,6 +1,6 @@
 # Zod Best Practices Skill
 
-A comprehensive guide for using Zod effectively in TypeScript applications. This skill provides 42 rules across 8 categories, organized by impact to help AI agents and developers write better validation code.
+A comprehensive guide for using Zod effectively in TypeScript applications. This skill provides 43 rules across 8 categories, organized by impact to help AI agents and developers write better validation code.
 
 ## Overview
 
@@ -22,7 +22,7 @@ Zod is a TypeScript-first schema declaration and validation library. This skill 
 The skill is automatically loaded when working with Zod code. Reference specific rules:
 
 ```
-See rules/parse-use-safeparse.md for safeParse best practices
+See references/parse-use-safeparse.md for safeParse best practices
 ```
 
 ### For Developers
@@ -35,11 +35,11 @@ Read `SKILL.md` for a quick reference, or `AGENTS.md` for the full compiled guid
 zod/
 ├── SKILL.md          # Quick reference with rule index
 ├── AGENTS.md         # Full compiled guide (all rules)
-├── metadata.json     # Version, categories, references
 ├── README.md         # This file
-└── rules/
+├── assets/templates/
+│   └── _template.md  # Rule template
+└── references/
     ├── _sections.md  # Category definitions
-    ├── _template.md  # Rule template
     ├── schema-*.md   # Schema definition rules
     ├── parse-*.md    # Parsing rules
     ├── type-*.md     # Type inference rules
@@ -70,6 +70,42 @@ zod/
 3. **User-Friendly Errors**: Provide custom messages, collect all issues
 4. **Single Source of Truth**: Schema defines validation AND TypeScript types
 5. **Composition Over Duplication**: Use extend, pick, omit, partial
+
+## How it works in this repo
+
+1. **When it loads.** The agent picks the skill by its `description` when it
+   defines or changes a zod schema, parses input or infers a type.
+2. **What it reads.** `SKILL.md` has the rule index. Each rule is a file in
+   `references/`, and `AGENTS.md` has all rules in one file. The agent opens
+   a rule file only when it needs it.
+3. **In self-review.** `pr-self-review` sends a changed file to this skill
+   when the file matches `metadata.applies_to`: the shared contracts
+   (`server/src/vendor/shared/**`), module `routes.ts`, shared schemas,
+   config, `reviewer-core/src/` and `client/src/lib/`. The skill is not
+   blocking, so its findings are WARNING or SUGGESTION. Only a concrete
+   runtime defect is CRITICAL.
+4. **Project rules win.** All three packages use zod 3 (`^3.24`). The skill
+   is written for zod 4, so v4-only APIs (Zod Mini, new top-level string
+   formats) do not apply until an upgrade. The contracts in
+   `server/src/vendor/shared` are the master copy and are mirrored to the
+   client; `pr-self-review` checks the mirror. Routes validate with
+   `fastify-type-provider-zod`.
+
+## Changes in this repo
+
+The skill came with the course starter repo.
+
+- 2026-09-26 — `metadata.applies_to` added for `pr-self-review` routing. No
+  rule changes.
+- 2026-09-27 — this README: the file tree matches the folder (`references/`,
+  `assets/templates/`; no `metadata.json`).
+
+## Maintaining
+
+The skill has no `metadata.version`, so `pr-self-review` keys its checks by
+a hash of `SKILL.md`: any edit to `SKILL.md` re-checks every file the skill
+covers. Edits to this README or to the reference files do not. When you edit
+`SKILL.md`, add a line to "Changes in this repo".
 
 ## References
 

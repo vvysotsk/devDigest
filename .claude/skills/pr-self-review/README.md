@@ -16,6 +16,54 @@ tests of touched packages. Any open CRITICAL → the agent does not run
 `gh pr create` and does not push the branch for a PR (other pushes are not
 gated).
 
+## How it works
+
+The work is split in two. A script does everything that must be exact:
+it finds what changed, decides what needs checking, runs the guards and
+decides the verdict. Subagents do the part that needs judgment: they read
+the changed code against a skill's rules. The script never trusts a
+subagent's answer as is. It checks it first.
+
+A run goes like this:
+
+1. **Plan.** The script finds the changed files and matches each one to
+   the skills that apply to it. It skips any (skill, file) pair that was
+   already checked at the same file content and the same skill version. It
+   groups the rest into batches and estimates the cost. If the run is
+   large, the agent asks before it starts.
+2. **Mechanical checks.** The agent runs typecheck and tests for the
+   touched packages. The script runs the repo guards (migrations, lock
+   files, shared contracts, secrets and others). A command that already
+   passed on the same input files is not run again.
+3. **Skill checks.** One read-only subagent runs per batch. It applies one
+   skill to its files and replies with the files it checked, the rules it
+   applied and its findings.
+4. **Grounding.** The script drops every finding it cannot tie to the
+   diff: the cited line must be a line this branch added, and the quoted
+   code must be on that line. A batch with an empty or incomplete reply
+   does not count as checked.
+5. **Verify.** A second subagent re-checks each CRITICAL finding. A
+   finding it disproves drops to WARNING.
+6. **Report.** Any open CRITICAL, or a required command that failed or
+   was not run, gives BLOCKED, and the agent does not open the PR. Otherwise the
+   verdict is PASS.
+
+**Memory between runs.** Results go to a journal inside `.git`, so it is
+never committed. A pair counts as checked for one exact file content (git
+blob) and one skill `major.minor` version. When you edit the file, or
+the skill gets a minor or major bump, the pair is checked again. This is
+why a second run after a small fix checks only what changed.
+
+**Accepting a finding.** Only a person can dismiss a skill finding, with
+`node .claude/skills/pr-self-review/scripts/self-review.mjs dismiss <id> --reason "<why>"`.
+The dismissal holds only while the file content stays the same. After the
+file changes, a dismissed CRITICAL blocks again. Mechanical findings cannot
+be dismissed. You must fix them.
+
+**Known limit.** A finding on a file is not re-checked when only a
+related file changes (its test, or a file it imports). See
+`references/plan.md` §12.
+
 Files:
 - `SKILL.md` — the procedure the agent follows.
 - `checker.md` — instructions every checker subagent reads.

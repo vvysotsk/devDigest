@@ -15,6 +15,33 @@ moves code between modules, touches reviewer-core's public API, or decides
 whether a use case needs a transaction, a port, a response schema or a
 separate type.
 
+## How it works
+
+The skill is a set of decisions for this repo, not a general style guide.
+The agent uses it in four steps:
+
+1. **Place.** The Map assigns each role (route, service, repository,
+   adapter, port, job) to a ring and a folder. New code goes where the Map
+   says.
+2. **Write to the rules.** R1–R9: imports point inward, contracts are the
+   domain types, routes are thin and have a response schema and a shape
+   test, transactions belong to the use case, and wiring happens only in the
+   container.
+3. **Check.** Before it reports a change, the agent runs the 12 review
+   checks. A kept exception gets a `Layers:` line in the report.
+   `pnpm deps:check` (dependency-cruiser) shows only violations that are new
+   against the baseline file, and that file may only shrink.
+4. **Escalate, do not improvise.** When a trigger fires (for example, a use
+   case writes two tables), the agent proposes the change to the user. The
+   decision goes to `server/docs/architecture.md` → "Architecture
+   decisions". A deferred trigger is not proposed again until its condition
+   changes.
+
+**In self-review.** The skill is blocking and covers `server/src/` and
+`reviewer-core/src/`, but not tests. A broken must/never rule is CRITICAL.
+A new entry in the baseline file is a mechanical CRITICAL in
+`pr-self-review`.
+
 ## Version
 
 **1.1.1** — see `metadata.version` in `SKILL.md` and the row in
