@@ -161,6 +161,13 @@ Never rewrite existing entries — correct with a dated note.
   `pnpm test` stayed green because no test loads `repo-context.tsx`. Run
   typecheck before tests after any module move (evidence:
   `src/lib/repo-context.tsx:7`).
+- 2026-09-28: Kit tokens (`var(--text-primary)` etc.) do not reach controls the
+  browser draws itself: the native `<select>` popup of `SelectInput` rendered
+  white with the light dark-theme text, because the page declared no
+  `color-scheme`. Every theme switch on `[data-theme]` must also set
+  `color-scheme` (select popups, scrollbars, date pickers); a new theme needs
+  its own rule there (evidence: `src/app/globals.css:53-61`,
+  `src/vendor/ui/kit/SelectInput.tsx:29`).
 
 ## Session Notes
 

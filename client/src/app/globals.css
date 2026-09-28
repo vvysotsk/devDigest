@@ -49,3 +49,13 @@
     display: none;
   }
 }
+
+/* Native controls (the <select> popup, scrollbars, date pickers) are drawn by
+   the browser, not by the kit tokens: without color-scheme they stay light in
+   the dark theme, so a SelectInput popup showed light text on white. */
+:root[data-theme="dark"] {
+  color-scheme: dark;
+}
+:root[data-theme="light"] {
+  color-scheme: light;
+}

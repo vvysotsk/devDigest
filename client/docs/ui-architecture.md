@@ -121,7 +121,9 @@ Next build, while type-only imports and vitest are unaffected.
 - **Styling.** Inline `style` objects collected in a colocated `styles.ts`
   (`s.<name>`), CSS variables from the kit's `src/vendor/ui/styles.css`, and a small
   `src/app/globals.css` for what inline styles cannot express (media queries,
-  keyframes). No CSS modules, no Tailwind utility classes in components.
+  keyframes, and `color-scheme` per `data-theme` so browser-drawn controls —
+  `<select>` popups, scrollbars — follow the theme). No CSS modules, no
+  Tailwind utility classes in components.
 - **i18n.** User-facing strings go through `useTranslations("<ns>")`; tests
   wrap components in `NextIntlClientProvider` with the namespace JSON.
 - **Errors.** `ApiError` is thrown by `apiFetch`; the `QueryCache` toasts only
