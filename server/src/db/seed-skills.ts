@@ -414,8 +414,9 @@ Remember that a shared schema changes every route that uses it.
 - Changes to routes the diff does not reach.
 
 ## How to report
-- One finding per changed route; anchor it on the changed schema or handler
-  line.
+- One finding per breaking difference (response shape, parameter, sort order,
+  status code), each anchored on its own changed schema or handler line. Do
+  not merge several differences of one route into one finding.
 - Classify each difference with \`breaking-change-rubric\` when that skill is
   present; otherwise say whether an existing client would break.`,
   },
@@ -439,6 +440,9 @@ fail, misread data or be rejected after the deploy.
   then ignored or rejected.
 - Making an optional input required, narrowing accepted values or bounds.
 - Changing a status code, an error envelope or the meaning of a default.
+- Changing the default sort order of a list response or the way it pages; a
+  client that relies on the order, or pages with the old scheme, can skip or
+  repeat records.
 - Changing the method or path of a route.
 
 ## Compatible
