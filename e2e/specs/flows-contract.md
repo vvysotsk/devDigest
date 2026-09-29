@@ -1,6 +1,6 @@
 # e2e — flows-contract
 
-Last verified: 2026-09-29 (flow 08 body-editor `eval` steps; every `path:line` re-checked)
+Last verified: 2026-09-29 (HW02 0f: API Contract Reviewer no longer seeded; every `path:line` re-checked)
 
 ## Scope
 
@@ -49,12 +49,13 @@ Paths are relative to `e2e/`.
   row (`../server/src/db/seed.ts:103-185`).
 - L02 experiment PRs #483 and #484 with patched `pr_files`, no review
   (`../server/src/db/seed.ts:187-214`); the PR list therefore has three PRs.
-- Five enabled agents: General, Security, Performance, Test Quality and API
-  Contract Reviewer (`../server/src/db/seed.ts:216-281`).
-- Twelve enabled skills (`../server/src/db/seed-skills.ts`, written by
-  `../server/src/db/seed.ts:283-298`) and their links
-  (`../server/src/db/seed.ts:300-316`): Security Reviewer 6 linked / 3
-  enabled, Test Quality Reviewer 4 / 4, Performance 2 / 2, API Contract 2 / 2.
+- Four enabled agents: General, Security, Performance and Test Quality
+  Reviewer (`../server/src/db/seed.ts:216-270`). The API Contract Reviewer is
+  not seeded; the user creates it in the UI (`../specs/HW02-conventions-and-api-contract.md` D9).
+- Ten enabled skills (`../server/src/db/seed-skills.ts`, written by
+  `../server/src/db/seed.ts:272-287`) and their links
+  (`../server/src/db/seed.ts:289-305`): Security Reviewer 6 linked / 3
+  enabled, Test Quality Reviewer 4 / 4, Performance 2 / 2.
 - No LLM or GitHub key is required: the API boots with every secret optional
   and serves persisted data when GitHub is unreachable
   (`../server/src/modules/pulls/service.ts:59-67`).
@@ -70,13 +71,13 @@ Paths are relative to `e2e/`.
 | `05-pr-diff` | `/pulls/482?tab=diff` via the "Files changed" tab button | text *src/config.ts* | seeded `pr_files` (`../server/src/db/seed.ts:129-134`) |
 | `06-onboarding` | `/onboarding` | texts `Add a repository`, `Repository URL` | `AddRepoView` copy (`../client/src/app/onboarding/_components/AddRepoView/AddRepoView.tsx:77`, `:94`) |
 | `07-settings` | `/settings/api-keys`, `/settings/models` | texts `API Keys`, `Feature Models` | `SETTINGS_SECTIONS` labels (`../client/src/vendor/ui/nav.ts:39-41`) |
-| `08-skills` | `/skills` → click `secret-leakage-gate` → `?tab=preview` → Config tab button → `?tab=config`; `/agents` → click `Security Reviewer` → Skills tab | skill cards `branch-coverage-check` / `secret-leakage-gate`, body header `secret-leakage-gate.md`; a 40-line body draft (one 300-char line, caret at the end, never saved) → `BODY_EDITOR_OK`: textarea not scrolled, `scrollHeight ≤ clientHeight`, `scrollWidth ≤ clientWidth`, the frame scrolls on x; agent cards `Test Quality Reviewer`, `API Contract Reviewer`, chip `4 skills`; `3 of 6 enabled`, `lethal-trifecta` | L02 seed skills + links; body textarea `aria-label` "Skill body" (`../client/messages/en/skills.json:140`); skill tab button "Config" (`skills.json:120`); Skills tab button "Skills" (`../client/messages/en/agents.json:48`), pill `skills.enabledCount` (`:93`) |
+| `08-skills` | `/skills` → click `secret-leakage-gate` → `?tab=preview` → Config tab button → `?tab=config`; `/agents` → click `Security Reviewer` → Skills tab | skill cards `branch-coverage-check` / `secret-leakage-gate`, body header `secret-leakage-gate.md`; a 40-line body draft (one 300-char line, caret at the end, never saved) → `BODY_EDITOR_OK`: textarea not scrolled, `scrollHeight ≤ clientHeight`, `scrollWidth ≤ clientWidth`, the frame scrolls on x; agent card `Test Quality Reviewer`, chip `4 skills`; `3 of 6 enabled`, `lethal-trifecta` | L02 seed skills + links; body textarea `aria-label` "Skill body" (`../client/messages/en/skills.json:140`); skill tab button "Config" (`skills.json:120`); Skills tab button "Skills" (`../client/messages/en/agents.json:48`), pill `skills.enabledCount` (`:93`) |
 
 The `steps` arrays: `specs/01-app-boot.flow.json:5-8`,
 `specs/02-repo-pulls-detail.flow.json:5-11`, `specs/03-agents.flow.json:5-8`,
 `specs/04-pr-findings.flow.json:5-16`, `specs/05-pr-diff.flow.json:5-14`,
 `specs/06-onboarding.flow.json:5-8`, `specs/07-settings.flow.json:5-11`,
-`specs/08-skills.flow.json:5-30`.
+`specs/08-skills.flow.json:5-29`.
 
 ### Flow authoring rules
 

@@ -173,8 +173,10 @@ them (`POST /skills/import/preview`, `POST /skills/import`) come in Stage 3b.
 Plain typed data written by `src/db/seed.ts` (idempotent: skills by name
 with a v1 body snapshot, PRs by number, and an agent's links only while it has
 none, so user edits survive a re-seed — `test/seed.it.test.ts`):
-`SEED_SKILLS` (12 manual skills), `SEED_AGENT_SKILL_LINKS` (per agent, array
-order = `agent_skills.order`; Security 6 linked / 3 enabled),
+`SEED_SKILLS` (10 manual skills), `SEED_AGENT_SKILL_LINKS` (per agent, array
+order = `agent_skills.order`; Security 6 linked / 3 enabled; no API Contract
+Reviewer — the user creates that agent and its skills in the UI,
+`../specs/HW02-conventions-and-api-contract.md` D9),
 `SEED_EXPERIMENT_PRS` (#483, #484 on `acme/payments-api` with `pr_files`
 patches in GitHub format, read by `diffFromPrFiles` when there is no clone).
 Skill bodies and prompts stay generic — they never name the experiment PRs'
@@ -200,6 +202,6 @@ defects (see `../specs/L02-skills.md` D8).
 | CRUD, v1 + snapshot, version rule, no bump on enabled-only / unchanged values, 409 duplicate create + rename, ack 409 → OK → not needed again, `agent_count` incl. disabled links, delete cascade, workspace scope, R3 shapes | `test/skills.it.test.ts` |
 | link order/enabled, one bump per changed save, no bump on unchanged list, detach-all bump, 400 foreign/unknown skill with nothing written, 404 agent, effective `skill_count`, config edit snapshots links, port `enabledForAgent` / `namesInWorkspace`, R3 shapes | `test/agent-skills.it.test.ts` |
 | import routes + trust path: preview stores nothing and lists skipped scripts; save ignores a client body/source/enabled, stores `imported_file` disabled with the parsed body; `name_exists` then 409 duplicate; enable → 409 `skill_ack_required` → with ack 200 + `acknowledged_at`, no bump; overrides on a `.md`; 415 / 422 codes incl. `import_invalid_field` details; R3 shapes | `test/skill-import.it.test.ts` |
-| seed idempotent (second run adds nothing); 5 agents, 12 skills + v1 snapshots, 14 links, PRs #482–#484 with `@@` patches; Security 6 linked / 3 enabled in design order; a re-seed keeps a user's unticked link | `test/seed.it.test.ts` |
+| seed idempotent (second run adds nothing); 4 agents, 10 skills + v1 snapshots, 12 links, PRs #482–#484 with `@@` patches; Security 6 linked / 3 enabled in design order; a re-seed keeps a user's unticked link | `test/seed.it.test.ts` |
 | pure rules: `bumpsVersion`, `needsAck`, `linksChanged`, `missingIds`, DTO mapping, unique-violation detection | `test/skills-helpers.test.ts` |
 | import: `.md` and folder zip; quoted / colon / `>` / `\|` / nested frontmatter; `..`, absolute, drive, backslash, symlink paths; > 200 entries; declared and inflated size + CRC; references and skipped files; no or several SKILL.md; bad frontmatter; unsupported file; base64 limit and malformed base64; every warning kind; `resolveImportSave` overrides, `import_description_missing`, `import_invalid_name`, `import_invalid_field` (description, empty body, long body), body never overridable | `test/skill-import.test.ts` |

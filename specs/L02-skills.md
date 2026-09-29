@@ -635,3 +635,11 @@ README.md, references/plan.md}`; `.claude/skills/README.md`.
   (`8aabc17`, wording only). The experiment DB holds that text as v2 of both
   skills (saved through the UI); a fresh seed ships the same text as
   version 1.
+- After L02, HW02 Stage 0f (2026-09-29) removed the seeded API Contract
+  Reviewer (D1) and its seed skills `route-signature-diff` and
+  `breaking-change-rubric` from the seed. They were homework scope that had
+  leaked into the lab: HW02 creates that agent and its skills in the UI
+  (`HW02-conventions-and-api-contract.md` D9–D11). PR fixtures #483 / #484
+  and "Stage 8 results" above stay as the lab record. The removed seed text
+  is in git history (`server/src/db/seed-skills.ts` and `seed-prompts.ts` at
+  `8d65d15`). A fresh seed now has 4 agents, 10 skills and 12 links.

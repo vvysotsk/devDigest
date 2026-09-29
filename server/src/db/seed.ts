@@ -8,7 +8,6 @@ import {
   SECURITY_REVIEWER_PROMPT,
   PERFORMANCE_REVIEWER_PROMPT,
   TEST_QUALITY_REVIEWER_PROMPT,
-  API_CONTRACT_REVIEWER_PROMPT,
 } from './seed-prompts.js';
 import { SEED_AGENT_SKILL_LINKS, SEED_SKILLS } from './seed-skills.js';
 import { SEED_EXPERIMENT_PRS } from './seed-prs.js';
@@ -24,11 +23,12 @@ const DEFAULT_MODEL = 'deepseek/deepseek-v4-flash';
  * Seeds: default workspace + system user + membership, default settings,
  * demo repo (acme/payments-api), PR #482 with files/commits, a sample review
  * with a few findings, the L02 experiment PRs #483 / #484 (with patches, so a
- * review works without a clone), five built-in agents (General, Security,
- * Performance, Test Quality, API Contract) on the default
- * openrouter/deepseek-v4-flash provider+model, the 12 L02 seed skills and
- * their links (an agent's links are seeded only while it has none, so user
- * edits survive a re-seed).
+ * review works without a clone), four built-in agents (General, Security,
+ * Performance, Test Quality) on the default openrouter/deepseek-v4-flash
+ * provider+model, the 10 L02 seed skills and their links (an agent's links
+ * are seeded only while it has none, so user edits survive a re-seed). The
+ * API Contract Reviewer is not seeded: the user creates it in the UI (HW02
+ * D9, D10).
  *
  * Course lessons populate the other tables (conventions, memory, eval, …)
  * once their features are built — they start empty here.
@@ -213,7 +213,7 @@ export async function seed(db: Db): Promise<{ workspaceId: string; userId: strin
     await db.insert(t.prCommits).values(p.commits.map((c) => ({ prId: row!.id, ...c })));
   }
 
-  // ---- built-in agents (starter presets + the two L02 agents) ----
+  // ---- built-in agents (starter presets + the L02 Test Quality agent) ----
   // Prompt bodies live in ./seed-prompts.ts (mirrored in docs/agent-prompts/*.md).
   const seedAgents: Array<typeof t.agents.$inferInsert> = [
     {
@@ -256,17 +256,6 @@ export async function seed(db: Db): Promise<{ workspaceId: string; userId: strin
       provider: DEFAULT_PROVIDER,
       model: DEFAULT_MODEL,
       systemPrompt: TEST_QUALITY_REVIEWER_PROMPT,
-      enabled: true,
-      version: 1,
-      createdBy: userId,
-    },
-    {
-      workspaceId,
-      name: 'API Contract Reviewer',
-      description: 'Flags breaking changes to routes, response shapes and request parameters.',
-      provider: DEFAULT_PROVIDER,
-      model: DEFAULT_MODEL,
-      systemPrompt: API_CONTRACT_REVIEWER_PROMPT,
       enabled: true,
       version: 1,
       createdBy: userId,

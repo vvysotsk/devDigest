@@ -22,9 +22,6 @@ export const SEED_SKILL_NAMES = [
   'edge-case-hunter',
   'over-mocking-smell',
   'flaky-test-patterns',
-  // API Contract Reviewer
-  'route-signature-diff',
-  'breaking-change-rubric',
 ] as const;
 
 export type SeedSkillName = (typeof SEED_SKILL_NAMES)[number];
@@ -382,93 +379,12 @@ A test is worth something only if it fails when the code is wrong.
 - WARNING for a pattern that can fail on a clean CI run.
 - SUGGESTION for a pattern that only fails under unusual environments.`,
   },
-  {
-    name: 'route-signature-diff',
-    type: 'custom',
-    source: 'manual',
-    description:
-      'Use when a diff changes an HTTP route, its handler or its request / response schema: write down the old and new signature of each route (method, path, params, query, body, status codes, response shape) and report every difference.',
-    body: `# Route signature diff
-
-## Method
-For every route whose handler or schema the diff touches, reconstruct the
-signature before and after the change from the removed and added lines:
-
-- method and path, including path parameters;
-- query parameters: name, type, required or optional, default, bounds;
-- request body fields: name, type, required or optional;
-- status codes returned, including error codes;
-- response body: top-level type (array, object, scalar), field names, field
-  types, nullability;
-- headers the client must send or can read.
-
-Remember that a shared schema changes every route that uses it.
-
-## Flag
-- Every difference between the two signatures, stated as
-  \`old → new\` in the rationale (for example \`query id: string → number\`).
-- Handler behaviour that no longer matches the declared schema.
-
-## Do not flag
-- Internal refactors that leave the signature identical.
-- Changes to routes the diff does not reach.
-
-## How to report
-- One finding per breaking difference (response shape, parameter, sort order,
-  status code), each anchored on its own changed schema or handler line. Do
-  not merge several differences of one route into one finding.
-- Classify each difference with \`breaking-change-rubric\` when that skill is
-  present; otherwise say whether an existing client would break.`,
-  },
-  {
-    name: 'breaking-change-rubric',
-    type: 'rubric',
-    source: 'manual',
-    description:
-      'Use when a diff changes a public API (route, response or request schema, status code, exported type): classify each change as breaking or compatible and block breaking changes that ship without versioning, deprecation or a consumer update.',
-    body: `# Breaking change rubric
-
-A change is **breaking** when a client written against the old contract can
-fail, misread data or be rejected after the deploy.
-
-## Breaking
-- Removing or renaming a response field, or changing its type or
-  nullability.
-- Changing the top-level type of a response (array, object, scalar) or
-  moving fields to a different nesting level.
-- Removing or renaming a query, path or body parameter; the old name is
-  then ignored or rejected.
-- Making an optional input required, narrowing accepted values or bounds.
-- Changing a status code, an error envelope or the meaning of a default.
-- Changing the default sort order of a list response or the way it pages; a
-  client that relies on the order, or pages with the old scheme, can skip or
-  repeat records.
-- Changing the method or path of a route.
-
-## Compatible
-- Adding an optional input or a new response field.
-- Adding a new route or a new status code for a new situation.
-- Widening accepted values.
-
-## Mitigations that make a breaking change acceptable
-- A new version (\`/v2\`, version header) while the old one keeps working.
-- The old name or shape kept as an alias during a deprecation window.
-- Every consumer updated in the same diff (and no external consumers).
-
-## Severity
-- CRITICAL for a breaking change to a public route with none of the
-  mitigations above.
-- WARNING when a mitigation exists but is incomplete, or the route is
-  documented as internal.
-- Do not flag compatible changes.`,
-  },
 ];
 
 export type SeedAgentName =
   | 'Security Reviewer'
   | 'Performance Reviewer'
-  | 'Test Quality Reviewer'
-  | 'API Contract Reviewer';
+  | 'Test Quality Reviewer';
 
 export interface SeedAgentSkillLink {
   skill: SeedSkillName;
@@ -477,8 +393,8 @@ export interface SeedAgentSkillLink {
 
 /**
  * Links per agent, in prompt order (`agent_skills.order` = array index).
- * Security matches 2.png: 6 linked, 3 enabled. API Contract gets its third
- * skill (`api-deprecation-policy`) through the user's manual import.
+ * Security matches 2.png: 6 linked, 3 enabled. The API Contract Reviewer and
+ * its skills are not seeded: the user creates them in the UI (HW02 D9-D11).
  */
 export const SEED_AGENT_SKILL_LINKS: Readonly<Record<SeedAgentName, readonly SeedAgentSkillLink[]>> = {
   'Security Reviewer': [
@@ -498,9 +414,5 @@ export const SEED_AGENT_SKILL_LINKS: Readonly<Record<SeedAgentName, readonly See
     { skill: 'edge-case-hunter', enabled: true },
     { skill: 'over-mocking-smell', enabled: true },
     { skill: 'flaky-test-patterns', enabled: true },
-  ],
-  'API Contract Reviewer': [
-    { skill: 'route-signature-diff', enabled: true },
-    { skill: 'breaking-change-rubric', enabled: true },
   ],
 };

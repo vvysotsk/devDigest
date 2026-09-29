@@ -57,6 +57,9 @@ Never rewrite existing entries — correct with a dated note.
   `src/db/seed-skills.ts:417-419`, commit `8aabc17`; runs `3cc3a7dd`,
   `77338a0b` vs `ee0ce762`, `1125706e` in `../specs/L02-skills.md` "Stage 8
   results").
+  - 2026-09-29 note: HW02 Stage 0f removed `route-signature-diff` from the
+    seed. The cited lines are in git history, `src/db/seed-skills.ts:417-419`
+    at `8d65d15`; the lesson still applies to the HW02 API skills.
 
 ## Codebase Patterns
 

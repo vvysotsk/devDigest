@@ -1,6 +1,6 @@
 /**
  * `seed()` is idempotent: a second run adds nothing (L02 Stage 7). Also pins
- * what the L02 seed provides — 5 agents, 12 skills (each with its v1 body
+ * what the L02 seed provides — 4 agents, 10 skills (each with its v1 body
  * snapshot), the link plan (Security 6 linked / 3 enabled) and PRs #482–#484
  * with patches for the experiment PRs — and that a re-seed keeps a user's
  * edited link list.
@@ -45,14 +45,14 @@ d('seed (Testcontainers pg)', () => {
   it('seeds the L02 data once and a second run changes nothing', async () => {
     await seed(db);
     const first = await counts();
-    expect(first).toMatchObject({ agents: 5, skills: 12, skillVersions: 12, agentSkills: 14, pulls: 3 });
+    expect(first).toMatchObject({ agents: 4, skills: 10, skillVersions: 10, agentSkills: 12, pulls: 3 });
 
     await seed(db);
     expect(await counts()).toEqual(first);
 
     const agents = await db.select({ name: t.agents.name }).from(t.agents);
     expect(agents.map((a) => a.name).sort()).toEqual(
-      ['API Contract Reviewer', 'General Reviewer', 'Performance Reviewer', 'Security Reviewer', 'Test Quality Reviewer'],
+      ['General Reviewer', 'Performance Reviewer', 'Security Reviewer', 'Test Quality Reviewer'],
     );
     const prs = await db.select({ number: t.pullRequests.number, id: t.pullRequests.id }).from(t.pullRequests);
     expect(prs.map((p) => p.number).sort()).toEqual([482, 483, 484]);

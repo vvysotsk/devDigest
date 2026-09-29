@@ -1,6 +1,6 @@
 {
   "name": "Skills page and agent Skills tab render the seeded L02 skills",
-  "description": "Read-only L02 check against the seed: /skills lists the seeded skills and opens one in the side-pane preview, then the Config tab with the '<name>.md' body header; /agents shows both new agents with their skill-count chips; Security Reviewer's Skills tab shows the design's '3 of 6 enabled'. Every find … click is preceded by a wait --text for its target (flows-contract authoring rules). The body editor gets a 40-line draft that is never saved: the textarea must be as tall and wide as its content (no internal scroll) while its frame scrolls. No model call, no writes.",
+  "description": "Read-only L02 check against the seed: /skills lists the seeded skills and opens one in the side-pane preview, then the Config tab with the '<name>.md' body header; /agents shows the Test Quality agent with its skill-count chip; Security Reviewer's Skills tab shows the design's '3 of 6 enabled'. Every find … click is preceded by a wait --text for its target (flows-contract authoring rules). The body editor gets a 40-line draft that is never saved: the textarea must be as tall and wide as its content (no internal scroll) while its frame scrolls. No model call, no writes.",
   "steps": [
     { "cmd": ["open", "{BASE}/skills"], "label": "load the skills page" },
     { "cmd": ["wait", "--url", "/skills"], "label": "skills route reached" },
@@ -18,7 +18,6 @@
     { "cmd": ["open", "{BASE}/agents"], "label": "load the agents page" },
     { "cmd": ["wait", "--url", "/agents"], "label": "agents route reached" },
     { "cmd": ["wait", "--text", "Test Quality Reviewer"], "label": "the Test Quality agent card is visible" },
-    { "cmd": ["wait", "--text", "API Contract Reviewer"], "label": "the API Contract agent card is visible" },
     { "cmd": ["wait", "--text", "4 skills"], "label": "Test Quality shows its 4 effective skills" },
     { "cmd": ["wait", "--text", "Security Reviewer"], "label": "the Security agent card is visible" },
     { "cmd": ["find", "text", "Security Reviewer", "click"], "label": "open the Security Reviewer agent" },
