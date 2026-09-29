@@ -1,4 +1,4 @@
-Status: draft
+Status: implemented (lesson-2, not merged)
 
 # L02 — Skills in the product
 

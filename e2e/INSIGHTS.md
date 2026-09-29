@@ -45,6 +45,15 @@ Never rewrite existing entries — correct with a dated note.
   still proves nothing about what rendered (run logs of 2026-09-27: the tab
   `wait --text` after it took 20–33 ms).
 
+- 2026-09-29: On Windows with Smart App Control On, the unsigned
+  `agent-browser-win32-x64.exe` is blocked even outside any sandbox. Bash
+  reports `Permission denied` (exit 126); PowerShell reports "An Application
+  Control policy has blocked this file"; the CodeIntegrity log shows events
+  3077 / 3118. Smart App Control has no per-file exception. Check its state
+  with `(Get-MpComputerStatus).SmartAppControlState`. Here the user turned it
+  Off. The alternative is a non-Windows runner (macOS, Linux or CI)
+  (evidence: `CLAUDE.md:13` recipe binary, `run.ts:40`).
+
 ## Recurring Errors & Fixes
 
 - 2026-09-27: On Windows the hermetic suite fails in three stacked ways,
