@@ -180,7 +180,12 @@ in the working tree on 2026-09-29.
 - **D6 Agent Skills tab (#31, #37)**
   - A row is draggable, and a drop target, only while its link is enabled
     and the skill is enabled.
-  - The per-agent enable becomes the kit `Toggle` instead of a checkbox.
+  - ↑/↓ stay on every linked row as the keyboard way to reorder. #31 names
+    drag & drop only.
+  - `dragend` clears the dragged row, so a drag dropped on a disabled row
+    cannot leak into the next drop.
+  - The per-agent enable becomes the kit `Toggle` instead of a checkbox. The
+    kit `Toggle` gains an optional `label` (its accessible name).
 - **D7 Confirm modals (#23, #24, #34)**
   - The skill card reuses `DeleteSkillConfirm`.
   - Agent delete gets the same kit-`Modal` confirm (confirm / cancel / X)

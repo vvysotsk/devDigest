@@ -13,6 +13,16 @@ Never rewrite existing entries — correct with a dated note.
 
 ## What Doesn't Work
 
+- 2026-09-29: A drag-and-drop list that remembers the dragged row in a ref
+  and resets it only in `onDrop` leaks that row once drops are restricted.
+  A drop on a row that refuses it (the agent Skills tab accepts drops only on
+  enabled skills) never runs the reset, so the next accepted drop moves the
+  stale row. Clear the ref in `onDragEnd`, which the browser fires on the
+  source after every drag, dropped or not (evidence:
+  `src/app/agents/[id]/_components/AgentEditor/_components/SkillsTab/SkillsTab.tsx:128-131`,
+  `…/SkillsTab/_components/SkillRow/SkillRow.tsx:61`,
+  `…/SkillsTab/SkillsTab.test.tsx:162`).
+
 - 2026-09-24: A CSS custom property referenced through `var()` must be defined on (or above) the element that COMPUTES the referencing property, not on a descendant — `.pr-list { --pr-grid: var(--pr-grid-wide) }` with `--pr-grid-wide` set inline on the inner table card made `--pr-grid` invalid, and every row collapsed into one column (`grid-template-columns: none`). Put the source variables on the same element (`s.listRoot` on the `.pr-list` div) and give each `var()` in inline styles a fallback (evidence: `src/app/repos/[repoId]/pulls/styles.ts` listRoot/row).
 - 2026-09-24: UPDATE to the entry above — evidence lines:
   `src/app/repos/[repoId]/pulls/styles.ts:97-105` (`listRoot`) and

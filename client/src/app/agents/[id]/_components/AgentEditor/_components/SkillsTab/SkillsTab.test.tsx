@@ -5,7 +5,7 @@
  * agent switch drop the draft.
  */
 import { describe, it, expect, afterEach, beforeEach, vi } from "vitest";
-import { render, screen, cleanup, within } from "@testing-library/react";
+import { render, screen, cleanup, within, fireEvent } from "@testing-library/react";
 import userEvent from "@testing-library/user-event";
 import { NextIntlClientProvider } from "next-intl";
 import type { AgentSkill, AgentSkillsPut, Skill } from "@devdigest/shared";
@@ -67,7 +67,9 @@ const order = () =>
   within(screen.getByRole("list", { name: "Skills" }))
     .getAllByRole("listitem")
     .map((li) => li.getAttribute("aria-label"));
-const box = (name: string) => screen.getByRole("checkbox", { name });
+const box = (name: string) => screen.getByRole("switch", { name: `Enable ${name} for this agent` });
+const item = (name: string) => screen.getByRole("listitem", { name });
+const dataTransfer = () => ({ setData: vi.fn(), effectAllowed: "" });
 const saveBtn = () => screen.getByRole("button", { name: "Save skills" });
 
 describe("Agent SkillsTab", () => {
@@ -79,7 +81,7 @@ describe("Agent SkillsTab", () => {
     expect(order()).toEqual(["alpha-rule", "beta-rule", "gamma-rule", "delta-rule", "eps-rule"]);
     expect(screen.getByText("1 of 3 enabled")).toBeInTheDocument(); // gamma is disabled globally
     expect(within(screen.getByRole("listitem", { name: "gamma-rule" })).getByText(/disabled on the Skills page/)).toBeInTheDocument();
-    expect(screen.getByText(/Drag to reorder\./)).toBeInTheDocument();
+    expect(screen.getByText(/Drag enabled skills to reorder\./)).toBeInTheDocument();
     expect(saveBtn()).toBeDisabled();
     expect(screen.getByRole("button", { name: "Skills" })).toBeInTheDocument();
 
@@ -135,6 +137,35 @@ describe("Agent SkillsTab", () => {
     expect(saveBtn()).toBeDisabled();
     expect(screen.getByRole("button", { name: "Skills" })).toBeInTheDocument();
     expect(h.put).not.toHaveBeenCalled();
+  });
+
+  it("only enabled skills can be dragged or dropped on (#31)", async () => {
+    const user = userEvent.setup();
+    render(ui());
+
+    // alpha: linked + enabled; beta: link disabled; gamma: disabled globally; delta / eps: unlinked.
+    expect(item("alpha-rule")).toHaveAttribute("draggable", "true");
+    expect(item("beta-rule")).toHaveAttribute("draggable", "false");
+    expect(item("gamma-rule")).toHaveAttribute("draggable", "false");
+    expect(item("delta-rule")).toHaveAttribute("draggable", "false");
+
+    await user.click(box("eps-rule")); // linked at the end, enabled → draggable
+    expect(item("eps-rule")).toHaveAttribute("draggable", "true");
+    fireEvent.dragStart(item("eps-rule"), { dataTransfer: dataTransfer() });
+    fireEvent.dragOver(item("alpha-rule"));
+    fireEvent.drop(item("alpha-rule"));
+    expect(order()).toEqual(["eps-rule", "alpha-rule", "beta-rule", "gamma-rule", "delta-rule"]);
+
+    // Dropping on a disabled row, or dragging one, changes nothing.
+    fireEvent.dragStart(item("alpha-rule"), { dataTransfer: dataTransfer() });
+    fireEvent.drop(item("beta-rule"));
+    fireEvent.dragEnd(item("alpha-rule")); // the browser ends every drag on its source
+    fireEvent.dragStart(item("beta-rule"), { dataTransfer: dataTransfer() });
+    fireEvent.drop(item("eps-rule"));
+    expect(order()).toEqual(["eps-rule", "alpha-rule", "beta-rule", "gamma-rule", "delta-rule"]);
+
+    await user.click(box("alpha-rule")); // disabled on this agent → no longer draggable
+    expect(item("alpha-rule")).toHaveAttribute("draggable", "false");
   });
 
   it("drops the draft when another agent is opened", async () => {

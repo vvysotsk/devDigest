@@ -12,6 +12,7 @@ import {
   buildRows,
   countEnabled,
   detach,
+  isMovable,
   linksToDraft,
   moveTo,
   neighbour,
@@ -123,7 +124,10 @@ export function SkillsTab({
                   dragged.current = id;
                 },
                 drop: () => {
-                  if (dragged.current && row.link) edit(moveTo(items, dragged.current, id));
+                  if (dragged.current && isMovable(row)) edit(moveTo(items, dragged.current, id));
+                  dragged.current = null;
+                },
+                dragEnd: () => {
                   dragged.current = null;
                 },
               }}

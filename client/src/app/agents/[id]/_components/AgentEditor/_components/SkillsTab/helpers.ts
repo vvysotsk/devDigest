@@ -51,6 +51,14 @@ export interface SkillRowModel {
   link: SkillLinkDraft | null;
 }
 
+/**
+ * Drag & drop reorders only enabled skills (HW02 #31): the row is linked, its
+ * link is enabled on this agent, and the skill is enabled globally.
+ */
+export function isMovable(row: SkillRowModel): boolean {
+  return row.link !== null && row.link.enabled && row.skill.enabled;
+}
+
 /** Linked skills first in draft order, then the unlinked ones by name; filtered by name. */
 export function buildRows(items: SkillLinkDraft[], skills: Skill[], filter: string): SkillRowModel[] {
   const byId = new Map(skills.map((sk) => [sk.id, sk]));

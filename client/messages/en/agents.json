@@ -1,7 +1,8 @@
 {
   "card": {
     "noDescription": "No description",
-    "skillCount": "{count, plural, one {# skill} other {# skills}}"
+    "skillCount": "{count, plural, one {# skill} other {# skills}}",
+    "delete": "Delete {name}"
   },
   "list": {
     "breadcrumbLab": "Skills Lab",
@@ -92,7 +93,7 @@
     "title": "Skills",
     "enabledCount": "{linked} of {total} enabled",
     "filterPlaceholder": "Filter skills…",
-    "orderHint": "Order matters — earlier skills appear earlier in the assembled prompt. Drag to reorder.",
+    "orderHint": "Order matters — earlier skills appear earlier in the assembled prompt. Drag enabled skills to reorder.",
     "dragHint": "Drag to reorder",
     "moveUp": "Move {name} up",
     "moveDown": "Move {name} down",
@@ -106,9 +107,19 @@
     "savedToast": "Skills saved (v{version})",
     "loadError": "Could not load this agent's skills.",
     "emptyTitle": "No skills yet",
-    "emptyLink": "Create or import one on the Skills page"
+    "emptyLink": "Create or import one on the Skills page",
+    "dragEnabledOnly": "Only enabled skills can be dragged",
+    "enableLabel": "Enable {name} for this agent"
   },
   "mount": {
     "body": "Mount point for {owner}. The Agent Editor shell + tab routing are wired by A2 — {owner} renders this tab."
+  },
+  "delete": {
+    "title": "Delete agent {name}?",
+    "irreversible": "The agent is removed from the database. This cannot be undone.",
+    "cancel": "Cancel",
+    "confirm": "Delete",
+    "deleting": "Deleting…",
+    "error": "Could not delete the agent."
   }
 }

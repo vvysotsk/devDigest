@@ -151,7 +151,11 @@ for the PR page (`FindingsPanel/FindingsPanel.tsx`, `RunHistory/RunHistory.tsx`,
   `/agents/:id?tab=config`; the card's "N skills" chip shows
   `Agent.skill_count` (effective skills) and is hidden at 0
   (`src/app/agents/_components/AgentsListView/AgentsListView.tsx:89`,
-  `src/app/agents/_components/AgentCard/AgentCard.tsx:66-68`).
+  `src/app/agents/_components/AgentCard/AgentCard.tsx:61-65`). The card's
+  trash button ("Delete {name}") opens `DeleteAgentConfirm`
+  (`src/app/agents/_components/AgentCard/_components/DeleteAgentConfirm/DeleteAgentConfirm.tsx`,
+  kit `Modal`: Delete / Cancel / X); only Delete sends `DELETE /agents/:id`.
+  The modal renders next to the card, so its clicks never open the agent.
 - `/agents/:id`: left list of all agents, right `AgentEditor` with tabs
   `config` and `skills` (`?tab=`, anything else → `config`,
   `src/app/agents/[id]/page.tsx:15`, `:27`); the header shows
@@ -159,10 +163,15 @@ for the PR page (`FindingsPanel/FindingsPanel.tsx`, `RunHistory/RunHistory.tsx`,
   `ErrorState`.
 - Skills tab: every workspace skill — linked ones first in their order, then
   unlinked; "N of M enabled" (N = linked AND globally enabled, M = linked);
-  filter; order hint; rows with drag handle, ↑/↓, checkbox, name, type badge,
-  Detach; a globally disabled skill is greyed with a hint. Tick an unlinked
-  skill = link at the end, enabled; untick = keep the link and position,
-  disabled; Detach = remove. All edits stay in a draft (tab label marked)
+  filter; order hint; rows with drag handle, ↑/↓, the per-agent enable
+  switch ("Enable {name} for this agent"), name, type badge, Detach; a
+  globally disabled skill is greyed with a hint. Switching an unlinked skill
+  on = link at the end, enabled; off = keep the link and position, disabled;
+  Detach = remove. Only an enabled skill — linked, enabled on this agent and
+  enabled globally (`isMovable`, `SkillsTab/helpers.ts`) — can be dragged or
+  dropped on; the handle of any other linked row is dimmed ("Only enabled
+  skills can be dragged"). ↑/↓ stay on every linked row as the keyboard way
+  to reorder. A drag always ends in `dragend`, which clears the dragged row. All edits stay in a draft (tab label marked)
   until "Save skills" sends ONE `PUT /agents/:id/skills`; "Discard" and an
   agent switch drop it.
 
@@ -299,13 +308,14 @@ for the PR page (`FindingsPanel/FindingsPanel.tsx`, `RunHistory/RunHistory.tsx`,
 | Verdict banner label + score + counts | `VerdictBanner/VerdictBanner.test.tsx:18` |
 | `formatCost` dash vs `$0.00` vs scaled decimals; token compaction | `src/features/reviews/lib/cost-format.test.ts:9-24`, `src/features/reviews/components/run-cost-badge/RunCostBadge.test.tsx:13-42` |
 | `countBySeverity` ignores unknown values; pills / icons render only present severities | `src/features/reviews/lib/severity.test.ts:11-43`, `src/features/reviews/components/severity-summary/SeveritySummary.test.tsx:12-37` |
-| Agent card and editor render | `src/app/agents/_components/AgentCard/AgentCard.test.tsx:38`, `src/app/agents/[id]/_components/AgentEditor/AgentEditor.test.tsx:42` |
+| Agent card and editor render | `src/app/agents/_components/AgentCard/AgentCard.test.tsx:34`, `src/app/agents/[id]/_components/AgentEditor/AgentEditor.test.tsx:42` |
+| Agent card Delete: confirm modal, Cancel / X close it, Delete deletes, the card's click is never reached | `src/app/agents/_components/AgentCard/AgentCard.test.tsx:49` |
 | Skill cards (version, agent count), switch, imported first-enable acknowledgement, card click → `?tab=preview`, card Delete confirm (cancel / X / delete → back to `/skills`), create flow | `src/app/skills/_components/SkillsListView/SkillsListView.test.tsx` |
 | Import preview (raw text, warnings, file statuses), save with overrides and no body, error-code messages, size pre-check | `src/app/skills/_components/SkillsListView/_components/ImportSkillModal/ImportSkillModal.test.tsx` |
 | Config changed-field PUT + "Saved (v2)", unsaved chip + token estimate, delete confirm, Config acknowledgement, Enabled toggle keeps the unsaved draft, Preview raw/rendered, Versioning tab label, "metadata change", Diff lines, Restore → new version (disabled for the current body) | `src/app/skills/[id]/_components/SkillEditor/SkillEditor.test.tsx` |
 | `lineDiff` (same / add / del, moved lines, the cell-limit fallback) and `versionRows` | `src/app/skills/[id]/_components/SkillEditor/_components/VersionsTab/helpers.test.ts` |
 | Every `SkillErrorCode` has a message | `src/app/skills/helpers.test.ts` |
-| Agent Skills tab: draft-only tick / untick / ↑↓ / Detach, one PUT on Save, Discard, "N of M enabled", draft reset on agent switch, empty state | `src/app/agents/[id]/_components/AgentEditor/_components/SkillsTab/SkillsTab.test.tsx` |
+| Agent Skills tab: draft-only switch on / off / ↑↓ / Detach, one PUT on Save, Discard, "N of M enabled", only enabled skills drag or take a drop, draft reset on agent switch, empty state | `src/app/agents/[id]/_components/AgentEditor/_components/SkillsTab/SkillsTab.test.tsx` |
 | "N skills" chip from `skill_count`, hidden at 0 | `src/app/agents/_components/AgentsListView/AgentsListView.test.tsx`, `src/app/agents/_components/AgentCard/AgentCard.test.tsx` |
 | Trace Skills label with count + tokens, one row per skill, plain block without `skill_blocks` | `RunTraceDrawer/_components/TraceBody/TraceBody.test.tsx` |
 | Kit gallery renders in both themes; diff viewer parses a unified patch | `src/test/smoke.test.tsx:15`, `:27` |
