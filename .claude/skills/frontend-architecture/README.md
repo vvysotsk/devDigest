@@ -40,7 +40,7 @@ is CRITICAL. A signal is at most a SUGGESTION.
 
 ## Version
 
-**2.0.0** — see `metadata.version` in `SKILL.md` and the row in
+**2.0.1** — see `metadata.version` in `SKILL.md` and the row in
 `.claude/skills/README.md`.
 
 When you change `SKILL.md`, bump the version and add a Changelog line:
@@ -49,6 +49,8 @@ When you change `SKILL.md`, bump the version and add a Changelog line:
 - **major** — a settled decision (R1–R7, a trigger's condition) is changed.
 
 ## Changelog
+
+- **2.0.1 — 2026-09-29** — pointers only, no rule changes: the rules files moved to `AGENTS.md` (`CLAUDE.md` is now a one-line `@AGENTS.md` import, HW02 Stage 0a), so references to the repo's rules file name `AGENTS.md`.
 
 - **2.0.0 — 2026-09-28** — the `features/` layer exists: R4 (was "No
   `features/` layer now") now places a grown domain's shared UI, hooks and

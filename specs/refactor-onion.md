@@ -191,7 +191,7 @@ Baseline: unchanged (the Container cycles are type-only).
   refactor: `e2e/run.ts:40` spawns `agent-browser` with `execFile`, which
   cannot start the npm `.cmd` shim on win32, and `npm run e2e:hermetic`
   (`e2e/package.json:9`) runs the bash script through `cmd.exe`. Until then
-  the workaround in `e2e/CLAUDE.md` (Git Bash + `AGENT_BROWSER_BIN`) is used
+  the workaround in `e2e/AGENTS.md` (Git Bash + `AGENT_BROWSER_BIN`) is used
   for the per-stage `pr-self-review` gate.
 
 ## Verification (end to end)

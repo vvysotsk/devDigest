@@ -170,9 +170,9 @@ count, line numbers, mono font).
   README major rule (CRITICAL list, "checked" definition, D1–D13) is not met;
   D13 was *added* with a minor (2.1.0). Recorded as a new **D14** (reason: the
   flag also blocks preloading into subagents, `references/sources.md:11`).
-  Root `CLAUDE.md` "Before opening a PR" says: "ask the user to run
+  Root `AGENTS.md` "Before opening a PR" says: "ask the user to run
   `/pr-self-review`; do not `gh pr create` or push for review until they
-  report no open CRITICAL". `e2e/CLAUDE.md:8` needed no change: it only
+  report no open CRITICAL". `e2e/AGENTS.md:8` needed no change: it only
   says how to run e2e when the skill's plan lists it. The 2.2.0 release also
   makes the skill's integration command `DEVDIGEST_REQUIRE_DOCKER=1 pnpm exec
   vitest run .it.test` (skips count as a fail) and fixes the "5 files" drift

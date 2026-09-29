@@ -2,7 +2,7 @@
 name: frontend-architecture
 description: "Where frontend code lives in client/ and how it is split. Use when creating, moving or splitting a component, hook, helper or constant in client/, adding a route, or deciding where code should live. Covers folder placement, the index.ts component boundary, helpers vs lib, hooks by domain, Next.js route boundaries, API contract types, review signals with thresholds, and the triggers that would change this architecture."
 metadata:
-  version: 2.0.0
+  version: 2.0.1
   applies_to: "client/src/**, client/messages/**, !client/src/vendor/**"
   blocking: "true"
 ---
@@ -10,7 +10,7 @@ metadata:
 # Frontend architecture (client/)
 
 Rules for WHERE code lives and HOW it is split in `client/` (Next.js App
-Router, React, TanStack Query, next-intl; versions: root `CLAUDE.md` →
+Router, React, TanStack Query, next-intl; versions: root `AGENTS.md` →
 Stack). Decisions below are settled; change them only through the triggers
 in "Architecture-change triggers".
 
@@ -149,7 +149,7 @@ the architecture they imply.
   Never declare a local interface for an API payload; never `as` a fetch
   result into a hand-written type.
 - `vendor/shared` is edited only by mirroring the server master
-  (`server/CLAUDE.md`). Strategy today: keep the copy and check it against
+  (`server/AGENTS.md`). Strategy today: keep the copy and check it against
   the master; OpenAPI codegen replaces the copy only via the trigger below
   (research §7.12).
 

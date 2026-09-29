@@ -23,7 +23,7 @@ columns, extensions and safe schema evolution.
 4. **Project rules win.** The schema is written in Drizzle
    (`drizzle-orm-patterns`), and SQL migrations are generated from it. An
    applied migration is never edited: a schema change is a new migration
-   ("Do not touch", root `CLAUDE.md`). A deliberate exception to the skill
+   ("Do not touch", root `AGENTS.md`). A deliberate exception to the skill
    is recorded in `server/docs/architecture.md` → "Architecture decisions"
    (for example, why `agent_runs.cost_usd` stays double precision).
 

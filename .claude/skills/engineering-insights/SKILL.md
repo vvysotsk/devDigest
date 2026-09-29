@@ -94,7 +94,7 @@ Recurring Errors & Fixes · Session Notes · Open Questions
 - **Read the target file first**; extend an existing entry with a dated note
   instead of duplicating it.
 - **Promote** a lesson that must be seen every session to the package
-  `CLAUDE.md`; note the promotion in INSIGHTS.md.
+  `AGENTS.md`; note the promotion in INSIGHTS.md.
 - A line number drifted after an edit → append a dated note with the new
   `path:line`, do not edit the old entry.
 

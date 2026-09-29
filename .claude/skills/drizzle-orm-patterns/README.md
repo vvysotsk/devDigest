@@ -26,7 +26,7 @@ it writes or changes database code in `server/`.
    needs a transaction is decided by `onion-architecture` (R1: rows stay in
    the repository; R4: transactions at the use case with a `Db | Tx`
    executor). Applied migrations and `migrations/meta/_journal.json` are in
-   "Do not touch" (root `CLAUDE.md`): add a new migration, never edit an
+   "Do not touch" (root `AGENTS.md`): add a new migration, never edit an
    old one.
 
 ## Files

@@ -1,6 +1,6 @@
 #!/usr/bin/env node
 /**
- * PreToolUse hook (matcher: Bash) — enforces root CLAUDE.md "Course integrity
+ * PreToolUse hook (matcher: Bash) — enforces root AGENTS.md "Course integrity
  * (hard rule)": other students' commits in this fork's history must never be
  * read. Reads the tool call JSON from stdin; exits 2 with a reason on stderr
  * when the Bash command
@@ -19,7 +19,7 @@ export const BLOCKED_SHAS = [
   "97b6edc7f301", "3b17261d511f", "7641b481ef09", "93119a5e1352",
 ];
 
-const RULE = 'See "Course integrity (hard rule)" in the root CLAUDE.md.';
+const RULE = 'See "Course integrity (hard rule)" in the root AGENTS.md.';
 
 // -u is git log's alias of -p.
 const PATCH_FLAGS = new Set(["-p", "-u", "--patch", "--patch-with-stat", "--patch-with-raw"]);

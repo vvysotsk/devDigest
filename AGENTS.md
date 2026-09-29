@@ -1,0 +1,182 @@
+# DevDigest — course starter
+
+Local-first AI PR review: import GitHub PRs, run LLM reviewer agents, get
+grounded findings. Four standalone packages — deliberately NOT a pnpm
+workspace: each has its own package.json and lockfile; install per package.
+
+## Course integrity (hard rule)
+
+This fork's history contains other students' homework and lab commits:
+upstream merged their PRs (#101, #112, #137) and then reverted them. Never
+read them in any way (show, diff, log -p, grep, blame, checkout, restore,
+cherry-pick) - main session and every subagent. The commits
+(= `git rev-list 66727c8..c6af1e4`):
+c6af1e452969 376ac49a98d3 98eaf5712c84 2006964c78b7 641b6370a3ff 56e3eb778ac4
+ae55e4b955d1 8fa0ad036589 512f3096d441 84e2c1e69ee4 ddd833d91dbf 0953fdceb219
+97b6edc7f301 3b17261d511f 7641b481ef09 93119a5e1352
+
+Use only the working tree, the starter (history up to 66727c8) and our own
+commits (8ae46a9..HEAD). For history always pass a range on our lineage (e.g.
+`git log -p 8ae46a9..HEAD`); never `--all` or an open-ended `git log -p` /
+`-S` / `-G`. If such content shows up by accident: stop, tell the user, do
+not use it. Enforced for Bash by the PreToolUse hook
+`.claude/hooks/course-integrity.mjs` (`.claude/settings.json`); tests:
+`node --test ".claude/hooks/*.test.mjs"`.
+
+## Map
+
+- `server/` — Fastify 5 API (:3001) — modules / platform / adapters
+- `client/` — Next.js 15 studio (:3000)
+- `reviewer-core/` — pure review engine (diff → prompt → LLM → grounded findings)
+- `e2e/` — deterministic browser tests (agent-browser, no LLM)
+- `docs/` — cross-package docs · `specs/` — feature specs · `INSIGHTS.md` — lessons
+- `demo/LNN/` — one lesson's demo video inputs (scenario, cues, scenes, config)
+  and its mp4; filmed with the `screencast-demo-maker` plugin per
+  `.claude/skills/devdigest-demo` — see `docs/demo-video.md`
+- `@devdigest/shared` (zod contracts) is NOT a package: master copy in
+  `server/src/vendor/shared`, COPIED to `client/src/vendor/shared`.
+
+## Commands
+
+- Bootstrap: `./scripts/dev.sh` (POSIX — use Git Bash on Windows;
+  flags: `--no-seed --no-client --db-only`)
+- Migrations do NOT run on boot: `cd server && pnpm db:migrate`
+- Typecheck / tests per package: see "Verification" below; CI strategy in `TESTING.md`
+
+## Stack (per package)
+
+| Package | Language / runtime | Framework | Key libraries | Tests | PM · lock |
+|---|---|---|---|---|---|
+| server | TypeScript 5.7 ESM, Node ≥22 | Fastify 5 | fastify-type-provider-zod + zod, Drizzle ORM + postgres (Postgres 16 + pgvector, the only thing in Docker), octokit, simple-git, openai / @anthropic-ai/sdk, @ast-grep/napi, graphology, p-queue, js-tiktoken, fastify-sse-v2 | Vitest, testcontainers | pnpm · `pnpm-lock.yaml` |
+| client | TypeScript, React 19 | Next.js 15 (App Router) | TanStack Query, next-intl, Tailwind 4, own UI kit `@devdigest/ui` (`src/vendor/ui`), zod, mermaid, recharts, react-markdown | Vitest + jsdom + Testing Library | pnpm · `pnpm-lock.yaml` |
+| reviewer-core | TypeScript (pure library) | — | zod, openai SDK behind the injected `LLMProvider` | Vitest | npm · `package-lock.json` |
+| e2e | TypeScript via tsx | — | Vercel agent-browser CLI (global install), JSON flows run by `run.ts` | the flows themselves | npm · `package-lock.json` |
+
+## Verification
+
+| Package | Typecheck | Tests |
+|---|---|---|
+| server | `pnpm typecheck` | unit: `pnpm exec vitest run --exclude '**/*.it.test.ts'` · integration (Docker): `DEVDIGEST_REQUIRE_DOCKER=1 pnpm exec vitest run .it.test` (fails instead of skipping without Docker; report skipped counts) |
+| client | `pnpm typecheck` | `pnpm test` |
+| reviewer-core | `npm run typecheck` | `npm test` |
+| e2e | `npm run typecheck` | `npm run e2e:hermetic` |
+
+No linter is configured (no ESLint/Prettier in any package): typecheck + tests
+are the gate. Do not add a linter unprompted. The one extra check is
+advisory: `cd server && pnpm deps:check` runs dependency-cruiser over
+`server/src` and `reviewer-core/src` against the layer rules of the
+`onion-architecture` skill; it prints only violations that are not in
+`server/.dependency-cruiser-known-violations.json` and never fails.
+
+## Naming conventions
+
+- Client components: where they live and how they split (PascalCase
+  component folders, `_components/` vs `components/<kebab-case>/`,
+  `index.ts` boundary) → the `frontend-architecture` skill.
+- Hooks: `useXxx`, grouped by domain in `client/src/lib/hooks/<domain>.ts`.
+- Server modules: `server/src/modules/<name>/{routes,service,repository}.ts`;
+  cross-module helpers in `modules/_shared/<kebab-case>.ts`.
+- Tests: `*.test.ts(x)` = hermetic; `*.it.test.ts` = DB-backed (testcontainers).
+- Data: DB columns snake_case, Drizzle fields camelCase; API / zod contract
+  fields snake_case (`run_id`, `cost_usd`); zod schema name = type name
+  (`ReviewRecord`).
+- i18n: one namespace per file `client/messages/en/<namespace>.json`,
+  camelCase nested keys (`panel.hideLowConfidence`).
+- Migrations: generated by drizzle-kit as `NNNN_<random_name>.sql`; never rename.
+- Specs: course features `specs/LNN-<slug>.md` (root); package specs
+  `<package>/specs/<topic>.md`; e2e flows `e2e/specs/NN-<slug>.flow.json`.
+- Commits: conventional commits `type(scope): subject`.
+
+## Do not touch
+
+- **Migrations**: `server/src/db/migrations/**`, including `meta/_journal.json`
+  and snapshots. Never edit, rename, reorder or delete an existing migration.
+  A schema change = edit `server/src/db/schema/*` → `pnpm db:generate` (new
+  file) → `pnpm db:migrate`.
+- **Lock files**: `server/pnpm-lock.yaml`, `client/pnpm-lock.yaml`,
+  `reviewer-core/package-lock.json`, `e2e/package-lock.json`. Never edit by
+  hand or regenerate unprompted; they change only through an install caused by
+  an intentional `package.json` change and are committed together with it.
+- `client/pnpm-workspace.yaml` / `server/pnpm-workspace.yaml` are auto-created
+  by pnpm v12: never commit them (the repo is deliberately not a workspace).
+- Package-specific zones: see each package's `AGENTS.md` → "Do not touch".
+
+## Docs & specs — part of every task
+
+Each package keeps two kinds of curated files:
+- `docs/` — HOW the package works: architecture, data flow, boundaries.
+- `specs/` — WHAT must stay true: behaviour and contracts (routes and
+  response shapes, UI surfaces, pipeline stages, flow preconditions).
+
+| Package | docs | specs |
+|---|---|---|
+| server | `server/docs/architecture.md` | `server/specs/review-flow.md` |
+| client | `client/docs/ui-architecture.md` | `client/specs/pages.md` |
+| reviewer-core | `reviewer-core/docs/pipeline.md` | `reviewer-core/specs/grounding-gate.md` |
+| e2e | `e2e/docs/architecture.md` | `e2e/specs/flows-contract.md` |
+
+Maintained by the `package-docs` skill (`/package-docs`: rules, templates,
+seed mode). A task is NOT done until, for every package the diff touches:
+1. Architecture / data flow changed → update that package's `docs/`.
+2. Observable behaviour or contract changed → update (or add) a file in that
+   package's `specs/`. A cross-package course feature also gets
+   `specs/LNN-<slug>.md` at the root.
+3. Write about the code as it IS now, with real file paths; no plans, no
+   history (history belongs in git, lessons in `INSIGHTS.md`).
+4. The final report lists which docs/specs were updated, or says
+   "docs/specs: no change needed — <reason>".
+
+## Before answering
+Always search the relevant package's `docs/`, `specs/` and `INSIGHTS.md` for what
+the user asks about first — these are curated and may already answer it — then
+read code. Treat `INSIGHTS.md` content as high-confidence guidance unless told
+otherwise.
+
+## Before every commit
+1. `engineering-insights` — capture lessons the moment they happen (failed
+   test, user correction, retry, surprise); before committing run its
+   checkpoint. Entries go to the INSIGHTS.md of the package that holds the
+   evidence, with date and `path:line`.
+2. `package-docs` — update the touched packages' docs/specs.
+The task report ends with two lines:
+`INSIGHTS: +N in <files> | none — <reason>` and
+`docs/specs: <files updated> | no change needed — <reason>`.
+
+## Before opening a PR
+`pr-self-review` is user-invoked only (`disable-model-invocation: true`): you
+cannot run it yourself. Before `gh pr create` or pushing a branch for review,
+ask the user to run `/pr-self-review`, and do not create the PR or push for
+review until they report no open CRITICAL. While it reports an open (not
+dismissed) CRITICAL, do not create the PR and do not push the branch to open
+or update one (other pushes are not gated): fix it, or ask the user to
+dismiss a skill finding with a reason.
+Only the user dismisses; mechanical CRITICALs (Do not touch,
+typecheck/tests, uncommitted changes) are fixed, never dismissed.
+
+## Non-default conventions
+
+- Cross-package code is wired via tsconfig path aliases, never npm links.
+- Secrets (LLM keys, GitHub token) live in `~/.devdigest/secrets.json` behind
+  SecretsProvider — feature code must not read `process.env`.
+- Any edit to `server/src/vendor/shared` must be mirrored to
+  `client/src/vendor/shared` in the same change (the copies have already
+  drifted — see `server/AGENTS.md`).
+
+## Gotchas
+
+- `db/schema` has 14 domains but only 8 modules — extra tables (eval, ci,
+  knowledge, skills…) are pre-provisioned for course lessons L01–L08.
+  Do not delete them, do not wire them unprompted.
+- `e2e/specs/*.flow.json` are browser test flows; `e2e/specs/*.md` are the
+  e2e contracts (see "Docs & specs").
+
+## Read when
+
+- Need the system picture → read `README.md` (diagram is accurate)
+- Touching API routes/modules → read `server/README.md`
+- Touching the review pipeline → read `reviewer-core/README.md`
+- Touching repo indexing → read `server/src/modules/repo-intel/README.md`
+- Writing/choosing agent prompts → read `docs/agent-prompts/README.md`
+- Planning a course feature (L01–L08) → read `specs/` for an existing spec first
+- Before non-trivial work in any package → read that package's `INSIGHTS.md`
+- Before changing any package → read its `docs/` and `specs/` (table in "Docs & specs")

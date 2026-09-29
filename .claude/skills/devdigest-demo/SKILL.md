@@ -44,7 +44,7 @@ live in `~/.cache/demo-video/<slug>/`.
   the studio at http://localhost:3000 and the API at http://localhost:3001.
   `config.healthUrls` checks both during preflight.
 - On screen: browser only. The editor and terminal surfaces are not staged on Windows,
-  so files (CLAUDE.md, skills, INSIGHTS.md, docs/specs) are shown **rendered on GitHub**
+  so files (AGENTS.md, skills, INSIGHTS.md, docs/specs) are shown **rendered on GitHub**
   — the repo is public: `https://github.com/vvysotsk/devDigest/blob/<branch>/<path>`.
   Push the branch before filming; the staged Chrome profile is not logged in anywhere.
 - Narration: Ukrainian (`uk-UA`, provider `edge`), for a course reviewer who knows the
@@ -77,7 +77,7 @@ show that a control exists — that is enough to prove it is there. Client-side 
   push the later stops out of the line.
 - Studio: the sticky title + tabs on the PR page are ~150 css px, so scroll a
   card to offset 150 to land it right under them. GitHub: open blob pages at the
-  heading anchor (`…/CLAUDE.md#read-when`) and wait for `domcontentloaded`.
+  heading anchor (`…/AGENTS.md#read-when`) and wait for `domcontentloaded`.
 - Allowed clicks proved safe: the "Hide low confidence" switch, the severity
   chips, the trace icon on a Timeline tile. All are React state, reset by a reload.
 - Verify with the frame-checker, then `ffmpeg … silencedetect=n=-45dB:d=4` on

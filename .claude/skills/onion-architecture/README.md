@@ -44,7 +44,7 @@ A new entry in the baseline file is a mechanical CRITICAL in
 
 ## Version
 
-**1.1.1** — see `metadata.version` in `SKILL.md` and the row in
+**1.1.2** — see `metadata.version` in `SKILL.md` and the row in
 `.claude/skills/README.md`.
 
 When you change `SKILL.md`, bump the version and add a Changelog line:
@@ -54,6 +54,7 @@ When you change `SKILL.md`, bump the version and add a Changelog line:
 
 ## Changelog
 
+- **1.1.2 — 2026-09-29** — pointers only, no rule changes: the rules files moved to `AGENTS.md` (`CLAUDE.md` is now a one-line `@AGENTS.md` import, HW02 Stage 0a), so references to the repo's rules file name `AGENTS.md`.
 - **1.1.1 — 2026-09-27** — wording only, no rule changes, after `specs/refactor-onion.md` finished: Known violations lists the one remaining baseline entry (`repos/helpers.ts`, was 18); R2 no longer describes `pulls`/`polling` as deferred (they are layered); R4 and the triggers table record the `pulls`/`polling` transactions as done and name the executor's five writes as the next candidate.
 - **1.1.0 — 2026-09-27** — R5: a port used by one module lives in that module's `types.ts`, ports shared across modules or with the client stay in `vendor/shared/adapters.ts`, adapters only implement ports; Map "Ports" row lists `modules/repo-intel/types.ts` (`RepoIntel`, `CodeParser`, `Tokenizer`, `DepGraph`), and the domain-core row gains `modules/_shared/{diff-parser,job-kinds}.ts` and `modules/repo-intel/extract.ts` (stage d of `specs/refactor-onion.md`).
 - **1.0.1 — 2026-09-26** — metadata only, no rule changes: `applies_to` narrowed and fixed from a YAML list to a string: `server/src/**, reviewer-core/src/**, server/.dependency-cruiser.cjs`, tests excluded and `blocking: "true"`, read by `pr-self-review` for routing (comma-separated string, as Agent Skills metadata values are strings).

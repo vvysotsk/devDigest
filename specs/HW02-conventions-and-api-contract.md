@@ -39,7 +39,7 @@ found in a repository into one skill, `repo-conventions`.
   needs the user's explicit yes and is listed under "Out of scope" until then.
 
 Course integrity: work only from the starter, our own commits and the working
-tree (root `CLAUDE.md` → "Course integrity (hard rule)").
+tree (root `AGENTS.md` → "Course integrity (hard rule)").
 
 ## Traceability — acceptance criteria
 
@@ -143,7 +143,13 @@ in the working tree on 2026-09-29.
   course-integrity hook point to `AGENTS.md` for rule text. Two kinds of file
   keep their `CLAUDE.md` references:
   - `INSIGHTS.md` files, which are append-only;
-  - `demo/L01/*`, the inputs of a video that is already filmed.
+  - `demo/L01/*`, the inputs of a video that is already filmed;
+  - history inside the skills: Changelog entries in their `README.md`, and
+    the research and plan notes in `references/` (`research.md`,
+    `plan.md`);
+  - `specs/HW02-brief.md` (verbatim), this spec's description of the
+    rename, and the list of files that L02 touched
+    (`specs/L02-skills.md` → "Docs and specs to update").
 - **D3 Skill versions** — each bump follows that skill's README.
   - In Stage 0a, every versioned skill whose `SKILL.md` gets a pointer update
     (`CLAUDE.md` → `AGENTS.md`) gets a **patch** bump ("pointers").
@@ -519,7 +525,7 @@ Gates:
 - **Client:** `pnpm typecheck`, `pnpm test`; `pnpm build` only with the
   user's OK, because it shares `client/.next` with the dev client.
 - **e2e:** `npm run typecheck`. The hermetic run uses the Windows recipe from
-  `e2e/CLAUDE.md` and needs the user's OK, because it breaks a running dev
+  `e2e/AGENTS.md` and needs the user's OK, because it breaks a running dev
   client (`e2e/INSIGHTS.md` 2026-09-29).
 - Always `set -o pipefail`, real exit codes and skipped counts.
 

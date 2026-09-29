@@ -64,7 +64,7 @@ const run = (command) =>
 test("as a hook: exit 2 with the reason on stderr for a blocked command", () => {
   const r = run("git show 641b637 --stat");
   assert.equal(r.status, 2);
-  assert.match(r.stderr, /CLAUDE\.md/);
+  assert.match(r.stderr, /AGENTS\.md/);
 });
 
 test("as a hook: exit 0 for an allowed command", () => {

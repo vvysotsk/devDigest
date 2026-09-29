@@ -30,11 +30,11 @@ show.
    Sections are fixed.
 5. **Append-only.** Entries are never rewritten or deleted. A correction is
    a dated note under the old entry. A lesson every session must see is
-   promoted to the package `CLAUDE.md`.
+   promoted to the package `AGENTS.md`.
 6. **Checkpoint before every commit.** The agent lists this task's
    candidates, writes the ones that pass the gate, and ends the report with
    `INSIGHTS: +N in <files>` or `INSIGHTS: none — <reason>`. Root
-   `CLAUDE.md` → "Before every commit" makes this mandatory.
+   `AGENTS.md` → "Before every commit" makes this mandatory.
 
 A person owns maintenance: spot-check new entries, prune monthly, merge
 duplicates, and split a file past about 200 entries into
@@ -56,6 +56,7 @@ checkpoint happens at commit time, not at PR time.
 The skill has no `metadata.version`. Add a dated line here when you change
 `SKILL.md` or `examples.md`.
 
+- **2026-09-29** — pointer only: promoting a lesson now names the package `AGENTS.md` (the rules file; `CLAUDE.md` imports it, HW02 Stage 0a).
 - **2026-09-24** — rewrite, because the first version produced almost empty
   INSIGHTS files: event triggers captured in the same turn, a mandatory
   checkpoint before every commit with the `INSIGHTS:` report line, routing

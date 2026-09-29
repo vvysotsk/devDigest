@@ -83,7 +83,7 @@ Files:
 
 ## Version
 
-**2.2.0** — see `metadata.version` in `SKILL.md` and the row in
+**2.2.1** — see `metadata.version` in `SKILL.md` and the row in
 `.claude/skills/README.md`.
 
 When you change `SKILL.md`, `checker.md` or the script, bump the version
@@ -94,6 +94,8 @@ and add a Changelog line:
   decision D1–D13 changes.
 
 ## Changelog
+
+- **2.2.1 — 2026-09-29** — pointers only, no rule changes: the rules files moved to `AGENTS.md` (`CLAUDE.md` is now a one-line `@AGENTS.md` import, HW02 Stage 0a), so references to the repo's rules file name `AGENTS.md`.
 
 - **2.2.0 — 2026-09-28** — user-invoked only: `disable-model-invocation:
   true` (decision D14 in `references/plan.md`); the agent no longer starts the

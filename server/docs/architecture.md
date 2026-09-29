@@ -197,7 +197,7 @@ assumed (the boot reaper would misfire with replicas).
   reports is never persisted.
 - **Contracts.** `src/vendor/shared` is the master copy of
   `@devdigest/shared`; edits must be mirrored to
-  `../client/src/vendor/shared` (see `CLAUDE.md` for the files that already
+  `../client/src/vendor/shared` (see `AGENTS.md` for the files that already
   drifted).
 - **Database.** Only repositories and the thin route modules touch Drizzle.
 - **Transactions.** A use case that writes several tables atomically owns

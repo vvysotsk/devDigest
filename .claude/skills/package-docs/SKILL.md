@@ -24,7 +24,7 @@ Templates and a good-vs-bad example: see `templates.md`.
 
 A package may get MORE files when one grows past ~300 lines or a new area
 appears (e.g. `server/specs/pr-list.md`); link every new file from the
-package `CLAUDE.md` → "Read when" in the same change.
+package `AGENTS.md` → "Read when" in the same change.
 
 **docs/** — architecture and data flow: layers, boundaries, who calls whom,
 where state lives, why the structure is the way it is. Answers "how does it
@@ -72,7 +72,7 @@ that keeps structure and behaviour, tests only, styling tweaks). Say so.
 - **Terse English**, headings + short lists + tables; one mermaid diagram
   per doc at most (the `mermaid-diagram` skill has the syntax rules).
 - **Size:** docs ≤ ~250 lines, specs ≤ ~300 lines; split instead of growing.
-- Keep the package `CLAUDE.md` "Read when" lines pointing at existing files.
+- Keep the package `AGENTS.md` "Read when" lines pointing at existing files.
 
 ## Workflow
 
@@ -84,7 +84,7 @@ package-docs:
 - [ ] 2. For each: open its docs + specs file (create from templates.md if missing)
 - [ ] 3. For each changed area: re-read the code it describes; mark wrong/missing lines
 - [ ] 4. Edit in place; add path / path:line evidence; update "Last verified"
-- [ ] 5. New file added? → link it from the package CLAUDE.md "Read when"
+- [ ] 5. New file added? → link it from the package AGENTS.md "Read when"
 - [ ] 6. Verify evidence with a script, not by eye: every path exists AND every
          :line is <= the file's length AND the cited line (±3) contains the symbol
          or statement the sentence is about. Fix every miss before reporting.
@@ -95,7 +95,7 @@ package-docs:
 
 Build it from the code, one package at a time:
 
-1. Read the package `README.md`, `CLAUDE.md`, `INSIGHTS.md`, entry points and
+1. Read the package `README.md`, `AGENTS.md`, `INSIGHTS.md`, entry points and
    the directory tree.
 2. docs: trace one real request/render/run end to end and write down the path
    with file names; then the layers and boundaries.

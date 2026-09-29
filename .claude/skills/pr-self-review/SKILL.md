@@ -4,7 +4,7 @@ description: "Self-review gate before a pull request, started by the user with /
 argument-hint: "[--mode full|blocking] [--skills a,b] [--full] [--base <ref>]"
 disable-model-invocation: true
 metadata:
-  version: 2.2.0
+  version: 2.2.1
 ---
 
 # PR self-review
@@ -87,7 +87,7 @@ e2e hermetic also needs the global `agent-browser` CLI; without it: WARNING
 
 When the plan shows both `server/src/vendor/shared/<f>` and its client copy
 changed, compare only the touched hunks yourself (the copies already drift
-in 3 files — `server/CLAUDE.md`); a hunk missing from the copy is CRITICAL.
+in 3 files — `server/AGENTS.md`); a hunk missing from the copy is CRITICAL.
 
 ### 3. Checkers (subagents, parallel, max 6 at a time)
 
