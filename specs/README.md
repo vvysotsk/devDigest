@@ -16,7 +16,7 @@ Note: `e2e/specs/` is taken by browser test flows — e2e feature specs live her
 | Lesson | Feature |
 |--------|---------|
 | L01 | Run cost badge · severity filter on findings |
-| L02 | Skills in the product ([L02-skills.md](L02-skills.md), implemented) · Conventions extractor |
+| L02 | Skills in the product ([L02-skills.md](L02-skills.md), implemented) · homework: Conventions extractor + API Contract Reviewer ([HW02-conventions-and-api-contract.md](HW02-conventions-and-api-contract.md), draft; brief [HW02-brief.md](HW02-brief.md)) |
 | L03 | Intent layer · Smart Diff |
 | L04 | `devdigest-mcp` server · Blast Radius (reads `repo-intel`) |
 | L05 | Project Context Folder · Onboarding generator · PR Brief card |

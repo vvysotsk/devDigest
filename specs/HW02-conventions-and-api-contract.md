@@ -1,0 +1,586 @@
+Status: draft
+
+# HW02 — Conventions Extractor and API Contract Reviewer
+
+Homework 2 of the course. The pass mark is **all 53 acceptance criteria**. It
+closes the lab gaps that are left against criteria #1–37, builds an API
+Contract Reviewer and runs the control experiments, then builds the
+Conventions Extractor. The Conventions Extractor turns code-style conventions
+found in a repository into one skill, `repo-conventions`.
+
+**Sources** — every requirement below cites one of them:
+- `#N` — an acceptance criterion in [HW02-brief.md](HW02-brief.md) →
+  "Acceptance criteria" (1–53).
+- A brief line ID (the brief text is kept verbatim in the same file; the IDs
+  exist only here):
+  - **U1–U7** — "Як юзер я можу": run the analysis; see all conventions;
+    accept / reject; edit one; open the skill modal from the chosen ones; edit
+    the future skill text and metadata; save or cancel.
+  - **R1–R7** — "Можлива реалізація": table + route; code-only sampling; a
+    cheap model call; code check of the evidence; candidate list UI with
+    approve / reject; approved → one `repo-conventions` skill linked to an
+    agent; many skills (optional).
+  - **P1–P4** — "План дій": the agent created through the UI, with its prompt
+    and skill prompts; 3–4 skills, each with a directive description and a
+    good / bad example; linked in the Skills tab, at least one imported; the
+    experiment without vs with skills.
+  - **K1–K7** — the brief's "Критерії приймання": demo video; an open PR with
+    a good description; extractor results in the UI; 1+ skills from accepted
+    candidates, rejected ones excluded; evidence from real code with a click
+    to the file on GitHub; the generated skill links to an agent and runs in a
+    review; the API reviewer with skills catches what it missed without.
+  - **X1a / X1b / X2 / X3** — "Додаткове завдання": skill import from a URL;
+    packaging a skill as a Claude Code plugin; running the extractor on your
+    own work repository; better or more findings.
+  - **DZ** — the designs `…\Screenshots\2026-09\1.png` (Conventions page) and
+    `2.png` (the "Create skill from conventions" modal).
+- **D-n** — a design decision of ours, labelled as such. A D-decision never
+  adds an agent, a screen, a feature or an experiment. Anything that would
+  needs the user's explicit yes and is listed under "Out of scope" until then.
+
+Course integrity: work only from the starter, our own commits and the working
+tree (root `CLAUDE.md` → "Course integrity (hard rule)").
+
+## Traceability — acceptance criteria
+
+Status at spec time: ✅ present · ⚠ partial · ❌ missing. Evidence was checked
+in the working tree on 2026-09-29.
+
+| # | Criterion (short) | Status · evidence | Stage | Verified by |
+|---|---|---|---|---|
+| 1 | Root `AGENTS.md`; `CLAUDE.md` = symlink or one-line `@AGENTS.md` | ❌ `CLAUDE.md` is a plain file; no `AGENTS.md` | 0a | file check: `CLAUDE.md` is exactly `@AGENTS.md` |
+| 2 | Same in `server/`, `client/`, `reviewer-core/` | ❌ plain `CLAUDE.md` in each (and `e2e/`) | 0a | file check in 4 packages; grep for stale references |
+| 3 | UI-architecture skill: pages, page components, shared components, naming, tests | ✅ `.claude/skills/frontend-architecture/SKILL.md:32-36`, `:45-46`, `:92-103` | — | final walk |
+| 4 | Onion skill: route→service→domain via the container, adapters at the edge, dependencies inward, **no adapter call from a route** | ⚠ the ban is only a ✗ cell of the import matrix (`.claude/skills/onion-architecture/SKILL.md:49`), not a rule in prose; the same row allows "via `app.container`" | 0b | the rule stated in prose, the loophole closed |
+| 5 | `pr-self-review` is a Workflow (skill dispatcher) | ❌ neither word appears (`.claude/skills/pr-self-review/SKILL.md:1-8`, `.claude/skills/README.md:22`) | 0b | frontmatter + description + catalog row |
+| 6 | Agents in SKILLS LAB | ✅ `client/src/vendor/ui/nav.ts:32` | — | final walk |
+| 7 | Agents page: card grid | ✅ `client/src/app/agents/_components/AgentsListView/AgentsListView.tsx:83-94` | — | final walk |
+| 8 | `/skills` CRUD reads/writes Postgres | ✅ `server/src/modules/skills/routes.ts:42-100`, `repository.ts:57-167` | Final | live: POST → SQL select; SQL delete → GET no longer lists it |
+| 9 | Skill cards: name, type, description, enabled toggle | ✅ `client/src/app/skills/_components/SkillsListView/_components/SkillCard/SkillCard.tsx:31-40` | — | final walk |
+| 10 | Card click → preview in a side panel | ⚠ master-detail exists (`SkillsListView/styles.ts:7`, `:38`) but a click opens Config (`client/src/app/skills/[id]/page.tsx:18`) | 0c | D4; client test |
+| 11 | "Add" → create or import; create in a modal | ✅ `SkillsListView.tsx:51-63`, `CreateSkillModal.tsx:35` | — | final walk |
+| 12 | Create form: name, description, type, markdown body | ✅ `SkillMetaFields.tsx:24-42`, `CreateSkillModal.tsx:59` | — | final walk |
+| 13 | Agent Skills tab: link, enable, drag & drop | ✅ `…/AgentEditor/_components/SkillsTab/SkillsTab.tsx:107-132`, `…/SkillRow/SkillRow.tsx:39-55` | — | final walk |
+| 14 | Drag order = order of skill blocks in the prompt | ✅ `SkillsTab.tsx:76` → `server/src/modules/skills/helpers.ts:48` → `repository.ts:235-254` → `reviewer-core/src/prompt.ts:78-81`, `:160` | Final | live: reorder → run → trace blocks swapped |
+| 15 | Import `.md` / `.zip` with a preview | ✅ `ImportSkillModal.tsx:36-63`, `server/src/modules/skills/routes.ts:57-74` | — | final walk |
+| 16 | ≥ 1 skill of the new agents is "imported" | ❌ every seed skill is `manual` (`server/src/db/seed-skills.ts:35`) | 1c | one of the four API skills imported as `.zip` |
+| 17 | Test Quality experiment: no skill → no flag; skill linked → flags the uncovered branch and the boundary | ⚠ #483's baseline catches its defect 2/2 (`specs/L02-skills.md` "Stage 8 results") | 1b–1d | PR #485, D12 protocol |
+| 18 | API Contract experiment: no skill → miss; skill → catches the breaking change | ⚠ #484's baseline catches it | 1b–1d | PR #486, D12 protocol |
+| 19 | Trace: separate skills block + tokens of that block only | ✅ `…/RunTraceDrawer/_components/TraceBody/TraceBody.tsx:79-88`, `server/src/modules/reviews/run-executor.ts:367` | 1c | trace screenshot in the results |
+| 20 | Enabled skill = block; disabled = absent | ✅ `server/src/modules/skills/repository.ts:246-251` | 1c | a run with one skill disabled |
+| 21 | Manual `pr-self-review` on a client+server diff; no auto hook | ✅ static: `SKILL.md:5`, `:15`; `self-review.mjs:165-177` | Final | the user runs `/pr-self-review` |
+| 22 | Skill card: current version + agent count | ⚠ agent count only (`SkillCard.tsx:40`) | 0c | `v{version}` chip; client test |
+| 23 | Delete button on the skill card | ❌ only in Config (`…/ConfigTab/ConfigTab.tsx:82-84`) | 0c | client test |
+| 24 | Delete confirm modal (confirm / cancel / X) | ⚠ `DeleteSkillConfirm.tsx` (kit `Modal` with X) is reachable only from Config | 0c | the same modal from the card; client test |
+| 25 | Tabs Config, Preview, **Versioning** | ⚠ the label is "Versions" (`client/messages/en/skills.json:118-122`) | 0c | D4 |
+| 26 | Preview renders markdown | ✅ `…/PreviewTab/PreviewTab.tsx:28-30` | — | final walk |
+| 27 | Versioning lists every version | ✅ `…/VersionsTab/VersionsTab.tsx:25-43` | — | final walk |
+| 28 | Diff of each older version against the current one | ❌ | 0c | D5; unit tests of the diff helper |
+| 29 | Restore brings back an older body | ❌ (was out of scope in L02 D14) | 0c | D5; client test |
+| 30 | Search in the agent Skills tab | ✅ `SkillsTab.tsx:94-103` | — | final walk |
+| 31 | Only enabled skills can be dragged | ❌ `SkillRow.tsx:41` `draggable={linked}` | 0d | D6; client test |
+| 32 | Agent card: name, description, model, toggle, skill counter | ✅ `client/src/app/agents/_components/AgentCard/AgentCard.tsx:35-70` | — | final walk |
+| 33 | Delete button on the agent card (deletes from the DB) | ✅ `AgentCard.tsx:44` → `server/src/modules/agents/repository.ts:92-95` | — | final walk |
+| 34 | Agent delete confirm modal | ❌ `window.confirm` (`AgentCard.tsx:44`), text not in i18n | 0d | D7; client test |
+| 35 | Exactly 2 agent tabs: Config, Skills | ✅ `…/AgentEditor/constants.ts:11-14` | — | final walk |
+| 36 | Agent Config: name, description, provider, model (from a list), strategy, system prompt | ✅ `…/AgentEditor/_components/ConfigTab/ConfigTab.tsx:87-132` | — | final walk |
+| 37 | Agent Skills tab: all skills, a toggle, a type label | ⚠ all skills + label (`SkillsTab/helpers.ts:55-69`), but a checkbox, not a toggle (`SkillRow.tsx:65`) | 0d | D6; client test |
+| 38 | `POST /repos/:id/conventions/extract` runs the analysis; results persist | ❌ the `conventions` table exists (`server/src/db/schema/knowledge.ts:31-42`); no module | 2a–2b | D14; `.it`: extract → wait → new app → GET returns it |
+| 39 | Sampling in code only: eslint / tsconfig / prettier configs + top-12 `repoIntel.getConventionSamples()` | ❌ (the method exists: `server/src/modules/repo-intel/service.ts:636`) | 2b | D15; unit + `.it` (no LLM call before sampling ends) |
+| 40 | LLM answer `{category, rule, evidence: file+line, confidence}` | ❌ | 2b | D16; zod schema; `.it` with `MockLLMProvider` |
+| 41 | Create modal edits the body and metadata | ❌ | 2c | client test |
+| 42 | Approved → ONE skill `repo-conventions`, linked to an agent | ❌ | 2b–2c | D18; `.it` |
+| 43 | Four API skills with a directive description and a good / bad example | ❌ | 1a | files + Skills page |
+| 44 | Conventions in SKILLS LAB | ❌ (`activeKeyFor` already maps `/conventions`: `client/src/components/app-shell/helpers.ts:31`) | 2c | client test |
+| 45 | Run Scan and ReScan buttons | ❌ | 2c | D19; client test; Run Scan manual (D20) |
+| 46 | Cards: rule, source file, confidence % | ❌ | 2c | client test; e2e |
+| 47 | Accept / Reject / Edit on each card | ❌ | 2c | client test; e2e |
+| 48 | Reject persists; never returns, never enters the skill | ❌ | 2b–2c | `.it`; e2e reload |
+| 49 | Inline edit | ❌ | 2c | client test |
+| 50 | Create skill appears after ≥ 1 accept | ❌ | 2c | client test |
+| 51 | Modal says it is created from conventions; Name / Description; Cancel / Create | ❌ | 2c | client test (DZ 2.png) |
+| 52 | The new skill is listed on `/skills` | ❌ | 2d | e2e |
+| 53 | Settings → Models: a conventions row, searchable dropdown, dynamic model | ⚠ the row and `SearchableSelect` exist (`…/SettingsModels/SettingsModels.tsx:58-63`), but the save hard-codes `provider: "openrouter"` (`:32`) and no server code calls `resolveFeatureModel` | 0e + 2b | D8; the extractor resolves its model per run |
+
+## Traceability — brief lines
+
+| ID | Stage | Covered by |
+|---|---|---|
+| U1–U7 | 2 | #38, #45, #46–49, #41, #51 |
+| R1 | 2 | #38 |
+| R2 | 2 | #39 |
+| R3 | 2 | #40, #53 |
+| R4 | 2 | D16 (file and quoted code checked; unproven candidates dropped) |
+| R5 | 2 | #47 |
+| R6 | 2 | #42, D18 |
+| R7 | — | **out of scope** ("як варіант"; the agreed scope is one `repo-conventions`) |
+| P1 | 1 | D10: the user creates the agent in the UI with the prompt below |
+| P2 | 1 | #43, D11 |
+| P3 | 1 | #13, #16 |
+| P4 | 1 | #18, D12 |
+| K1 | Final | the user films it |
+| K2 | Final | the user opens the PR after `/pr-self-review` |
+| K3 | 2 | e2e + the demo |
+| K4 | 2 | one skill is enough ("1 скіл чи декілька"); #42, #48 |
+| K5 | 2 | D19: `path:line` → `githubBlobUrl` (`client/src/lib/github-urls.ts:24-36`) at the scan's head sha |
+| K6 | 2 | link in the modal → a review run → a `repo-conventions` block in the trace |
+| K7 | 1 | #18 |
+| X1a | 3 | D21 |
+| X1b | — | **out of scope** (the agreed Stage 3 has two items only) |
+| X2 | 3 | D22 |
+| X3 | 3 | a "product ideas" note only, no code |
+| DZ | 2 | 1.png and 2.png; the differences are listed under Deviations |
+
+## Decisions
+
+### Stage 0 — lab gaps
+
+- **D1 AGENTS.md (#1, #2)** — `git mv` each `CLAUDE.md` (root, `server/`,
+  `client/`, `reviewer-core/`, `e2e/`) to `AGENTS.md`. The new `CLAUDE.md`
+  holds one line, `@AGENTS.md`. It is an import, not a symlink: symlinks are
+  unreliable on Windows checkouts.
+- **D2 Reference updates** — the skills, docs, specs, READMEs and the
+  course-integrity hook point to `AGENTS.md` for rule text. Two kinds of file
+  keep their `CLAUDE.md` references:
+  - `INSIGHTS.md` files, which are append-only;
+  - `demo/L01/*`, the inputs of a video that is already filmed.
+- **D3 Skill versions** — each bump follows that skill's README.
+  - `onion-architecture` gets a rule in prose and loses a loophole: a route
+    calls only its own module's service and never an adapter, directly or via
+    `app.container`. A new rule is **minor**, so 1.1.1 → 1.2.0
+    (`.claude/skills/onion-architecture/README.md:50-53`). Because of the
+    minor bump, the final `/pr-self-review` re-checks the whole server.
+  - `pr-self-review` gets the Workflow label: `metadata.type: workflow`, a
+    description that starts "Workflow (skill dispatcher)", and the catalog row
+    in `.claude/skills/README.md`. That is wording, so **patch** 2.2.0 → 2.2.1
+    (`.claude/skills/pr-self-review/README.md:89-93`).
+- **D4 Skill page (#10, #25)**
+  - A card click opens `/skills/:id?tab=preview`.
+  - The tab label becomes "Versioning". The i18n key and the URL value stay
+    `versions`.
+- **D5 Diff and Restore (#28, #29)**
+  - Diff: every older version gets a "Diff" button. It renders a line diff
+    against the current body, computed by our own small LCS helper in the
+    client with unit tests. There is no new dependency, so no lock-file
+    change.
+  - Restore sends `PUT /skills/:id { body }`. The route exists and already
+    bumps the version and snapshots the body
+    (`server/src/modules/skills/service.ts:130-142`). So a restore is a new
+    version that carries the old body, and history is never rewritten.
+- **D6 Agent Skills tab (#31, #37)**
+  - A row is draggable, and a drop target, only while its link is enabled
+    and the skill is enabled.
+  - The per-agent enable becomes the kit `Toggle` instead of a checkbox.
+- **D7 Confirm modals (#23, #24, #34)**
+  - The skill card reuses `DeleteSkillConfirm`.
+  - Agent delete gets the same kit-`Modal` confirm (confirm / cancel / X)
+    with i18n text.
+- **D8 Feature model (#53)**
+  - Settings saves the provider that the chosen model belongs to, not a
+    hard-coded `"openrouter"`.
+  - The extractor resolves its model on every run with
+    `resolveFeatureModel(container, workspaceId, 'conventions')`
+    (`server/src/modules/settings/feature-models.ts:51-57`).
+- **D9 The lab's API Contract Reviewer is removed from the seed**
+  - The agent and its seed skills `route-signature-diff` and
+    `breaking-change-rubric` were homework scope that leaked into the lab.
+  - PR fixtures #483 / #484 and the L02 Stage 8 record stay.
+  - `docs/agent-prompts/api-contract-reviewer.md` is rewritten with the D10
+    prompt.
+  - Removing seed data does not touch an existing DB, so the user deletes the
+    old rows through the UI (Stage 1c checklist).
+
+### Stage 1 — API Contract Reviewer and the experiments
+
+- **D10 Agent prompt (P1)**
+  - The agent is created through the UI by the user (P1), not seeded.
+  - Its system prompt (below) is deliberately **generic**: role, review
+    discipline, severity and verdict rules. The contract know-how lives in the
+    four skills. That is the brief's split between agent and skill prompts,
+    and it gives the skills something to add.
+  - The prompt is frozen with this spec: it is never tuned during
+    calibration or the runs.
+- **D11 Skill files (P2, #43, #16)**
+  - Location: `docs/agent-skills/api-contract/<name>/SKILL.md`, next to
+    `docs/agent-prompts/`, so they are reproducible.
+  - Names are exactly `breaking-change`, `response-schema`,
+    `semver-discipline`, `deprecation-policy`.
+  - Each has a directive "Use when …" description and a good / bad example.
+  - At least one is packed with `pnpm skill:pack <dir> <out.zip>` and
+    imported as `.zip` (#16); the others are created in the UI.
+  - No skill and no prompt names an experiment defect: a grep check runs
+    after every edit.
+- **D12 Experiment PRs and protocol (#17, #18, P4)** — seed fixtures made of
+  patches with no clone, like #483 / #484
+  (`server/src/modules/reviews/diff-loader.ts:19-44`). The planted defects
+  were chosen by the user before any run:
+  - **#485 — Test Quality.** `src/billing/late-fee.ts`:
+    - behaviour: 0 during the grace period (≤ 3 days), then 2 % per day,
+      capped at 30 days and at 25 % of the amount;
+    - the test: 8 `it.each` rows, all in the 5–20 day band;
+    - left uncovered: the grace boundary (days 3 / 4) and the cap branch.
+  - **#486 — API Contract, variant A'.** In the shared schema,
+    `Customer.email` is renamed to `contactEmail` "for consistency".
+    - The diff updates the schema and the checkout route.
+    - `GET /customers/:id` and `/invoices` are not in the diff, yet they now
+      return the new name.
+    - This matches the brief ("перейменовує поле у відповіді") and #18.
+  - **Pre-registered fallbacks for #486, in order:**
+    - A: `email` becomes `.optional()`;
+    - B: the `PaymentStatus` value `requires_action` is merged into
+      `pending`.
+  - **Switch rule** — move to the next variant when either holds:
+    - calibration fails: without skills the agent keeps catching the defect;
+    - with skills the agent still misses it after one skill-wording
+      iteration.
+
+    Every switch is recorded with its reason. There are no other PR changes.
+  - **Protocol:**
+    1. Calibrate WITHOUT skills until the agent misses the defect in 2 of 2
+       runs. During calibration the links may simply be disabled. Every PR
+       edit is a commit plus a row in the results table.
+    2. Freeze the PR.
+    3. The two recorded "without" runs use **detached** skills (#17 / #18 say
+       "без прив'язаного скіла"), not merely disabled ones.
+    4. Two runs WITH skills, on the same model.
+    5. After the freeze, only skill wording may change, and every iteration
+       is recorded.
+- **D13 Applying an edited patch to an existing DB** — calibration edits the
+  #485 / #486 fixtures, so the edits must reach a running DB. Decided in
+  Stage 1b and recorded here then. The options:
+  - (a) the seed upserts `pr_files` and the PR totals for #485 / #486 only,
+    by number;
+  - (b) a documented reset command.
+
+  Nothing else in the DB is touched.
+
+### Stage 2 — Conventions Extractor
+
+- **D14 Asynchronous extraction (#38)** — real model latency here is
+  18–406 s, so the extraction runs in the background.
+  - `POST /repos/:id/conventions/extract` creates a scan with
+    `status: 'running'` and returns it with 202. The work continues in the
+    background with the review-run pattern: a detached promise with `.catch`
+    (`server/src/modules/reviews/service.ts:157`). A failure marks the scan
+    `failed` with its `error`.
+  - Scans left `running` by a restart are reaped the way runs are
+    (`reviews/service.ts:113`, `repository/run.repo.ts:107`).
+  - The client polls the scan while it is running, like `usePrRuns`
+    (`client/src/features/reviews/hooks.ts:39-48`, every 4 s).
+  - `JobRunner` is not used: its hard 120 s timeout and 2 retries
+    (`server/src/platform/jobs.ts:41-42`) would repeat an expensive LLM call.
+  - A second extract while a scan runs → 409.
+- **D15 Sampling (#39, R2)** — code only, no LLM.
+  - Config files at the clone root: `eslint.config.*`, `.eslintrc*`,
+    `tsconfig*.json`, `.prettierrc*`, `prettier.config.*`.
+  - Plus `repoIntel.getConventionSamples(repoId, 12)`, which returns ranked
+    paths only (`server/src/modules/repo-intel/service.ts:636-662`) and `[]`
+    for a repo that was never indexed.
+  - A repo with no clone or no index → 409 with an error code. There is no
+    fallback that would bypass #39.
+  - File contents go to the model with line numbers, capped per file.
+- **D16 Model answer and evidence check (#40, R3, R4)**
+  - The model returns, validated with zod,
+    `{candidates: [{category, rule, evidence: {file, line, quote}, confidence}]}`.
+    The #40 fields stay; `quote` is our addition.
+  - A candidate is kept only if both hold:
+    - the file exists in the clone (`GitClient.readFile`);
+    - `quote`, with whitespace normalised, is found on `line` or within ±2
+      lines of it.
+  - Otherwise the candidate is dropped before it is stored, and the scan
+    records how many were dropped.
+  - The stored `evidence_line` is the line where the quote was found. The
+    snippet (±2 lines) is read from the file by code, not taken from the
+    model.
+  - `category` is one of `naming`, `structure`, `async`, `error-handling`,
+    `types`, `imports`, `testing`, `other`.
+  - `confidence` is 0..1 and is shown as a percentage.
+- **D17 Scans and decisions across re-scans (#45, #48)**
+  - Every scan is a new `convention_scans` row. It records the head sha from
+    `GitClient.currentHead` at the start, the sample count, the model and the
+    status.
+  - A re-scan carries earlier decisions over by normalised rule text: a rule
+    that was rejected before is stored as `rejected` again, and an accepted
+    one as `accepted`. A rejection therefore never comes back (#48).
+  - `GET` returns the latest scan and its non-rejected candidates.
+- **D18 Creating the skill (#42, #41, #51, R6)**
+  - `GET …/skill-draft` builds the default body from the **accepted**
+    candidates only, in the DZ 2.png format: an intro, then one `##` section
+    per rule, with the rule, `file:line` and the snippet.
+  - The modal edits the name, description, type, enabled flag and body. It
+    also picks the agent.
+  - The default name is `repo-conventions`. If a skill with that name exists
+    in the workspace:
+    - the modal says so ("already exists — saved as vN+1");
+    - Create saves the body as that skill's next version through the existing
+      versioning, not a 409;
+    - there is still one skill.
+  - 409 is returned only for a name the user typed that belongs to another,
+    non-extracted skill.
+  - Save refuses `candidate_ids` that are not accepted (400).
+  - The skill is stored with `source: 'extracted'`, `type` from the modal
+    (default `convention`) and `evidence_files`.
+  - It is appended to the chosen agent's links through the `setAgentSkills`
+    mechanism, never twice.
+  - Cross-module access goes through a container port, not an import of the
+    skills module (`onion-architecture`).
+- **D19 UI (#44–52, U1–U7, K5, DZ)**
+  - `/conventions`, in SKILLS LAB, works on the active repo
+    (`client/src/lib/repo-context.tsx:58`). Layout follows DZ 1.png: heading
+    "Conventions in <repo>", "Detected from N sample files · last scan …".
+  - **Run Scan** is shown while the repo has no scan; **ReScan** once one
+    exists. They are two separate buttons (#45).
+  - Each card shows the rule, a category chip, the evidence `path:line`
+    linking to GitHub at the scan's sha, the snippet and the confidence %.
+  - Card buttons: Accept, Reject, Edit. Edit changes the rule and category
+    in place (#49).
+  - Rejected cards disappear and stay gone after a reload (#48).
+  - Create skill appears after ≥ 1 accept (#50) and opens the DZ 2.png modal
+    plus an agent picker (#42).
+  - The body editor reuses `SkillBodyEditor`, moved to
+    `client/src/features/skills/components/` because two routes share it
+    (`frontend-architecture`).
+  - i18n goes in `client/messages/en/conventions.json`, which already
+    exists.
+- **D20 e2e with a seeded scan** (the user's choice)
+  - The seed stores one scan with candidates for `acme/payments-api`. The
+    flow covers: cards → Accept / Reject / Edit → reload (#48) → Create skill
+    → `/skills` (#52).
+  - The extraction path (sampling, LLM, evidence check, persistence) is
+    covered by `.it` tests. They inject a fake provider through
+    `ContainerOverrides.llm` in the test, never through server config.
+  - **Run Scan is verified manually and in the demo with the real model**,
+    not by e2e.
+
+### Stage 3 — extras
+
+- **D21 Import from a URL (X1a)** — the same preview → trust notice → save
+  flow as the file import.
+  - It is saved with `source: 'imported_url'` and disabled, and the first
+    enable requires the acknowledgement.
+  - A new outbound HTTP port with an adapter at the edge.
+  - Limits: https only; ≤ 512 KB; a timeout; no redirect to a non-https
+    URL; private and loopback addresses are refused (SSRF).
+- **D22 Work repository (X2)** — the extractor runs on the user's work
+  repository only after the user confirms that company policy allows sending
+  that code to the LLM. Otherwise it runs on a personal repository. The
+  results and a short "product ideas" note (X3: how to get more or better
+  findings) go into this spec.
+
+## API Contract Reviewer — system prompt (D10)
+
+Created through the UI by the user. It is copied verbatim into
+`docs/agent-prompts/api-contract-reviewer.md` in Stage 0f.
+
+```
+# Role
+You are an API reviewer for a Node.js (TypeScript) HTTP service. You receive
+the full PR diff in one pass. Review the changes that affect the service's
+HTTP API and report the problems that its callers or maintainers would care
+about.
+
+# How to review
+- Decide from the code in the diff, not from the PR description, whether the
+  change alters how the API behaves for its callers.
+- Report only issues introduced by THIS diff.
+- Precision over volume: no style nits, no naming preferences, no generic
+  advice without a concrete impact.
+- If there is nothing worth reporting, return an EMPTY findings list and
+  approve. Do not invent issues to seem thorough.
+
+# Severity — use exactly these three levels
+- CRITICAL — must be fixed before merge. The ONLY level that blocks merge.
+- WARNING — a real problem that does not block merge on its own.
+- SUGGESTION — worth doing, low impact.
+
+# Verdict — consistent with your findings
+- request_changes — at least one CRITICAL finding.
+- comment — only WARNING / SUGGESTION findings.
+- approve — no findings; say in `summary` what you checked.
+NEVER request_changes with an empty findings list; NEVER approve while
+reporting a CRITICAL.
+
+# Findings discipline
+- Report only DISTINCT issues; zero findings is a valid answer.
+- Every finding cites an exact file and line range that exists in the diff.
+- Set `kind` to "finding" and leave `trifecta_components` / `evidence` null.
+```
+
+## The four API skills (#43, D11)
+
+Bodies are written in Stage 1a. Every body ends with a "Good / Bad" example.
+Descriptions:
+
+| Name | Type | Description (directive) |
+|---|---|---|
+| `breaking-change` | rubric | Use when a diff changes or removes anything a caller relies on (a route, a parameter, a response field, a status code, an error format): classify each change as breaking or compatible and require a mitigation for every breaking one. |
+| `response-schema` | custom | Use when a diff touches a response schema or a shared type behind one: compare every field's name, type and optionality before and after, for every route that uses the schema. |
+| `semver-discipline` | rubric | Use when a diff changes a public contract: decide whether the change needs a major, minor or patch release, and flag a breaking change shipped without a major bump or a new API version. |
+| `deprecation-policy` | convention | Use when a diff removes or replaces a public field, parameter or route: require the old form to stay, marked deprecated with a sunset date and a replacement, instead of a silent removal. |
+
+## Data model
+
+A new migration is generated by drizzle-kit (`pnpm db:generate`). No existing
+migration is touched.
+
+- `conventions` (the table is unused today; it has no data):
+  - add `scan_id` (FK → `convention_scans`, cascade), `category` (text),
+    `evidence_line` (int), `status` (`pending | accepted | rejected`,
+    default `pending`), `created_at`, `updated_at`;
+  - `evidence_path`, `evidence_snippet`, `confidence` and `rule` stay;
+  - `accepted` is dropped, replaced by `status`.
+- `convention_scans` (new):
+  - columns: `id`, `workspace_id`, `repo_id` (cascade), `status`
+    (`running | done | failed`), `head_sha`, `sample_count`,
+    `candidates_dropped`, `provider`, `model`, `error`, `started_at`,
+    `finished_at`;
+  - index on `(repo_id, started_at desc)`.
+- `skills` is unchanged. `source: 'extracted'` and the `evidence_files`
+  column already exist (`server/src/db/schema/skills.ts:32`).
+
+## Contracts
+
+Shared zod schemas in `server/src/vendor/shared/contracts/knowledge.ts`,
+mirrored to `client/src/vendor/shared` in the same change.
+
+- `ConventionCategory` — the D16 enum.
+- `ConventionCandidate`:
+  - `id, scan_id, category, rule, evidence_path, evidence_line,
+    evidence_snippet, confidence (0..1)`;
+  - `status: 'pending' | 'accepted' | 'rejected'`;
+  - `created_at, updated_at`.
+- `ConventionScan`:
+  - `id, repo_id, status, head_sha, sample_count, candidates_dropped,
+    provider, model, error, started_at, finished_at`.
+- `ConventionsState` — `{ scan: ConventionScan | null, candidates:
+  ConventionCandidate[] }` (non-rejected only).
+- `ConventionPatch` — `{ status?, rule?, category? }`.
+- `ConventionSkillDraft` — `{ name, description, type, body, existing: {
+  id, version } | null }`.
+- `ConventionSkillSave` — `{ name, description, type, enabled, body,
+  agent_id, candidate_ids }`.
+- `ConventionExtraction` (the LLM answer, server only) —
+  `{ candidates: [{ category, rule, evidence: { file, line, quote },
+  confidence }] }`.
+
+Routes. Each declares `schema.response` and has a response-shape test (R3 of
+`onion-architecture`).
+
+| Method | Path | Result |
+|---|---|---|
+| POST | `/repos/:id/conventions/extract` | 202 `ConventionScan` (`running`); 409 while one runs; 409 no clone / not indexed |
+| GET | `/repos/:id/conventions` | `ConventionsState` |
+| PATCH | `/conventions/:id` | `ConventionCandidate` |
+| GET | `/repos/:id/conventions/skill-draft` | `ConventionSkillDraft` |
+| POST | `/repos/:id/conventions/skill` | 201 `Skill` (created) or 200 `Skill` (next version of the existing `repo-conventions`) |
+
+## Stages
+
+One commit per step. After each stage the user gives the go-ahead before the
+next one starts.
+
+Every step ends with the `engineering-insights` checkpoint and `package-docs`.
+Its report ends with the `INSIGHTS:` and `docs/specs:` lines.
+
+Gates:
+- **Server:** `pnpm typecheck`; unit `pnpm exec vitest run --exclude
+  '**/*.it.test.ts'`; `DEVDIGEST_REQUIRE_DOCKER=1 pnpm exec vitest run
+  .it.test`; `pnpm deps:check`.
+- **Client:** `pnpm typecheck`, `pnpm test`; `pnpm build` only with the
+  user's OK, because it shares `client/.next` with the dev client.
+- **e2e:** `npm run typecheck`. The hermetic run uses the Windows recipe from
+  `e2e/CLAUDE.md` and needs the user's OK, because it breaks a running dev
+  client (`e2e/INSIGHTS.md` 2026-09-29).
+- Always `set -o pipefail`, real exit codes and skipped counts.
+
+Rules: files are staged by name; no Co-Authored-By; no push.
+
+| Step | Commit | Gate |
+|---|---|---|
+| S | `docs(specs): add the HW02 brief and spec` | markdown only |
+| 0a | `chore: move agent instructions to AGENTS.md` (#1, #2; D1, D2) | `node --test ".claude/hooks/*.test.mjs"`; pr-self-review self-check; grep for stale references |
+| 0b | `docs(skills): state the route-adapter ban and label pr-self-review a workflow` (#4, #5; D3) | skill self-checks; `pnpm deps:check` |
+| 0c | `feat(client): skill card version and delete, versioning diff and restore` (#10, #22–25, #28, #29; D4, D5, D7) | client |
+| 0d | `fix(client): drag only enabled skills, toggle per agent, modal agent delete` (#31, #34, #37; D6, D7) | client |
+| 0e | `fix(client): save the feature model's own provider` (#53; D8) | client |
+| 0f | `chore(seed): remove the seeded API Contract Reviewer and its skills` (D9). Covers: `seed.ts`, `seed-prompts.ts`, `seed-skills.ts`; `server/test/seed.it.test.ts` counts 5→4 agents, 12→10 skills, 14→12 links; `e2e/specs/08-skills.flow.json`; `e2e/specs/flows-contract.md`; `server/specs/skills.md`; a Deviations note in `specs/L02-skills.md`; the D10 prompt into `docs/agent-prompts/api-contract-reviewer.md` | server + e2e |
+| 1a | `docs(skills): API Contract Reviewer skills` (#43; D11) | integrity grep |
+| 1b | `feat(seed): experiment PRs #485 and #486` (#17, #18; D12, D13 decided here) | server (`seed.it` + a re-seed test of an edited patch); e2e contract |
+| 1c | the user's runs — checklist below | integrity grep after every edit; trace data |
+| 1d | `docs(specs): record the HW02 experiments` (#17–20) | markdown |
+| 2a | `feat(server): conventions schema and contracts` (#38, #40, #48) | server; client typecheck (mirror) |
+| 2b | `feat(server): conventions extractor module` (#38–40, #42, #48, #53; D14–D18) | server |
+| 2c | `feat(client): conventions page and create-skill modal` (#41, #44–51; D19) | client |
+| 2d | `test(e2e): conventions flow` + the seeded scan (#46–48, #52; D20) | server (`seed.it`) + e2e |
+| 3a | `feat: import a skill from a URL` (X1a; D21) | server + client |
+| 3b | `docs(specs): conventions on a work repo and product ideas` (X2, X3; D22) | markdown |
+| Final | the user's steps plus the 53-criteria walk (below) | — |
+
+### Stage 1c checklist (the user, in the UI)
+
+1. Delete the old API Contract Reviewer and the skills
+   `route-signature-diff`, `breaking-change-rubric` and
+   `api-deprecation-policy`. The seed removal (0f) does not touch an existing
+   DB.
+2. Create the agent "API Contract Reviewer" with the D10 prompt.
+3. Create the skills with exactly the #43 names. Import at least one as a
+   `.zip` from `pnpm skill:pack` (#16); create the rest in the UI.
+4. Link all four in the agent's Skills tab (#13).
+5. Calibration without skills (links disabled is enough). After every PR
+   edit: a `fix(seed): calibrate #48x …` commit, applied per D13, and a row in
+   the results table. Continue until the agent misses the defect 2/2.
+6. Freeze the PR.
+7. The two recorded "without" runs: skills **detached**.
+8. Two runs with skills, on the same model. After that, only skill wording
+   may change, and every iteration is recorded.
+9. From the traces: the skills block with its tokens (#19); a disabled skill
+   is absent (#20).
+10. The same protocol applies to #485 with the Test Quality Reviewer and its
+    seeded skills.
+
+## Final checks
+
+| Check | Evidence |
+|---|---|
+| #1–2 AGENTS.md pattern | file listing of 5 folders |
+| #3–5 skills | the cited lines; skill versions |
+| #6–16, #22–37 lab surfaces | client tests + a UI walk with screenshots |
+| #8 CRUD really hits Postgres | live: API create → `psql` select; `psql` delete → `GET /skills` |
+| #14 order reaches the prompt | live: reorder → run → trace |
+| #17–20 experiments | the Stage 1d results tables and traces |
+| #21 | the user's `/pr-self-review` on the final client+server diff |
+| #38–53 Conventions | `.it` + client tests; e2e with the seeded scan (D20); **Run Scan verified manually and in the demo with the real model** |
+| K1 / K2 | the user's demo video and PR |
+
+## Risks
+
+- **The hermetic e2e breaks a running dev client** (shared `client/.next`) →
+  it runs only with the user's OK.
+- **LLM non-determinism** → every run is recorded, including calibration.
+- **Calibration may never reach 2/2 misses** → the pre-registered D12
+  fallbacks and switch rule.
+- **The work repository goes to an external LLM** → D22 policy check first.
+- **SSRF in the URL import** → the D21 limits.
+- **Stage 2 needs a repo with a clone, an index and a public GitHub remote**
+  (for the links). The user picks it at the start of Stage 2; this adds no
+  scope.
+
+## Deviations
+
+- **#10 / #25.** A card click opens the master-detail page
+  `/skills/:id?tab=preview`, and the list stays on the left. So the same
+  screen is the side-panel preview of #10 and the skill page with the Config /
+  Preview / Versioning tabs of #25.
+- **DZ 1.png** shows only Re-scan, and cards without Edit or a category. We
+  add Run Scan (#45), Edit (#47, #49) and a category chip (#40).
+- **DZ 2.png** has no agent picker. We add one (#42).
+- **#484 is replaced by #486 as the API experiment.** #484 stays as the L02
+  lab record. The lab's API Contract Reviewer is replaced by one created in
+  the UI (D9, P1).
+
+## Out of scope
+
+- R7 — many skills from the findings.
+- X1b — packaging a skill as a Claude Code plugin.
+- Code changes for X3 — only a note.
+- Evals and a Stats tab ("Stats — не обов'язкова, буде в ДЗ №8", #25).

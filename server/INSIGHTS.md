@@ -135,6 +135,20 @@ Never rewrite existing entries — correct with a dated note.
   format starting at `@@`); repo-intel then degrades to empty callers / repo map
   instead of failing (evidence: `src/modules/reviews/diff-loader.ts:19-29`,
   `:37`; `src/db/seed.ts:121-126`; `src/modules/repo-intel/service.ts:467-468`).
+- 2026-09-29: Do not put LLM work on `JobRunner`. It has a hard 120 s
+  timeout and 2 retries by default, so a slow model call (18–406 s measured
+  for conventions) is killed and then paid for again. Run it the way review
+  runs do: a status row plus a detached promise with `.catch`, reaped on
+  restart (evidence: `src/platform/jobs.ts:41-42`,
+  `src/modules/reviews/service.ts:157`, `:113`;
+  `../specs/HW02-conventions-and-api-contract.md` D14).
+- 2026-09-29: `repoIntel.getConventionSamples(repoId, n)` returns ranked
+  paths only, never contents. It filters out every path containing
+  `eslint`, `prettier` or `.config.`, and it returns `[]` for a repo that
+  was never indexed, because it reads `file_rank`. A conventions sampler must
+  read the config files from the clone itself and treat `[]` as "not
+  indexed", not as "no samples" (evidence:
+  `src/modules/repo-intel/service.ts:636-662`, `:729-733`).
 
 ## Tool & Library Notes
 
