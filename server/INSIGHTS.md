@@ -47,6 +47,16 @@ Never rewrite existing entries — correct with a dated note.
     (4 later full runs green). Fixed in 2712a6e: `reviews.it` `appWith` now
     passes `secrets: new MockSecretsProvider({})`
     (evidence: `test/reviews.it.test.ts:117-121`).
+- 2026-09-29: In a seed skill, a reporting rule that caps findings per unit
+  ("One finding per changed route") makes the model merge distinct breaking
+  changes into one finding and drop the lower-severity one. On #484 the
+  default sort-order change (WARN) was lost in 2 of 2 runs with v1. Phrase
+  the rule per difference instead ("one finding per breaking difference … do
+  not merge"); v2 reports the sort order in 2 of 2. Check recall per defect,
+  not per route, when you change a skill's wording (evidence:
+  `src/db/seed-skills.ts:417-419`, commit `8aabc17`; runs `3cc3a7dd`,
+  `77338a0b` vs `ee0ce762`, `1125706e` in `../specs/L02-skills.md` "Stage 8
+  results").
 
 ## Codebase Patterns
 
@@ -312,3 +322,13 @@ Never rewrite existing entries — correct with a dated note.
   pins the single instance and the three job kinds via `JobRunner.hasHandler`.
 
 ## Open Questions
+
+- 2026-09-29: The provider's `tokens_in` (stored as-is on the run) is not
+  comparable across runs of the same prompt. On OpenRouter
+  `deepseek/deepseek-v4-flash`, runs `8c19c5c0` / `cd669ea3` sent the same
+  2077-token cl100k prompt and reported 2233 vs 3379. The v2 skills prompt
+  (2738 cl100k) reported 2821, while the smaller v1 prompt (2672) reported
+  3980. Is it prompt caching or upstream variance? Until that is known,
+  measure skill cost from the cl100k `skill_blocks`, not from `tokens_in`
+  (evidence: `src/modules/reviews/run-executor.ts:287`, `:367`;
+  `../specs/L02-skills.md` "Stage 8 results").

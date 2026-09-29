@@ -411,11 +411,101 @@ One commit per stage; each stage has its own gate.
 | 6 | `feat(client): agent skills tab and trace token counts` | client tests (userEvent): tick / untick / ↑↓ edit the draft → one PUT on Save, Discard, "N of M enabled", card count, trace label |
 | 7 | `feat(seed,e2e): seed skills, agents and experiment PRs; skills flow` | server tests; `npm run e2e:hermetic` with `e2e/specs/08-skills.flow.json` (read-only: `/skills` cards, a skill opens, agent Skills tab "3 of 6 enabled"; `wait --text` before every `find … click`); `e2e/specs/flows-contract.md` preconditions: 5 agents, PRs #482–#484 |
 | 7a | `chore(skills): make pr-self-review user-invoked` (D9) | the skill's script self-check; then the user runs `/pr-self-review` |
-| 8 | control experiment — manual, real LLM key, no code; results table appended here in a `docs(specs)` commit | each agent × its PR, without and with skills, two runs per side |
+| 8 | **done 2026-09-28** (runs by the user; one wording iteration `8aabc17`; results in "Stage 8 results" below) control experiment — manual, real LLM key, no code; results table appended here in a `docs(specs)` commit | each agent × its PR, without and with skills, two runs per side |
 | 9 | **done 2026-09-28** (`ac6c5d7` skill 2.0.0, `e572601` reviews, then the skills commit; import boundaries enforced by `client/src/test/import-boundaries.test.ts`) `refactor(client): move reviews and skills into features/` — in `lesson-2` right after Wave 3 and 7a (independent of Stage 8), separate commits, behaviour unchanged; includes the `frontend-architecture` skill change (R4 and the Map gain the `features/` layer → MAJOR 2.0.0 per its README, Changelog, catalog row); details go to the user for approval first. The user's final `/pr-self-review` runs after Stage 9, so it covers the refactor | client typecheck + all client tests + `npm run e2e:hermetic` |
 
 Every stage ends with the engineering-insights checkpoint and package-docs;
 its report ends with the `INSIGHTS:` and `docs/specs:` lines.
+
+## Stage 8 results
+
+**Setup.** The seed PRs #483 / #484 on `acme/payments-api` (D8,
+`server/src/db/seed-prs.ts`), model `openrouter` / `deepseek/deepseek-v4-flash`,
+two runs per side. All runs were on 2026-09-28 and ran one after another,
+the no-skills side first (17:06–21:34 UTC). Skill tokens are cl100k from the
+trace's `skill_blocks`. The PR fixtures did not change during the experiment
+(`seed-prs.ts` is unchanged since `efbd1c6`), and the integrity grep of seed
+skills and prompts for the PRs' specifics finds 0 hits.
+
+### #483 — Test Quality Reviewer
+
+Defect: the test covers only the happy path; the expired, cap, zero-total
+and fixed-coupon branches are untested.
+
+| Run | Skills | Caught | Findings | Severity | Verdict | Score |
+|---|---|---|---|---|---|---|
+| `af15ca85` | none | yes | 6 | 4 CRITICAL + 2 WARNING | request_changes | 0 |
+| `736fd5dc` | none | yes | 1 (merged) | CRITICAL | request_changes | 65 |
+| `29999f09` | `branch-coverage-check`, `edge-case-hunter`, `over-mocking-smell`, `flaky-test-patterns` v1 (330 + 355 + 249 + 277 = 1211 tok) | yes | 1 (merged) | WARNING | comment | 88 |
+| `6573d1ce` | same | yes | 4 (5 generated, 1 dropped by grounding) | 4 WARNING | comment | 52 |
+
+In `6573d1ce`, grounding dropped the zero-total finding: its line is outside
+a diff hunk of `test/billing/discount.test.ts`. Zero-total therefore appears
+only in that run's summary.
+
+**Result:** skills give no detection lift, because the baseline already
+catches the defect in 2 of 2 runs. The effect is severity calibration.
+`edge-case-hunter` keeps CRITICAL for a case that "corrupts stored data or
+bypasses a check" (`server/src/db/seed-skills.ts:315`), so request_changes
+becomes comment. The with-skills
+summaries show that the checklists were applied (branch coverage, edge
+cases, mocking, flakiness).
+
+### #484 — API Contract Reviewer
+
+Defect: the array response becomes `{items, next_cursor}`, `limit` becomes
+`page_size`, and there is no versioning. The default sort order also changes
+from `createdAt` to `id`.
+
+| Run | Skills | Shape | `limit` | Sort order | Findings | Score |
+|---|---|---|---|---|---|---|
+| `8c19c5c0` | none | CRIT | CRIT | WARN | 3 | 18 |
+| `cd669ea3` | none | CRIT | CRIT | WARN | 4 (+ cursor validation, `security`, off-role) | 6 |
+| `3cc3a7dd` | `route-signature-diff` v1 + `breaking-change-rubric` v1 (268 + 304 tok) | merged into 1 CRIT | merged | missed | 1 | 65 |
+| `77338a0b` | same | merged into 1 CRIT | merged | missed | 1 | 65 |
+| `ee0ce762` | v2 + v2 (293 + 345 tok) | CRIT | CRIT | WARN | 3 | 18 |
+| `1125706e` | same | CRIT | CRIT | CRIT | 3 | 0 |
+
+All six runs mention the missing versioning.
+
+**Iteration 1** (`8aabc17`): the change is wording only; the PR is untouched
+and the integrity grep finds 0 hits. In `route-signature-diff`, "One finding
+per changed route" becomes one finding per breaking difference ("do not
+merge several differences of one route into one finding"). The
+`breaking-change-rubric` gains a sort-order / paging item. With v1 the
+sort-order finding was lost in 2 of 2 runs; with v2 it is reported in 2 of 2
+(`server/src/db/seed-skills.ts:417-419`, `:443-445`).
+
+### Observations
+
+- **Provider `tokens_in` is not comparable across runs.** Identical prompts
+  report the same `tokens_in` in every pair except one. `8c19c5c0` and
+  `cd669ea3` send the same prompt (2077 cl100k system + user) but report 2233
+  and 3379. The v2 prompt (2738 cl100k) is slightly larger than the v1
+  prompt (2672), yet v2 reports 2821 and v1 reports 3980. Skill cost is
+  therefore reported from the cl100k `skill_blocks`, not from provider
+  tokens. The cause (caching, or OpenRouter upstream variance) is an open
+  question and was not investigated.
+- **v2 findings carry wrong categories.** For contract breaks, `ee0ce762`
+  uses `security` on all three findings and `1125706e` uses `perf`. v1 and
+  the baseline use `bug`, except the cursor finding of `cd669ea3`. Not tuned:
+  one iteration only.
+- **The log score is not the stored score.** The run log line "Reduced to N
+  finding(s); verdict=…, score=X" shows the model's own score, and the stored
+  run score is recomputed. They differ in 8 of 10 runs: `ee0ce762` logs 0
+  and stores 18; `3cc3a7dd` / `77338a0b` / `cd669ea3` log 20. This behaviour
+  existed before L02 and is recorded here only.
+
+### Conclusions
+
+- At baseline, skills do not raise detection on either PR: without skills
+  both agents already catch the planted defect.
+- On #483 the skills calibrate severity (CRITICAL → WARNING, request_changes
+  → comment) and make the review follow their checklists.
+- On #484 the wording of a skill decides recall. A reporting rule that caps
+  findings per route made the model merge distinct breaking changes and drop
+  the lower-severity sort-order change. One wording iteration fixed it
+  (v1 0 of 2, v2 2 of 2), without touching the PR.
 
 ## Execution waves
 
@@ -491,7 +581,7 @@ re-runs `pnpm install --frozen-lockfile`. pnpm v12 auto-creates
 | Both new agents have skills attached | seed; flow 08; manual check by the user |
 | An enabled skill is a separate block in the logs, a disabled one is not | Stage 4b `.it.test`; manual check by the user (run log + trace) |
 | Import went through the preview; nothing executable ran | Stage 3a tests (`scripts/install.sh` listed "skipped"); manual check by the user with the `pnpm skill:pack` zip; the first enable requires the acknowledgement |
-| The control experiment reproduces on both agents | Stage 8 table (#483 Test Quality, #484 API Contract; two runs per side); manual check by the user of the trace Skills block with ≈ tokens |
+| The control experiment reproduces on both agents | Done: "Stage 8 results" (#483 Test Quality, #484 API Contract; two runs per side; trace Skills block with ≈ tokens checked by the user). Outcome: no detection lift at baseline, since both agents catch their defect without skills. #483: skills calibrate severity (request_changes → comment). #484: the v1 wording caused a recall regression (sort order lost 2/2) that iteration `8aabc17` fixed (2/2) |
 
 ## Docs and specs to update
 
@@ -540,3 +630,8 @@ README.md, references/plan.md}`; `.claude/skills/README.md`.
 - 1.png / 4.png agent card stats and the Stats tab are not built.
 - The requirements asked for a demo video with a trust segment; the user films
   it manually — no demo artefacts in this change.
+- Stage 8: the seed wording of `route-signature-diff` and
+  `breaking-change-rubric` changed after the first with-skills runs on #484
+  (`8aabc17`, wording only). The experiment DB holds that text as v2 of both
+  skills (saved through the UI); a fresh seed ships the same text as
+  version 1.
