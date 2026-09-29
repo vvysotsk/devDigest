@@ -169,6 +169,17 @@ Never rewrite existing entries — correct with a dated note.
   its own rule there (evidence: `src/app/globals.css:53-61`,
   `src/vendor/ui/kit/SelectInput.tsx:29`).
 
+- 2026-09-29: In a single-line flex container with a `max-height`, the
+  default `align-items: stretch` gives every item the container's clamped
+  line height (Flexbox §9.4), not its own size. The skill body textarea
+  (`rows` = 40) was drawn 520 px tall with `scrollHeight` 820. Because
+  `overflow: hidden` still allows programmatic scroll, it scrolled internally
+  to the caret (`scrollTop` 300) and drifted from the gutter. Give such an
+  item an explicit height and `align-items: flex-start`, and let only the
+  container scroll (evidence: `src/app/skills/[id]/_components/SkillEditor/_components/ConfigTab/_components/SkillBodyEditor/styles.ts:25`,
+  `SkillBodyEditor.tsx:44-47`, `:84`; before the fix, e2e flow `08-skills`
+  failed on `BODY_EDITOR_OK`).
+
 ## Session Notes
 
 - 2026-09-28: L02 Stage 9 moved the `reviews` domain — entries above that

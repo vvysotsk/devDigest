@@ -1,6 +1,6 @@
 # e2e — architecture
 
-Last verified: 2026-09-24 against c03665a
+Last verified: 2026-09-29 against 8aabc17 (flow 08 body-editor `eval` steps)
 
 ## Purpose
 
@@ -77,7 +77,9 @@ fixtures: every expectation comes from the server seed
 ## Boundaries & dependencies
 
 - **Deterministic locators only**: `open`, `wait --url|--text|--load`,
-  `find text|role … click`, `screenshot`, `close`. The AI `chat` command is
+  `find text|role … click`, `eval`, `screenshot`, `close`. `eval` runs a
+  single-line IIFE whose returned string is checked by `assert.stdoutIncludes`
+  (flow 08: `specs/08-skills.flow.json:12-13`). The AI `chat` command is
   never used, so no key is needed (`README.md`).
 - **`find` does not wait.** Every `find … click` is preceded by a `wait --text`
   for its own target; `wait --url` and `wait --load networkidle` do not prove
@@ -85,7 +87,8 @@ fixtures: every expectation comes from the server seed
   `specs/flows-contract.md` → "Flow authoring rules".
 - **Read-only**: flows never submit forms or start a review; the only
   mutations are the server's own GitHub-less imports, which no-op without a
-  token.
+  token. Flow 08 types an unsaved draft into the skill body editor and
+  never presses Save, so nothing is written.
 - **Seed is the fixture.** Texts asserted by flows (`Pull Requests`,
   `Add rate limiting to public API endpoints`, `Security Reviewer`,
   `request changes`, `2 findings`, `Hardcoded Stripe secret key in commit`,

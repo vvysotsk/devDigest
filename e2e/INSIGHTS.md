@@ -13,6 +13,15 @@ Never rewrite existing entries — correct with a dated note.
 
 ## What Doesn't Work
 
+- 2026-09-29: `scripts/e2e.sh` does NOT leave a running dev client intact,
+  despite its header. Its `next dev -p 3100` writes the same `client/.next`
+  as the dev `next dev` on :3000 and inlines `NEXT_PUBLIC_API_BASE=:3101`.
+  After the hermetic run, the dev page at :3000 requested
+  `http://localhost:3101/skills` (the stack that was torn down) and showed
+  "Could not load skills". Restart the dev client after a hermetic run, or
+  stop it before one (evidence: `../scripts/e2e.sh:5`, `:42`, `:148`;
+  `performance.getEntriesByType('resource')` on :3000 listed only :3101 URLs).
+
 ## Codebase Patterns
 
 ## Tool & Library Notes
@@ -56,6 +65,15 @@ Never rewrite existing entries — correct with a dated note.
     and (2) applied, `bash scripts/e2e.sh` passes 7/7 flows. (1) and (2)
     remain — the runner's Windows compatibility is an open question in
     `../specs/refactor-onion.md`; the run recipe is in `CLAUDE.md` → Commands.
+
+- 2026-09-29: An `eval` step whose JS contains `'\n'` written as a JSON
+  escape fails with `Evaluation error: SyntaxError: Invalid or unexpected
+  token`. JSON turns `\n` into a real line break inside the JS string
+  literal. The runner shows only the command line, and a missed
+  `assert.stdoutIncludes` shows no stdout at all. Write the newline as
+  `String.fromCharCode(10)`. To debug a failing `eval`, re-run its exact argv
+  by hand (evidence: `specs/08-skills.flow.json:12`, `run.ts:99-100`,
+  `run.ts:108`).
 
 ## Session Notes
 

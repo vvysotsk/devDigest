@@ -1,7 +1,5 @@
 import type { CSSProperties } from "react";
-import { LINE_HEIGHT } from "./constants";
-
-const PAD_Y = 10;
+import { LINE_HEIGHT, PAD_Y } from "./constants";
 
 /** Co-located styles for SkillBodyEditor. */
 export const s = {
@@ -22,8 +20,13 @@ export const s = {
   fileIcon: { color: "var(--text-muted)" } satisfies CSSProperties,
   fileName: { fontSize: 12.5, fontWeight: 600 } satisfies CSSProperties,
   tokens: { marginLeft: "auto", fontSize: 12, color: "var(--text-muted)" } satisfies CSSProperties,
-  scroll: { display: "flex", maxHeight: 520, overflow: "auto" } satisfies CSSProperties,
+  // flex-start, not the default stretch: stretch would clamp the textarea to
+  // this line's max-height instead of its own explicit height.
+  scroll: { display: "flex", alignItems: "flex-start", maxHeight: 520, overflow: "auto" } satisfies CSSProperties,
   gutter: {
+    position: "sticky",
+    left: 0,
+    zIndex: 1,
     flexShrink: 0,
     padding: `${PAD_Y}px 10px ${PAD_Y}px 12px`,
     textAlign: "right",
@@ -35,8 +38,8 @@ export const s = {
     background: "var(--bg-surface)",
   } satisfies CSSProperties,
   textarea: {
-    flex: 1,
-    minWidth: 0,
+    boxSizing: "border-box",
+    flex: "1 0 auto",
     resize: "none",
     border: "none",
     outline: "none",

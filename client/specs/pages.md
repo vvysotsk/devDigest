@@ -203,6 +203,13 @@ for the PR page (`FindingsPanel/FindingsPanel.tsx`, `RunHistory/RunHistory.tsx`,
   chip and `≈ body_tokens tok (cl100k)` when clean or `≈ chars/4 tok` while
   dirty; "Delete skill" asks "Used by N agents" first, then `DELETE` and back
   to `/skills`.
+- Body editor sizing: lines never wrap; the textarea is exactly as tall as
+  its lines (at least 14) and at least as wide as its longest line, so it
+  never scrolls internally and every line stays level with its gutter
+  number; only the frame scrolls (at most 520 px high, both axes) and the
+  gutter stays pinned on horizontal scroll
+  (`src/app/skills/[id]/_components/SkillEditor/_components/ConfigTab/_components/SkillBodyEditor/SkillBodyEditor.tsx`,
+  checked by its `SkillBodyEditor.test.tsx` and e2e flow `08-skills`).
 - `?tab=preview`: rendered Markdown, "Raw" toggle. `?tab=versions`:
   `GET /skills/:id/versions` newest first; a version whose body equals the
   previous one is labelled "metadata change"; a row shows its raw body.
