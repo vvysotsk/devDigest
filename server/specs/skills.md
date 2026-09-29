@@ -177,8 +177,13 @@ none, so user edits survive a re-seed — `test/seed.it.test.ts`):
 order = `agent_skills.order`; Security 6 linked / 3 enabled; no API Contract
 Reviewer — the user creates that agent and its skills in the UI,
 `../specs/HW02-conventions-and-api-contract.md` D9),
-`SEED_EXPERIMENT_PRS` (#483, #484 on `acme/payments-api` with `pr_files`
-patches in GitHub format, read by `diffFromPrFiles` when there is no clone).
+`SEED_EXPERIMENT_PRS` (#483, #484 for L02 and #485, #486 for HW02 on
+`acme/payments-api`, with `pr_files` patches in GitHub format, read by
+`diffFromPrFiles` when there is no clone). `upsertExperimentPr`
+(`src/db/seed.ts`) inserts each PR once. A PR with `refreshOnSeed` (#485, #486)
+is rewritten, row + files + commits in one transaction, when its fixture has a
+new `headSha`. That is how a calibration edit reaches a running DB
+(`../specs/HW02-conventions-and-api-contract.md` D13).
 Skill bodies and prompts stay generic — they never name the experiment PRs'
 defects (see `../specs/L02-skills.md` D8).
 
@@ -202,6 +207,7 @@ defects (see `../specs/L02-skills.md` D8).
 | CRUD, v1 + snapshot, version rule, no bump on enabled-only / unchanged values, 409 duplicate create + rename, ack 409 → OK → not needed again, `agent_count` incl. disabled links, delete cascade, workspace scope, R3 shapes | `test/skills.it.test.ts` |
 | link order/enabled, one bump per changed save, no bump on unchanged list, detach-all bump, 400 foreign/unknown skill with nothing written, 404 agent, effective `skill_count`, config edit snapshots links, port `enabledForAgent` / `namesInWorkspace`, R3 shapes | `test/agent-skills.it.test.ts` |
 | import routes + trust path: preview stores nothing and lists skipped scripts; save ignores a client body/source/enabled, stores `imported_file` disabled with the parsed body; `name_exists` then 409 duplicate; enable → 409 `skill_ack_required` → with ack 200 + `acknowledged_at`, no bump; overrides on a `.md`; 415 / 422 codes incl. `import_invalid_field` details; R3 shapes | `test/skill-import.it.test.ts` |
-| seed idempotent (second run adds nothing); 4 agents, 10 skills + v1 snapshots, 12 links, PRs #482–#484 with `@@` patches; Security 6 linked / 3 enabled in design order; a re-seed keeps a user's unticked link | `test/seed.it.test.ts` |
+| seed idempotent (second run adds nothing); 4 agents, 10 skills + v1 snapshots, 12 links, PRs #482–#486 with `@@` patches; a refreshable PR is rewritten only on a new head sha, never an L02 PR, and counts are unchanged afterwards; Security 6 linked / 3 enabled in design order; a re-seed keeps a user's unticked link | `test/seed.it.test.ts` |
+| experiment PR fixtures: additions / deletions and hunk headers match each patch; only #485 / #486 refresh on seed | `test/seed-prs.test.ts` |
 | pure rules: `bumpsVersion`, `needsAck`, `linksChanged`, `missingIds`, DTO mapping, unique-violation detection | `test/skills-helpers.test.ts` |
 | import: `.md` and folder zip; quoted / colon / `>` / `\|` / nested frontmatter; `..`, absolute, drive, backslash, symlink paths; > 200 entries; declared and inflated size + CRC; references and skipped files; no or several SKILL.md; bad frontmatter; unsupported file; base64 limit and malformed base64; every warning kind; `resolveImportSave` overrides, `import_description_missing`, `import_invalid_name`, `import_invalid_field` (description, empty body, long body), body never overridable | `test/skill-import.test.ts` |

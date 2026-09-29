@@ -10,7 +10,7 @@ import {
   TEST_QUALITY_REVIEWER_PROMPT,
 } from './seed-prompts.js';
 import { SEED_AGENT_SKILL_LINKS, SEED_SKILLS } from './seed-skills.js';
-import { SEED_EXPERIMENT_PRS } from './seed-prs.js';
+import { SEED_EXPERIMENT_PRS, type SeedPr } from './seed-prs.js';
 
 /** Default provider/model for the built-in reviewer agents. */
 const DEFAULT_PROVIDER = 'openrouter' as const;
@@ -22,8 +22,9 @@ const DEFAULT_MODEL = 'deepseek/deepseek-v4-flash';
  *
  * Seeds: default workspace + system user + membership, default settings,
  * demo repo (acme/payments-api), PR #482 with files/commits, a sample review
- * with a few findings, the L02 experiment PRs #483 / #484 (with patches, so a
- * review works without a clone), four built-in agents (General, Security,
+ * with a few findings, the experiment PRs #483 / #484 (L02) and #485 / #486
+ * (HW02; refreshed on a re-seed when their fixture's head sha changes) with
+ * patches, so a review works without a clone, four built-in agents (General, Security,
  * Performance, Test Quality) on the default openrouter/deepseek-v4-flash
  * provider+model, the 10 L02 seed skills and their links (an agent's links
  * are seeded only while it has none, so user edits survive a re-seed). The
@@ -184,34 +185,8 @@ export async function seed(db: Db): Promise<{ workspaceId: string; userId: strin
     ]);
   }
 
-  // ---- L02 experiment PRs #483 / #484 (specs/L02-skills.md D8) ----
-  for (const p of SEED_EXPERIMENT_PRS) {
-    const [exists] = await db
-      .select({ id: t.pullRequests.id })
-      .from(t.pullRequests)
-      .where(and(eq(t.pullRequests.repoId, repoId), eq(t.pullRequests.number, p.number)));
-    if (exists) continue;
-    const [row] = await db
-      .insert(t.pullRequests)
-      .values({
-        workspaceId,
-        repoId,
-        number: p.number,
-        title: p.title,
-        author: p.author,
-        branch: p.branch,
-        base: p.base,
-        headSha: p.headSha,
-        additions: p.files.reduce((n, f) => n + f.additions, 0),
-        deletions: p.files.reduce((n, f) => n + f.deletions, 0),
-        filesCount: p.files.length,
-        status: 'needs_review',
-        body: p.body,
-      })
-      .returning();
-    await db.insert(t.prFiles).values(p.files.map((f) => ({ prId: row!.id, ...f })));
-    await db.insert(t.prCommits).values(p.commits.map((c) => ({ prId: row!.id, ...c })));
-  }
+  // ---- experiment PRs: L02 #483 / #484, HW02 #485 / #486 (refreshed, D13) ----
+  for (const p of SEED_EXPERIMENT_PRS) await upsertExperimentPr(db, workspaceId, repoId, p);
 
   // ---- built-in agents (starter presets + the L02 Test Quality agent) ----
   // Prompt bodies live in ./seed-prompts.ts (mirrored in docs/agent-prompts/*.md).
@@ -305,6 +280,61 @@ export async function seed(db: Db): Promise<{ workspaceId: string; userId: strin
   }
 
   return { workspaceId, userId };
+}
+
+/**
+ * Write one experiment PR with its files and commits.
+ *
+ * A new PR is inserted. An existing one is left alone, unless the fixture has
+ * `refreshOnSeed` (the HW02 calibration PRs #485 / #486) and a different
+ * `headSha`. Then its row, files and commits are rewritten in one
+ * transaction and its status goes back to `needs_review`. This lets a
+ * calibration edit reach a running DB with `pnpm db:seed`, without touching
+ * any other data (specs/HW02-conventions-and-api-contract.md D13).
+ */
+export async function upsertExperimentPr(
+  db: Db,
+  workspaceId: string,
+  repoId: string,
+  p: SeedPr,
+): Promise<'inserted' | 'refreshed' | 'unchanged'> {
+  const values = {
+    title: p.title,
+    author: p.author,
+    branch: p.branch,
+    base: p.base,
+    headSha: p.headSha,
+    additions: p.files.reduce((n, f) => n + f.additions, 0),
+    deletions: p.files.reduce((n, f) => n + f.deletions, 0),
+    filesCount: p.files.length,
+    status: 'needs_review',
+    body: p.body,
+  };
+  const [existing] = await db
+    .select({ id: t.pullRequests.id, headSha: t.pullRequests.headSha })
+    .from(t.pullRequests)
+    .where(and(eq(t.pullRequests.repoId, repoId), eq(t.pullRequests.number, p.number)));
+
+  if (existing && (!p.refreshOnSeed || existing.headSha === p.headSha)) return 'unchanged';
+
+  await db.transaction(async (tx) => {
+    let prId: string;
+    if (existing) {
+      prId = existing.id;
+      await tx.update(t.pullRequests).set({ ...values, updatedAt: new Date() }).where(eq(t.pullRequests.id, prId));
+      await tx.delete(t.prFiles).where(eq(t.prFiles.prId, prId));
+      await tx.delete(t.prCommits).where(eq(t.prCommits.prId, prId));
+    } else {
+      const [row] = await tx
+        .insert(t.pullRequests)
+        .values({ workspaceId, repoId, number: p.number, ...values })
+        .returning({ id: t.pullRequests.id });
+      prId = row!.id;
+    }
+    await tx.insert(t.prFiles).values(p.files.map((f) => ({ prId, ...f })));
+    await tx.insert(t.prCommits).values(p.commits.map((c) => ({ prId, ...c })));
+  });
+  return existing ? 'refreshed' : 'inserted';
 }
 
 // CLI entrypoint

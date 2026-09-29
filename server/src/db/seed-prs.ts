@@ -1,6 +1,8 @@
 /**
- * Seed fixtures for the L02 control experiment (specs/L02-skills.md, D8): two
- * pull requests on the demo repo `acme/payments-api`. The repo has no clone
+ * Seed fixtures for the control experiments on the demo repo
+ * `acme/payments-api`: #483 / #484 for L02 (specs/L02-skills.md, D8) and
+ * #485 / #486 for HW02 (specs/HW02-conventions-and-api-contract.md, D12). No
+ * fixture text names its planted defect. The repo has no clone
  * (`clone_path = null`), so a review builds its diff from these `patch`
  * strings (GitHub `pr_files.patch` format: hunks only, no file headers).
  *
@@ -31,6 +33,13 @@ export interface SeedPr {
   body: string;
   files: SeedPrFile[];
   commits: SeedPrCommit[];
+  /**
+   * HW02 calibration PRs (specs/HW02-conventions-and-api-contract.md D13): a
+   * re-seed rewrites this PR's row, files and commits when `headSha` differs
+   * from the stored one. Every calibration edit of a fixture bumps `headSha`.
+   * Other PRs are only inserted once.
+   */
+  refreshOnSeed?: boolean;
 }
 
 export const SEED_PR_REPO = 'acme/payments-api';
@@ -253,6 +262,146 @@ export const SEED_EXPERIMENT_PRS: readonly SeedPr[] = [
         sha: 'e93a5f07b1c4',
         message: 'feat(api): keyset paging for GET /users',
         author: 'tomas.lindqvist',
+      },
+    ],
+  },
+  {
+    number: 485,
+    title: 'Add late fees for overdue invoices',
+    author: 'priya.raman',
+    branch: 'feat/late-fees',
+    base: 'main',
+    headSha: 'c41d8e2f7a90',
+    body:
+      'Adds `lateFeeCents`, the late-fee policy for overdue invoices (its constants live ' +
+      'in the module), with table-driven unit tests in `test/billing/late-fee.test.ts`.',
+    refreshOnSeed: true,
+    files: [
+      {
+        path: 'src/billing/late-fee.ts',
+        additions: 22,
+        deletions: 0,
+        patch: `@@ -0,0 +1,22 @@
++/** Late-fee policy for overdue invoices. All amounts are integer cents. */
++export const GRACE_PERIOD_DAYS = 3;
++export const DAILY_RATE_PERCENT = 2;
++export const MAX_FEE_PERCENT = 25;
++
++/**
++ * Late fee for an invoice of amountCents that is daysOverdue whole days
++ * past its due date.
++ */
++export function lateFeeCents(amountCents: number, daysOverdue: number): number {
++  if (daysOverdue <= GRACE_PERIOD_DAYS) {
++    return 0;
++  }
++
++  const chargedDays = daysOverdue - GRACE_PERIOD_DAYS;
++  const fee = Math.round((amountCents * DAILY_RATE_PERCENT * chargedDays) / 100);
++  const maxFee = Math.round((amountCents * MAX_FEE_PERCENT) / 100);
++  if (fee > maxFee) {
++    return maxFee;
++  }
++  return fee;
++}`,
+      },
+      {
+        path: 'test/billing/late-fee.test.ts',
+        additions: 17,
+        deletions: 0,
+        patch: `@@ -0,0 +1,17 @@
++import { describe, expect, it } from 'vitest';
++import { lateFeeCents } from '../../src/billing/late-fee.js';
++
++describe('lateFeeCents', () => {
++  it.each([
++    { amountCents: 10_000, days: 5, expected: 400 },
++    { amountCents: 10_000, days: 6, expected: 600 },
++    { amountCents: 10_000, days: 8, expected: 1_000 },
++    { amountCents: 10_000, days: 10, expected: 1_400 },
++    { amountCents: 25_000, days: 7, expected: 2_000 },
++    { amountCents: 25_000, days: 12, expected: 4_500 },
++    { amountCents: 4_999, days: 9, expected: 600 },
++    { amountCents: 4_999, days: 14, expected: 1_100 },
++  ])('charges $expected cents on $amountCents cents, $days days overdue', ({ amountCents, days, expected }) => {
++    expect(lateFeeCents(amountCents, days)).toBe(expected);
++  });
++});`,
+      },
+    ],
+    commits: [
+      {
+        sha: '8b2f6c1d0e57',
+        message: 'feat(billing): add lateFeeCents',
+        author: 'priya.raman',
+      },
+      {
+        sha: 'c41d8e2f7a90',
+        message: 'test(billing): table-driven tests for lateFeeCents',
+        author: 'priya.raman',
+      },
+    ],
+  },
+  {
+    number: 486,
+    title: 'Rename Customer.email to contactEmail',
+    author: 'marco.bellini',
+    branch: 'refactor/customer-contact-email',
+    base: 'main',
+    headSha: '5e0a93d7c2b1',
+    body:
+      'Renames the `email` field of `Customer` to `contactEmail` for consistency with ' +
+      '`Merchant.contactEmail`, and updates the checkout flow to the new name.',
+    refreshOnSeed: true,
+    files: [
+      {
+        path: 'src/schemas/customers.ts',
+        additions: 1,
+        deletions: 1,
+        patch: `@@ -3,7 +3,7 @@ import { z } from 'zod';
+ export const Customer = z.object({
+   id: z.string(),
+   name: z.string(),
+-  email: z.string().email(),
++  contactEmail: z.string().email(),
+   createdAt: z.string().datetime(),
+ });
+ export type Customer = z.infer<typeof Customer>;`,
+      },
+      {
+        path: 'src/api/customers.mapper.ts',
+        additions: 1,
+        deletions: 1,
+        patch: `@@ -4,8 +4,8 @@ import type { Customer } from '../schemas/customers.js';
+ export function toCustomer(row: CustomerRow): Customer {
+   return {
+     id: row.id,
+     name: row.name,
+-    email: row.email,
++    contactEmail: row.email,
+     createdAt: row.createdAt.toISOString(),
+   };
+ }`,
+      },
+      {
+        path: 'src/api/checkout.ts',
+        additions: 1,
+        deletions: 1,
+        patch: `@@ -41,6 +41,6 @@ export async function checkoutRoutes(app: FastifyInstance) {
+       const order = await app.orders.place(customer.id, req.body.items);
+       await app.mailer.send({
+-        to: customer.email,
++        to: customer.contactEmail,
+         template: 'order-confirmation',
+         data: { orderId: order.id, totalCents: order.totalCents },
+       });`,
+      },
+    ],
+    commits: [
+      {
+        sha: '5e0a93d7c2b1',
+        message: 'refactor(customers): rename Customer.email to contactEmail',
+        author: 'marco.bellini',
       },
     ],
   },

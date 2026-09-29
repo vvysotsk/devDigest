@@ -265,6 +265,12 @@ in the working tree on 2026-09-29.
   - `deprecation-policy` is packed with `pnpm skill:pack <dir> <out.zip>`
     and imported as `.zip` (#16); the other three are created in the UI.
   - Good / bad examples use an unrelated domain (orders, products).
+  - The `response-schema` "Bad" example (a shared `Product.price` becoming
+    nullable, which breaks routes outside the diff) was checked against the
+    #486 variants A', A and B. It was kept: the brief defines response-schema
+    as changes to types and field optionality, so this is the class knowledge
+    the skill must carry, taken from another domain and a different change
+    type than A'.
   - **Integrity grep**, run after every edit, must print nothing. It covers
     both planted defects and runs over the four new skill files, the Test
     Quality seed skills, and both prompts (D10 and D10b):
@@ -282,16 +288,31 @@ in the working tree on 2026-09-29.
   patches with no clone, like #483 / #484
   (`server/src/modules/reviews/diff-loader.ts:19-44`). The planted defects
   were chosen by the user before any run:
-  - **#485 — Test Quality.** `src/billing/late-fee.ts`:
-    - behaviour: 0 during the grace period (≤ 3 days), then 2 % per day,
-      capped at 30 days and at 25 % of the amount;
-    - the test: 8 `it.each` rows, all in the 5–20 day band;
-    - left uncovered: the grace boundary (days 3 / 4) and the cap branch.
+  - **#485 — Test Quality.** Fixture in `server/src/db/seed-prs.ts`, title
+    "Add late fees for overdue invoices". Files: `src/billing/late-fee.ts`
+    and `test/billing/late-fee.test.ts`.
+    - Behaviour: 0 during the grace period (≤ 3 days), then 2 % per charged
+      day, capped at 25 % of the amount.
+    - The test: 8 `it.each` rows, days 5–14 (inside the 5–20 band), all
+      below the cap.
+    - Left uncovered: the grace branch with its boundary (days 3 / 4) and
+      the cap branch.
+    - Built in 1b, before any run: the "30-day" cap is dropped. At 2 % a day
+      the 25 % cap binds after 13 charged days, so a 30-day cap would be
+      unreachable dead code, a second, unplanned finding. For the same
+      reason the rows stop at day 14, since days 16–20 would cover the cap.
+    - The PR text describes the feature only. It does not mention the grace
+      boundary or the cap as risks.
   - **#486 — API Contract, variant A'.** In the shared schema,
     `Customer.email` is renamed to `contactEmail` "for consistency".
-    - The diff updates the schema and the checkout route.
-    - `GET /customers/:id` and `/invoices` are not in the diff, yet they now
-      return the new name.
+    - The diff: `src/schemas/customers.ts` (the schema),
+      `src/api/customers.mapper.ts` (the shared `toCustomer` mapper) and
+      `src/api/checkout.ts` (the checkout route).
+    - `GET /customers/:id` and `/invoices` return `toCustomer(…)` and are not
+      in the diff, yet they now return the new name.
+    - The PR text says what a real author would ("for consistency with
+      `Merchant.contactEmail`, and updates the checkout flow"). It names no
+      consequence and no other route.
     - This matches the brief ("перейменовує поле у відповіді") and #18.
   - **Pre-registered fallbacks for #486, in order:**
     - A: `email` becomes `.optional()`;
@@ -314,13 +335,27 @@ in the working tree on 2026-09-29.
     5. After the freeze, only skill wording may change, and every iteration
        is recorded.
 - **D13 Applying an edited patch to an existing DB** — calibration edits the
-  #485 / #486 fixtures, so the edits must reach a running DB. Decided in
-  Stage 1b and recorded here then. The options:
-  - (a) the seed upserts `pr_files` and the PR totals for #485 / #486 only,
-    by number;
-  - (b) a documented reset command.
-
-  Nothing else in the DB is touched.
+  #485 / #486 fixtures, so the edits must reach a running DB. **Decided in
+  1b: (a), a refreshing seed.**
+  - #485 and #486 carry `refreshOnSeed: true`
+    (`server/src/db/seed-prs.ts`).
+  - `upsertExperimentPr` (`server/src/db/seed.ts`) rewrites such a PR's row,
+    `pr_files` and `pr_commits` in one transaction when the fixture's
+    `headSha` differs from the stored one. Status returns to `needs_review`;
+    `last_reviewed_sha` stays, so the PR shows as changed since the last
+    review.
+  - Every other PR is inserted once and never rewritten. No other table is
+    touched.
+  - **Calibration edit** = edit the fixture, give it a new `headSha` (and
+    commit sha), commit `fix(seed): calibrate #48x …`, then run
+    `cd server && pnpm db:seed`.
+  - Tests:
+    - `server/test/seed.it.test.ts` "a calibration edit (new head sha) …":
+      unchanged on the same sha, refreshed on a new one, never for #483, and
+      the counts come back to the start;
+    - `server/test/seed-prs.test.ts`: additions / deletions and hunk headers
+      match every patch.
+  - Option (b), a reset command, was not needed.
 
 ### Stage 2 — Conventions Extractor
 
@@ -667,8 +702,9 @@ Rules: files are staged by name; no Co-Authored-By; no push.
    UI.
 4. Link all four in the agent's Skills tab (#13).
 5. Calibration without skills (links disabled is enough). After every PR
-   edit: a `fix(seed): calibrate #48x …` commit, applied per D13, and a row in
-   the results table. Continue until the agent misses the defect 2/2.
+   edit: a new `headSha` in the fixture, a `fix(seed): calibrate #48x …`
+   commit, `cd server && pnpm db:seed` (D13), and a row in the results table.
+   Continue until the agent misses the defect 2/2.
 6. Freeze the PR.
 7. The two recorded "without" runs: skills **detached**.
 8. Two runs with skills, on the same model. After that, only skill wording

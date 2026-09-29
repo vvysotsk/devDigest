@@ -1,6 +1,6 @@
 # e2e — flows-contract
 
-Last verified: 2026-09-29 (HW02 0f: API Contract Reviewer no longer seeded; every `path:line` re-checked)
+Last verified: 2026-09-29 (HW02 1b: PRs #485 / #486 seeded; every `path:line` re-checked)
 
 ## Scope
 
@@ -47,14 +47,15 @@ Paths are relative to `e2e/`.
   'review'`, verdict `request_changes`, score 61, two findings — the first
   titled "Hardcoded Stripe secret key in commit") that has no `agent_runs`
   row (`../server/src/db/seed.ts:103-185`).
-- L02 experiment PRs #483 and #484 with patched `pr_files`, no review
-  (`../server/src/db/seed.ts:187-214`); the PR list therefore has three PRs.
+- Experiment PRs #483 / #484 (L02) and #485 / #486 (HW02) with patched
+  `pr_files`, no review (`../server/src/db/seed.ts:188-189`, written by
+  `upsertExperimentPr` `:295-338`); the PR list therefore has five PRs.
 - Four enabled agents: General, Security, Performance and Test Quality
-  Reviewer (`../server/src/db/seed.ts:216-270`). The API Contract Reviewer is
+  Reviewer (`../server/src/db/seed.ts:191-245`). The API Contract Reviewer is
   not seeded; the user creates it in the UI (`../specs/HW02-conventions-and-api-contract.md` D9).
 - Ten enabled skills (`../server/src/db/seed-skills.ts`, written by
-  `../server/src/db/seed.ts:272-287`) and their links
-  (`../server/src/db/seed.ts:289-305`): Security Reviewer 6 linked / 3
+  `../server/src/db/seed.ts:247-262`) and their links
+  (`../server/src/db/seed.ts:264-280`): Security Reviewer 6 linked / 3
   enabled, Test Quality Reviewer 4 / 4, Performance 2 / 2.
 - No LLM or GitHub key is required: the API boots with every secret optional
   and serves persisted data when GitHub is unreachable
@@ -66,7 +67,7 @@ Paths are relative to `e2e/`.
 |---|---|---|---|
 | `01-app-boot` | `/` → `/repos/:id/pulls` | URL contains `/pulls`; text `Pull Requests` | ≥ 1 repo; heading `list.title` (`../client/messages/en/prReview.json:71`) |
 | `02-repo-pulls-detail` | `/` → click PR row → `/pulls/482` | PR title visible in the list and on the detail page | seeded repo is first; `PRRow` click navigates (`../client/src/app/repos/[repoId]/pulls/_components/PRRow/PRRow.tsx:26`) |
-| `03-agents` | `/agents` | text `Security Reviewer` | seeded agents (`../server/src/db/seed.ts:232`) |
+| `03-agents` | `/agents` | text `Security Reviewer` | seeded agents (`../server/src/db/seed.ts:207`) |
 | `04-pr-findings` | `/pulls/482?tab=findings` via the "Agent runs" tab button | texts `request changes`, `2 findings`, `Hardcoded Stripe secret key in commit` | first accordion gets `defaultOpen` (`../client/src/app/repos/[repoId]/pulls/[number]/_components/FindingsTab/FindingsTab.tsx:163`); header text built from `findings.length` (`../client/src/app/repos/[repoId]/pulls/[number]/_components/ReviewRunAccordion/ReviewRunAccordion.tsx:96-99`) |
 | `05-pr-diff` | `/pulls/482?tab=diff` via the "Files changed" tab button | text *src/config.ts* | seeded `pr_files` (`../server/src/db/seed.ts:129-134`) |
 | `06-onboarding` | `/onboarding` | texts `Add a repository`, `Repository URL` | `AddRepoView` copy (`../client/src/app/onboarding/_components/AddRepoView/AddRepoView.tsx:77`, `:94`) |

@@ -9,7 +9,7 @@ in the DB). The canonical, reviewable copies live next to this file:
 - [`general-reviewer.md`](./general-reviewer.md)
 - [`security-reviewer.md`](./security-reviewer.md)
 - [`performance-reviewer.md`](./performance-reviewer.md)
-- [`test-quality-reviewer.md`](./test-quality-reviewer.md) (L02)
+- [`test-quality-reviewer.md`](./test-quality-reviewer.md) (L02; since HW02 the role-only D10b prompt, `../../specs/HW02-conventions-and-api-contract.md`)
 - [`api-contract-reviewer.md`](./api-contract-reviewer.md) (HW02 — not seeded: the user creates the agent in the UI with this prompt, `../../specs/HW02-conventions-and-api-contract.md` D10)
 
 > The DB is the source of truth at run time. These files are the human-readable
