@@ -169,9 +169,10 @@ for the PR page (`FindingsPanel/FindingsPanel.tsx`, `RunHistory/RunHistory.tsx`,
   on = link at the end, enabled; off = keep the link and position, disabled;
   Detach = remove. Only an enabled skill — linked, enabled on this agent and
   enabled globally (`isMovable`, `SkillsTab/helpers.ts`) — can be dragged or
-  dropped on; the handle of any other linked row is dimmed ("Only enabled
-  skills can be dragged"). ↑/↓ stay on every linked row as the keyboard way
-  to reorder. A drag always ends in `dragend`, which clears the dragged row. All edits stay in a draft (tab label marked)
+  dropped on, and only it shows ↑/↓ (the keyboard way to reorder; an arrow
+  moves it one step past its neighbour); the handle of any other linked row
+  is dimmed ("Only enabled skills can be dragged"). A drag always ends in
+  `dragend`, which clears the dragged row. All edits stay in a draft (tab label marked)
   until "Save skills" sends ONE `PUT /agents/:id/skills`; "Discard" and an
   agent switch drop it.
 
@@ -315,7 +316,7 @@ for the PR page (`FindingsPanel/FindingsPanel.tsx`, `RunHistory/RunHistory.tsx`,
 | Config changed-field PUT + "Saved (v2)", unsaved chip + token estimate, delete confirm, Config acknowledgement, Enabled toggle keeps the unsaved draft, Preview raw/rendered, Versioning tab label, "metadata change", Diff lines, Restore → new version (disabled for the current body) | `src/app/skills/[id]/_components/SkillEditor/SkillEditor.test.tsx` |
 | `lineDiff` (same / add / del, moved lines, the cell-limit fallback) and `versionRows` | `src/app/skills/[id]/_components/SkillEditor/_components/VersionsTab/helpers.test.ts` |
 | Every `SkillErrorCode` has a message | `src/app/skills/helpers.test.ts` |
-| Agent Skills tab: draft-only switch on / off / ↑↓ / Detach, one PUT on Save, Discard, "N of M enabled", only enabled skills drag or take a drop, draft reset on agent switch, empty state | `src/app/agents/[id]/_components/AgentEditor/_components/SkillsTab/SkillsTab.test.tsx` |
+| Agent Skills tab: draft-only switch on / off / ↑↓ / Detach, one PUT on Save, Discard, "N of M enabled", only enabled skills drag, take a drop or show ↑/↓, draft reset on agent switch, empty state | `src/app/agents/[id]/_components/AgentEditor/_components/SkillsTab/SkillsTab.test.tsx` |
 | "N skills" chip from `skill_count`, hidden at 0 | `src/app/agents/_components/AgentsListView/AgentsListView.test.tsx`, `src/app/agents/_components/AgentCard/AgentCard.test.tsx` |
 | Trace Skills label with count + tokens, one row per skill, plain block without `skill_blocks` | `RunTraceDrawer/_components/TraceBody/TraceBody.test.tsx` |
 | Kit gallery renders in both themes; diff viewer parses a unified patch | `src/test/smoke.test.tsx:15`, `:27` |

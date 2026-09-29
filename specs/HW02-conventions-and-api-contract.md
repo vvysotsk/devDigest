@@ -180,8 +180,10 @@ in the working tree on 2026-09-29.
 - **D6 Agent Skills tab (#31, #37)**
   - A row is draggable, and a drop target, only while its link is enabled
     and the skill is enabled.
-  - ↑/↓ stay on every linked row as the keyboard way to reorder. #31 names
-    drag & drop only.
+  - ↑/↓ follow the same rule (the user's decision): arrows appear only on
+    movable rows (`isMovable`) and remain the keyboard way to reorder them.
+    An arrow moves the row one step past its neighbour, whatever the
+    neighbour's state.
   - `dragend` clears the dragged row, so a drag dropped on a disabled row
     cannot leak into the next drop.
   - The per-agent enable becomes the kit `Toggle` instead of a checkbox. The

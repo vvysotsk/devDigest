@@ -95,12 +95,16 @@ describe("Agent SkillsTab", () => {
     expect(order()[0]).toBe("alpha-rule");
     expect(screen.getByText("1 of 4 enabled")).toBeInTheDocument();
 
-    await user.click(screen.getByRole("button", { name: "Move alpha-rule down" }));
+    // ↑/↓ follow the drag rule (#31): only enabled rows get arrows.
+    expect(screen.queryByRole("button", { name: "Move alpha-rule down" })).not.toBeInTheDocument(); // just disabled
+    expect(screen.queryByRole("button", { name: "Move beta-rule up" })).not.toBeInTheDocument(); // link disabled
+    expect(screen.queryByRole("button", { name: "Move gamma-rule up" })).not.toBeInTheDocument(); // disabled globally
     await user.click(screen.getByRole("button", { name: "Move delta-rule up" }));
-    expect(order()).toEqual(["beta-rule", "alpha-rule", "delta-rule", "gamma-rule", "eps-rule"]);
+    await user.click(screen.getByRole("button", { name: "Move delta-rule up" }));
+    expect(order()).toEqual(["alpha-rule", "delta-rule", "beta-rule", "gamma-rule", "eps-rule"]);
 
     await user.click(screen.getByRole("button", { name: "Detach gamma-rule" }));
-    expect(order()).toEqual(["beta-rule", "alpha-rule", "delta-rule", "eps-rule", "gamma-rule"]);
+    expect(order()).toEqual(["alpha-rule", "delta-rule", "beta-rule", "eps-rule", "gamma-rule"]);
     expect(screen.queryByRole("button", { name: "Detach gamma-rule" })).not.toBeInTheDocument();
     expect(screen.getByText("1 of 3 enabled")).toBeInTheDocument();
     expect(h.put).not.toHaveBeenCalled();
@@ -111,9 +115,9 @@ describe("Agent SkillsTab", () => {
       agentId: "ag1",
       body: {
         skills: [
-          { skill_id: "b", enabled: false },
           { skill_id: "a", enabled: false },
           { skill_id: "d", enabled: true },
+          { skill_id: "b", enabled: false },
         ],
       },
     });

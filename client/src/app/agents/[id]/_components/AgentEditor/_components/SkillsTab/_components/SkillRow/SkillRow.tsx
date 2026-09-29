@@ -7,7 +7,7 @@ import { SkillTypeBadge } from "@/features/skills/components/skill-type-badge";
 import { isMovable, type SkillRowModel } from "../../helpers";
 import { s } from "./styles";
 
-/** Row callbacks; the reorder / detach ones are used only for linked rows. */
+/** Row callbacks; reorder ones only for movable rows, detach for linked rows. */
 export interface SkillRowActions {
   check: (checked: boolean) => void;
   up: () => void;
@@ -22,9 +22,9 @@ export interface SkillRowActions {
 /**
  * One skill in the agent Skills tab: drag handle, ↑/↓, the per-agent enable
  * toggle, name, type badge, Detach. Only an enabled skill (linked, enabled on
- * this agent and globally) can be dragged or dropped on (HW02 #31); ↑/↓ stay
- * available for every linked row as the keyboard way to reorder. A globally
- * disabled skill is greyed with a hint (D2).
+ * this agent and globally) can be reordered (HW02 #31): dragged, dropped on,
+ * or moved with ↑/↓, the keyboard path. A globally disabled skill is greyed
+ * with a hint (D2).
  */
 export function SkillRow({
   row,
@@ -69,8 +69,8 @@ export function SkillRow({
         <Icon.Menu size={14} />
       </span>
       <span style={s.arrows}>
-        {linked && canUp && <IconBtn icon="ArrowUp" size={24} label={t("skills.moveUp", { name: skill.name })} onClick={on.up} />}
-        {linked && canDown && (
+        {movable && canUp && <IconBtn icon="ArrowUp" size={24} label={t("skills.moveUp", { name: skill.name })} onClick={on.up} />}
+        {movable && canDown && (
           <IconBtn icon="ArrowDown" size={24} label={t("skills.moveDown", { name: skill.name })} onClick={on.down} />
         )}
       </span>
