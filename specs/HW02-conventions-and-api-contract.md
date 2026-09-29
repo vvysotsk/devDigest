@@ -145,15 +145,17 @@ in the working tree on 2026-09-29.
   - `INSIGHTS.md` files, which are append-only;
   - `demo/L01/*`, the inputs of a video that is already filmed.
 - **D3 Skill versions** — each bump follows that skill's README.
-  - `onion-architecture` gets a rule in prose and loses a loophole: a route
-    calls only its own module's service and never an adapter, directly or via
-    `app.container`. A new rule is **minor**, so 1.1.1 → 1.2.0
+  - In Stage 0a, every versioned skill whose `SKILL.md` gets a pointer update
+    (`CLAUDE.md` → `AGENTS.md`) gets a **patch** bump ("pointers").
+  - In 0b, `onion-architecture` gets a rule in prose and loses a loophole: a
+    route calls only its own module's service and never an adapter, directly
+    or via `app.container`. A new rule is **minor**, landing on 1.2.0
     (`.claude/skills/onion-architecture/README.md:50-53`). Because of the
     minor bump, the final `/pr-self-review` re-checks the whole server.
-  - `pr-self-review` gets the Workflow label: `metadata.type: workflow`, a
-    description that starts "Workflow (skill dispatcher)", and the catalog row
-    in `.claude/skills/README.md`. That is wording, so **patch** 2.2.0 → 2.2.1
-    (`.claude/skills/pr-self-review/README.md:89-93`).
+  - In 0b, `pr-self-review` gets the Workflow label: `metadata.type:
+    workflow`, a description that starts "Workflow (skill dispatcher)", and
+    the catalog row in `.claude/skills/README.md`. That is wording, so another
+    **patch** (`.claude/skills/pr-self-review/README.md:89-93`).
 - **D4 Skill page (#10, #25)**
   - A card click opens `/skills/:id?tab=preview`.
   - The tab label becomes "Versioning". The i18n key and the URL value stay
@@ -200,6 +202,19 @@ in the working tree on 2026-09-29.
     and it gives the skills something to add.
   - The prompt is frozen with this spec: it is never tuned during
     calibration or the runs.
+  - Only the Role paragraph is agent-specific. It follows the General
+    Reviewer's role (`server/src/db/seed-prompts.ts:12-16`), including "Judge
+    the code on its merits, not on what the description claims it does".
+  - Everything else is the seeded agents' shared discipline, copied verbatim
+    from the General Reviewer:
+    - "Only flag issues introduced or worsened by THIS diff" (`:53-54`);
+    - Quality bar (`:56-60`);
+    - Severity (`:62-73`);
+    - Verdict (`:75-83`);
+    - Findings discipline (`:85-91`).
+  - The other seeded agents use the same Verdict and Findings discipline
+    blocks with domain-specific Severity. We take the General Reviewer's
+    domain-free Severity, because it hints at no particular kind of defect.
 - **D11 Skill files (P2, #43, #16)**
   - Location: `docs/agent-skills/api-contract/<name>/SKILL.md`, next to
     `docs/agent-prompts/`, so they are reproducible.
@@ -374,36 +389,51 @@ Created through the UI by the user. It is copied verbatim into
 
 ```
 # Role
-You are an API reviewer for a Node.js (TypeScript) HTTP service. You receive
-the full PR diff in one pass. Review the changes that affect the service's
-HTTP API and report the problems that its callers or maintainers would care
-about.
+You are a pragmatic senior engineer reviewing a pull-request diff for the HTTP
+API of a Node.js (TypeScript, ESM) service. You receive the full PR diff in one
+pass. Find the problems that the API's callers or maintainers would care about.
+Judge the code on its merits, not on what the description claims it does.
 
-# How to review
-- Decide from the code in the diff, not from the PR description, whether the
-  change alters how the API behaves for its callers.
-- Report only issues introduced by THIS diff.
-- Precision over volume: no style nits, no naming preferences, no generic
-  advice without a concrete impact.
-- If there is nothing worth reporting, return an EMPTY findings list and
-  approve. Do not invent issues to seem thorough.
+# How to analyze
+- Only flag issues introduced or worsened by THIS diff. Do not report pre-existing
+  code unless the change directly amplifies it.
+
+# Quality bar
+- Precision over volume. No style nits, no "might be slow/wrong" without a
+  mechanism, no issues already handled elsewhere in the code.
+- If you find nothing significant, return an EMPTY findings list and approve. Do
+  not invent issues to seem thorough.
 
 # Severity — use exactly these three levels
-- CRITICAL — must be fixed before merge. The ONLY level that blocks merge.
-- WARNING — a real problem that does not block merge on its own.
-- SUGGESTION — worth doing, low impact.
+- **CRITICAL** — a defect that, once merged, can cause a security breach, data
+  loss/corruption, incorrect results, a crash, or a broken contract that callers
+  depend on. This is the ONLY level that blocks merge.
+- **WARNING** — a real problem worth fixing that does not block: a missed edge
+  case, degraded behaviour, or a maintainability/perf risk that bites at scale.
+- **SUGGESTION** — a minor improvement or nit; the PR is safe to merge without it.
 
-# Verdict — consistent with your findings
-- request_changes — at least one CRITICAL finding.
-- comment — only WARNING / SUGGESTION findings.
-- approve — no findings; say in `summary` what you checked.
-NEVER request_changes with an empty findings list; NEVER approve while
-reporting a CRITICAL.
+Assign the severity you would defend to the author's face. Do NOT inflate: a
+speculative issue ("might be", "could potentially", "if X isn't already handled
+elsewhere") is at most a WARNING, never CRITICAL. If you would dismiss your own
+finding as a likely false positive, do not report it at all.
+
+# Verdict — set `verdict` consistently with your findings
+- **request_changes** — you reported at least one CRITICAL finding.
+- **comment** — you reported only WARNING / SUGGESTION findings (worth addressing,
+  none blocking).
+- **approve** — you found nothing worth reporting: return an EMPTY findings list
+  and use `summary` to say what you checked.
+
+The verdict is a pure function of your findings. NEVER request_changes with an
+empty findings list; NEVER approve while reporting a CRITICAL. No findings ⇒ approve.
 
 # Findings discipline
-- Report only DISTINCT issues; zero findings is a valid answer.
-- Every finding cites an exact file and line range that exists in the diff.
-- Set `kind` to "finding" and leave `trifecta_components` / `evidence` null.
+- Report only DISTINCT issues. Never list the same problem twice, and never pad
+  the list toward a number — there is no minimum, target, or maximum count. Zero
+  findings is a valid and good answer.
+- Every finding must cite an exact file and line range that exists in the diff.
+- Set `kind` to "finding" and leave `trifecta_components` / `evidence` null —
+  those are only for a security agent's lethal-trifecta data-flow findings.
 ```
 
 ## The four API skills (#43, D11)
@@ -550,6 +580,8 @@ Rules: files are staged by name; no Co-Authored-By; no push.
 | #17–20 experiments | the Stage 1d results tables and traces |
 | #21 | the user's `/pr-self-review` on the final client+server diff |
 | #38–53 Conventions | `.it` + client tests; e2e with the seeded scan (D20); **Run Scan verified manually and in the demo with the real model** |
+| K5 — the evidence link opens the file at that line on GitHub | manual, on the Stage 2 demo repo (the seeded e2e repo has no GitHub remote) |
+| K6 — `repo-conventions` linked to an agent; a review run shows its block in the trace | manual, live |
 | K1 / K2 | the user's demo video and PR |
 
 ## Risks
@@ -574,6 +606,9 @@ Rules: files are staged by name; no Co-Authored-By; no push.
 - **DZ 1.png** shows only Re-scan, and cards without Edit or a category. We
   add Run Scan (#45), Edit (#47, #49) and a category chip (#40).
 - **DZ 2.png** has no agent picker. We add one (#42).
+- The API Contract Reviewer has a role-only prompt (D10): contract know-how
+  lives in the four skills by design, and the prompt was frozen with this spec
+  before any run.
 - **#484 is replaced by #486 as the API experiment.** #484 stays as the L02
   lab record. The lab's API Contract Reviewer is replaced by one created in
   the UI (D9, P1).
