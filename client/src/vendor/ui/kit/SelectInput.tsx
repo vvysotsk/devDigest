@@ -1,6 +1,16 @@
 import React from "react";
 import { Icon } from "../icons";
 
+/**
+ * Options carry explicit theme colours: Chrome on Windows paints the native
+ * popup from the select's transparent background (white) and the inherited
+ * light text, and `color-scheme` cannot override author colours.
+ */
+const OPTION_STYLE: React.CSSProperties = {
+  background: "var(--bg-elevated)",
+  color: "var(--text-primary)",
+};
+
 /** REAL controlled <select>. */
 export function SelectInput({
   value,
@@ -45,7 +55,7 @@ export function SelectInput({
           const v = typeof o === "string" ? o : o.value;
           const l = typeof o === "string" ? o : o.label;
           return (
-            <option key={v} value={v}>
+            <option key={v} value={v} style={OPTION_STYLE}>
               {l}
             </option>
           );

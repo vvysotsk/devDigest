@@ -168,6 +168,18 @@ Never rewrite existing entries — correct with a dated note.
   `color-scheme` (select popups, scrollbars, date pickers); a new theme needs
   its own rule there (evidence: `src/app/globals.css:53-61`,
   `src/vendor/ui/kit/SelectInput.tsx:29`).
+  - 2026-09-29 correction: `color-scheme` alone did NOT fix the select popup,
+    and the fix was never checked in the browser. With `color-scheme: dark`
+    applied, the select and its options still computed to a
+    `rgba(0, 0, 0, 0)` background and an `rgb(237, 237, 237)` text colour.
+    Chrome on Windows paints the popup from those author colours, so the
+    list was white with light text, and `color-scheme` cannot override
+    author colours. Give each `<option>` explicit `var(--bg-elevated)` /
+    `var(--text-primary)`. Keep `color-scheme` for scrollbars and date
+    pickers. Verify native popups by hand: agent-browser screenshots do not
+    show them (evidence: `src/vendor/ui/kit/SelectInput.tsx:9-12`, `:58`;
+    `src/vendor/ui/kit/SelectInput.test.tsx`; the `color-scheme` rules are
+    now at `src/app/globals.css:57-62`).
 
 - 2026-09-29: In a single-line flex container with a `max-height`, the
   default `align-items: stretch` gives every item the container's clamped
