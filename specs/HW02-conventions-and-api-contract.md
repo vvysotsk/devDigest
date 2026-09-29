@@ -314,11 +314,19 @@ in the working tree on 2026-09-29.
       `Merchant.contactEmail`, and updates the checkout flow"). It names no
       consequence and no other route.
     - This matches the brief ("перейменовує поле у відповіді") and #18.
+  - **Pre-registered fallback for #485** (recorded 2026-09-29, before any
+    run): C — `src/billing/refund.ts`, `canRefund(paidAt, now)`.
+    - Behaviour: a 14-day refund window, with a partial refund after day 7.
+    - The test uses fake timers and covers only day 1 and day 30.
+    - Left uncovered: the day-7 and day-14 boundaries and the partial-refund
+      branch.
+    - The same switch rule as #486 applies (below).
   - **Pre-registered fallbacks for #486, in order:**
     - A: `email` becomes `.optional()`;
     - B: the `PaymentStatus` value `requires_action` is merged into
       `pending`.
-  - **Switch rule** — move to the next variant when either holds:
+  - **Switch rule** (both PRs: #485 A → C; #486 A' → A → B) — move to the
+    next variant when either holds:
     - calibration fails: without skills the agent keeps catching the defect;
     - with skills the agent still misses it after one skill-wording
       iteration.
