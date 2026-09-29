@@ -93,7 +93,8 @@
     "agentCount": "{count, plural, one {# agent} other {# agents}}",
     "emptyBody": "A skill is a reusable Markdown instruction block that agents inject into their prompt. Create one or import a SKILL.md / .zip file.",
     "noMatch": "No skills match “{q}”.",
-    "enabledLabel": "Enable {name}"
+    "enabledLabel": "Enable {name}",
+    "delete": "Delete {name}"
   },
   "create": {
     "title": "Create skill",
@@ -118,7 +119,7 @@
     "tabs": {
       "config": "Config",
       "preview": "Preview",
-      "versions": "Versions"
+      "versions": "Versioning"
     },
     "version": "v{version}",
     "disabled": "disabled"
@@ -145,12 +146,19 @@
   },
   "versions": {
     "title": "Versions",
-    "hint": "Each edit of the name, description, type or body creates a version. Read-only.",
+    "hint": "Each edit of the name, description, type or body creates a version. Diff compares a version with the current one; Restore saves its body as a new version.",
     "current": "current",
     "metadataChange": "metadata change",
     "onlyCurrent": "Only the current version exists.",
     "loadError": "Could not load versions.",
-    "select": "Select a version to see its body."
+    "select": "Select a version to see its body.",
+    "diff": "Diff",
+    "diffLabel": "Diff v{version} with the current version",
+    "restore": "Restore",
+    "restoreLabel": "Restore v{version}",
+    "restoredToast": "Restored v{from} as v{version}",
+    "diffTitle": "Changes from v{from} to the current v{to}",
+    "noDiff": "The body is the same as the current version."
   },
   "delete": {
     "title": "Delete skill {name}?",

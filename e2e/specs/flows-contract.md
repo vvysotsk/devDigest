@@ -70,13 +70,13 @@ Paths are relative to `e2e/`.
 | `05-pr-diff` | `/pulls/482?tab=diff` via the "Files changed" tab button | text *src/config.ts* | seeded `pr_files` (`../server/src/db/seed.ts:129-134`) |
 | `06-onboarding` | `/onboarding` | texts `Add a repository`, `Repository URL` | `AddRepoView` copy (`../client/src/app/onboarding/_components/AddRepoView/AddRepoView.tsx:77`, `:94`) |
 | `07-settings` | `/settings/api-keys`, `/settings/models` | texts `API Keys`, `Feature Models` | `SETTINGS_SECTIONS` labels (`../client/src/vendor/ui/nav.ts:39-41`) |
-| `08-skills` | `/skills` → click `secret-leakage-gate` → `?tab=config`; `/agents` → click `Security Reviewer` → Skills tab | skill cards `branch-coverage-check` / `secret-leakage-gate`, body header `secret-leakage-gate.md`; a 40-line body draft (one 300-char line, caret at the end, never saved) → `BODY_EDITOR_OK`: textarea not scrolled, `scrollHeight ≤ clientHeight`, `scrollWidth ≤ clientWidth`, the frame scrolls on x; agent cards `Test Quality Reviewer`, `API Contract Reviewer`, chip `4 skills`; `3 of 6 enabled`, `lethal-trifecta` | L02 seed skills + links; body textarea `aria-label` "Skill body" (`../client/messages/en/skills.json:139`); Skills tab button "Skills" (`../client/messages/en/agents.json:48`), pill `skills.enabledCount` (`:93`) |
+| `08-skills` | `/skills` → click `secret-leakage-gate` → `?tab=preview` → Config tab button → `?tab=config`; `/agents` → click `Security Reviewer` → Skills tab | skill cards `branch-coverage-check` / `secret-leakage-gate`, body header `secret-leakage-gate.md`; a 40-line body draft (one 300-char line, caret at the end, never saved) → `BODY_EDITOR_OK`: textarea not scrolled, `scrollHeight ≤ clientHeight`, `scrollWidth ≤ clientWidth`, the frame scrolls on x; agent cards `Test Quality Reviewer`, `API Contract Reviewer`, chip `4 skills`; `3 of 6 enabled`, `lethal-trifecta` | L02 seed skills + links; body textarea `aria-label` "Skill body" (`../client/messages/en/skills.json:140`); skill tab button "Config" (`skills.json:120`); Skills tab button "Skills" (`../client/messages/en/agents.json:48`), pill `skills.enabledCount` (`:93`) |
 
 The `steps` arrays: `specs/01-app-boot.flow.json:5-8`,
 `specs/02-repo-pulls-detail.flow.json:5-11`, `specs/03-agents.flow.json:5-8`,
 `specs/04-pr-findings.flow.json:5-16`, `specs/05-pr-diff.flow.json:5-14`,
 `specs/06-onboarding.flow.json:5-8`, `specs/07-settings.flow.json:5-11`,
-`specs/08-skills.flow.json:5-27`.
+`specs/08-skills.flow.json:5-30`.
 
 ### Flow authoring rules
 
@@ -114,7 +114,7 @@ agent-browser 0.38.1 against a fake SPA whose PR list arrives after a delay.
   `String.fromCharCode(10)`: a `
 ` escape in the flow JSON becomes a raw
   line break inside a JS string literal (SyntaxError)
-  (`specs/08-skills.flow.json:12`).
+  (`specs/08-skills.flow.json:15`).
 - **An `assert.stdoutIncludes` miss prints no stdout.** The runner reports
   only `stdout missing "…"` (`run.ts:99-100`), so an `eval` diagnostic string
   is visible only when the script is re-run by hand.

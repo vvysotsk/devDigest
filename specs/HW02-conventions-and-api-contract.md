@@ -163,7 +163,9 @@ in the working tree on 2026-09-29.
     the catalog row in `.claude/skills/README.md`. That is wording, so another
     **patch** (`.claude/skills/pr-self-review/README.md:89-93`).
 - **D4 Skill page (#10, #25)**
-  - A card click opens `/skills/:id?tab=preview`.
+  - A card click opens `/skills/:id?tab=preview` from `/skills`. Inside
+    `/skills/:id` it keeps the open tab. A bare `/skills/:id` defaults to
+    Preview.
   - The tab label becomes "Versioning". The i18n key and the URL value stay
     `versions`.
 - **D5 Diff and Restore (#28, #29)**

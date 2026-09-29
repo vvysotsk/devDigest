@@ -174,10 +174,16 @@ for the PR page (`FindingsPanel/FindingsPanel.tsx`, `RunHistory/RunHistory.tsx`,
   `src/app/skills/_components/SkillsListView/SkillsListView.tsx`). Data:
   `useSkills` → `GET /skills`, `useSkill(id)` → `GET /skills/:id`
   (`src/features/skills/hooks.ts`).
-- Card: name, enabled switch, description, type badge, source chip
-  (Manual / Imported / Extracted / Community), "N agents" from `agent_count`;
-  search filters name + description client-side. Clicking a card opens
-  `/skills/:id?tab=config`.
+- Card: name, enabled switch, a Delete icon button, description, type badge,
+  source chip (Manual / Imported / Extracted / Community), the current version
+  `v{version}`, "N agents" from `agent_count`; search filters name +
+  description client-side. Clicking a card opens the skill in the side pane on
+  the current tab; from `/skills` (and for a bare `/skills/:id`) that is
+  `?tab=preview`. Delete opens `DeleteSkillConfirm`
+  (`src/app/skills/_components/DeleteSkillConfirm/DeleteSkillConfirm.tsx`, kit
+  `Modal`: Delete / Cancel / X, "Used by N agents") → `DELETE /skills/:id`;
+  deleting the open skill returns to `/skills`. The modal renders outside the
+  clickable card, so its clicks never open the skill.
 - Enabled switch (card and Config tab, `SkillEnabledToggle`) writes at once:
   `PUT /skills/:id { enabled }` (no version bump). The FIRST enable of an
   imported skill (`source = imported_file` and `acknowledged_at = null`) opens
@@ -201,8 +207,8 @@ for the PR page (`FindingsPanel/FindingsPanel.tsx`, `RunHistory/RunHistory.tsx`,
   skill" sends only the changed fields (`PUT /skills/:id`) and shows
   "Saved (vN)"; the body editor shows `<name>.md`, line numbers, an "unsaved"
   chip and `≈ body_tokens tok (cl100k)` when clean or `≈ chars/4 tok` while
-  dirty; "Delete skill" asks "Used by N agents" first, then `DELETE` and back
-  to `/skills`.
+  dirty; "Delete skill" opens the same `DeleteSkillConfirm`, then `DELETE` and
+  back to `/skills`.
 - Body editor sizing: lines never wrap; the textarea is exactly as tall as
   its lines (at least 14) and at least as wide as its longest line, so it
   never scrolls internally and every line stays level with its gutter
@@ -210,9 +216,15 @@ for the PR page (`FindingsPanel/FindingsPanel.tsx`, `RunHistory/RunHistory.tsx`,
   gutter stays pinned on horizontal scroll
   (`src/app/skills/[id]/_components/SkillEditor/_components/ConfigTab/_components/SkillBodyEditor/SkillBodyEditor.tsx`,
   checked by its `SkillBodyEditor.test.tsx` and e2e flow `08-skills`).
-- `?tab=preview`: rendered Markdown, "Raw" toggle. `?tab=versions`:
-  `GET /skills/:id/versions` newest first; a version whose body equals the
-  previous one is labelled "metadata change"; a row shows its raw body.
+- `?tab=preview`: rendered Markdown, "Raw" toggle.
+- `?tab=versions` (tab label "Versioning"): `GET /skills/:id/versions`
+  newest first; a version whose body equals the previous one is labelled
+  "metadata change"; a row shows its raw body. Every older version has
+  "Diff" (a line diff of its body against the current body, `lineDiff` in
+  `…/VersionsTab/helpers.ts`, falling back to all-out / all-in above 4 M LCS
+  cells) and "Restore" (`PUT /skills/:id { body }` — the old body becomes a
+  NEW version, toast "Restored vN as vM"; disabled when the body already
+  equals the current one).
 
 - Trace drawer → Prompt assembly: when the trace has `skill_blocks`, the
   Skills block is titled "Skills · N · ≈ T tok (cl100k)" and lists each
@@ -288,9 +300,10 @@ for the PR page (`FindingsPanel/FindingsPanel.tsx`, `RunHistory/RunHistory.tsx`,
 | `formatCost` dash vs `$0.00` vs scaled decimals; token compaction | `src/features/reviews/lib/cost-format.test.ts:9-24`, `src/features/reviews/components/run-cost-badge/RunCostBadge.test.tsx:13-42` |
 | `countBySeverity` ignores unknown values; pills / icons render only present severities | `src/features/reviews/lib/severity.test.ts:11-43`, `src/features/reviews/components/severity-summary/SeveritySummary.test.tsx:12-37` |
 | Agent card and editor render | `src/app/agents/_components/AgentCard/AgentCard.test.tsx:38`, `src/app/agents/[id]/_components/AgentEditor/AgentEditor.test.tsx:42` |
-| Skill cards, switch, imported first-enable acknowledgement, create flow | `src/app/skills/_components/SkillsListView/SkillsListView.test.tsx` |
+| Skill cards (version, agent count), switch, imported first-enable acknowledgement, card click → `?tab=preview`, card Delete confirm (cancel / X / delete → back to `/skills`), create flow | `src/app/skills/_components/SkillsListView/SkillsListView.test.tsx` |
 | Import preview (raw text, warnings, file statuses), save with overrides and no body, error-code messages, size pre-check | `src/app/skills/_components/SkillsListView/_components/ImportSkillModal/ImportSkillModal.test.tsx` |
-| Config changed-field PUT + "Saved (v2)", unsaved chip + token estimate, delete confirm, Config acknowledgement, Enabled toggle keeps the unsaved draft, Preview raw/rendered, Versions "metadata change" | `src/app/skills/[id]/_components/SkillEditor/SkillEditor.test.tsx` |
+| Config changed-field PUT + "Saved (v2)", unsaved chip + token estimate, delete confirm, Config acknowledgement, Enabled toggle keeps the unsaved draft, Preview raw/rendered, Versioning tab label, "metadata change", Diff lines, Restore → new version (disabled for the current body) | `src/app/skills/[id]/_components/SkillEditor/SkillEditor.test.tsx` |
+| `lineDiff` (same / add / del, moved lines, the cell-limit fallback) and `versionRows` | `src/app/skills/[id]/_components/SkillEditor/_components/VersionsTab/helpers.test.ts` |
 | Every `SkillErrorCode` has a message | `src/app/skills/helpers.test.ts` |
 | Agent Skills tab: draft-only tick / untick / ↑↓ / Detach, one PUT on Save, Discard, "N of M enabled", draft reset on agent switch, empty state | `src/app/agents/[id]/_components/AgentEditor/_components/SkillsTab/SkillsTab.test.tsx` |
 | "N skills" chip from `skill_count`, hidden at 0 | `src/app/agents/_components/AgentsListView/AgentsListView.test.tsx`, `src/app/agents/_components/AgentCard/AgentCard.test.tsx` |

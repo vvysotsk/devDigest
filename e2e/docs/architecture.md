@@ -79,7 +79,7 @@ fixtures: every expectation comes from the server seed
 - **Deterministic locators only**: `open`, `wait --url|--text|--load`,
   `find text|role … click`, `eval`, `screenshot`, `close`. `eval` runs a
   single-line IIFE whose returned string is checked by `assert.stdoutIncludes`
-  (flow 08: `specs/08-skills.flow.json:12-13`). The AI `chat` command is
+  (flow 08: `specs/08-skills.flow.json:15-16`). The AI `chat` command is
   never used, so no key is needed (`README.md`).
 - **`find` does not wait.** Every `find … click` is preceded by a `wait --text`
   for its own target; `wait --url` and `wait --load networkidle` do not prove

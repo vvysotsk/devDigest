@@ -15,7 +15,7 @@ export default function SkillEditorPage() {
   const router = useRouter();
 
   const requested = search.get("tab") ?? "";
-  const tab = VALID_TABS.includes(requested) ? requested : "config";
+  const tab = VALID_TABS.includes(requested) ? requested : "preview";
   const setTab = (next: string) => {
     const sp = new URLSearchParams(search.toString());
     sp.set("tab", next);

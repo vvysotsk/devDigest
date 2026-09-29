@@ -176,14 +176,54 @@ describe("SkillEditor — Preview and Versions tabs", () => {
     ];
     renderEditor("versions", skill({ id: "s1", version: 3 }));
 
-    const rows = within(screen.getByRole("list", { name: "Versions" })).getAllByRole("button");
+    const rows = within(screen.getByRole("list", { name: "Versions" })).getAllByRole("button", { pressed: false });
     expect(rows.map((r) => r.textContent)).toEqual([
       "v32026-09-22 10:00currentmetadata change",
       "v22026-09-21 10:00",
       "v12026-09-20 10:00",
     ]);
+    expect(screen.getByText("Versioning")).toBeInTheDocument(); // the tab label (#25)
+    // The current version has no Diff / Restore; every older one has both.
+    expect(screen.queryByRole("button", { name: "Diff v3 with the current version" })).not.toBeInTheDocument();
+    expect(screen.getByRole("button", { name: "Diff v2 with the current version" })).toBeInTheDocument();
+    expect(screen.getByRole("button", { name: "Restore v1" })).toBeInTheDocument();
 
     await user.click(rows[2]!);
     expect(screen.getByText("first body")).toBeInTheDocument();
+  });
+
+  it("Diff shows the line diff of an older version against the current body", async () => {
+    const user = userEvent.setup();
+    h.versions = [
+      { skill_id: "s1", version: 1, body: "# Rules\n- old rule\n- kept", created_at: "2026-09-20T10:00:00.000Z" },
+      { skill_id: "s1", version: 2, body: "# Rules\n- new rule\n- kept", created_at: "2026-09-21T10:00:00.000Z" },
+    ];
+    renderEditor("versions", skill({ id: "s1", version: 2, body: "# Rules\n- new rule\n- kept" }));
+
+    await user.click(screen.getByRole("button", { name: "Diff v1 with the current version" }));
+    expect(screen.getByText("Changes from v1 to the current v2")).toBeInTheDocument();
+    const diff = screen.getByLabelText("Diff v1 with the current version", { selector: "pre" });
+    expect([...diff.children].map((l) => `${l.getAttribute("data-kind")}|${l.textContent}`)).toEqual([
+      "same|  # Rules",
+      "del|- - old rule",
+      "add|+ - new rule",
+      "same|  - kept",
+    ]);
+  });
+
+  it("Restore saves the older body as a new version; it is disabled when the body is already current", async () => {
+    const user = userEvent.setup();
+    h.versions = [
+      { skill_id: "s1", version: 1, body: "first body", created_at: "2026-09-20T10:00:00.000Z" },
+      { skill_id: "s1", version: 2, body: "second body", created_at: "2026-09-21T10:00:00.000Z" },
+      { skill_id: "s1", version: 3, body: "second body", created_at: "2026-09-22T10:00:00.000Z" },
+    ];
+    renderEditor("versions", skill({ id: "s1", version: 3, body: "second body" }));
+
+    expect(screen.getByRole("button", { name: "Restore v2" })).toBeDisabled(); // same body as current
+    await user.click(screen.getByRole("button", { name: "Restore v1" }));
+    expect(h.update).toHaveBeenCalledTimes(1);
+    expect(h.update).toHaveBeenCalledWith({ id: "s1", patch: { body: "first body" } });
+    expect(await screen.findByText("Restored v1 as v4")).toBeInTheDocument();
   });
 });

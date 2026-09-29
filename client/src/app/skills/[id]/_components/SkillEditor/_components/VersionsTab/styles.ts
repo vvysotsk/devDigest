@@ -5,11 +5,13 @@ export const s = {
   wrap: { maxWidth: 820 } satisfies CSSProperties,
   hint: { fontSize: 13, color: "var(--text-muted)", margin: "0 0 12px" } satisfies CSSProperties,
   list: { listStyle: "none", padding: 0, margin: "0 0 16px", display: "flex", flexDirection: "column", gap: 6 } satisfies CSSProperties,
+  item: { display: "flex", alignItems: "center", gap: 6 } satisfies CSSProperties,
   row: (active: boolean): CSSProperties => ({
     display: "flex",
     alignItems: "center",
     gap: 12,
-    width: "100%",
+    flex: 1,
+    minWidth: 0,
     padding: "9px 12px",
     borderRadius: 7,
     border: "1px solid " + (active ? "var(--accent)" : "var(--border)"),
@@ -30,4 +32,9 @@ export const s = {
     whiteSpace: "pre-wrap",
     wordBreak: "break-word",
   } satisfies CSSProperties,
+  diffLine: (kind: "same" | "add" | "del"): CSSProperties => ({
+    color: kind === "add" ? "var(--ok)" : kind === "del" ? "var(--crit)" : "var(--text-primary)",
+    background: kind === "add" ? "var(--ok-bg)" : kind === "del" ? "var(--crit-bg)" : "transparent",
+  }),
+  error: { fontSize: 13, color: "var(--crit)", margin: "0 0 12px" } satisfies CSSProperties,
 } as const;

@@ -44,5 +44,7 @@ export const s = {
     overflow: "hidden",
   } satisfies CSSProperties,
   metaRow: { display: "flex", alignItems: "center", gap: 6, flexWrap: "wrap" } satisfies CSSProperties,
+  action: { display: "inline-flex", flexShrink: 0 } satisfies CSSProperties,
+  version: { fontSize: 11.5, color: "var(--text-muted)" } satisfies CSSProperties,
   agents: { fontSize: 12, color: "var(--text-muted)", marginLeft: "auto" } satisfies CSSProperties,
 } as const;

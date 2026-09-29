@@ -1,6 +1,7 @@
 "use client";
 
 import React from "react";
+import { useRouter } from "next/navigation";
 import { useTranslations } from "next-intl";
 import { Badge, Button, FormField } from "@devdigest/ui";
 import type { Skill } from "@devdigest/shared";
@@ -9,8 +10,8 @@ import { useToast } from "@/lib/toast";
 import { isSkillMetaValid, skillErrorMessage } from "@/app/skills/helpers";
 import { SkillMetaFields, type SkillMeta } from "@/app/skills/_components/SkillMetaFields";
 import { SkillEnabledToggle } from "@/app/skills/_components/SkillEnabledToggle";
+import { DeleteSkillConfirm } from "@/app/skills/_components/DeleteSkillConfirm";
 import { SkillBodyEditor } from "./_components/SkillBodyEditor";
-import { DeleteSkillConfirm } from "./_components/DeleteSkillConfirm";
 import { skillPatch } from "./helpers";
 import { s } from "./styles";
 
@@ -23,6 +24,7 @@ import { s } from "./styles";
 export function ConfigTab({ skill }: { skill: Skill }) {
   const t = useTranslations("skills");
   const toast = useToast();
+  const router = useRouter();
   const update = useUpdateSkill();
   const [meta, setMeta] = React.useState<SkillMeta>({
     name: skill.name,
@@ -45,7 +47,9 @@ export function ConfigTab({ skill }: { skill: Skill }) {
 
   return (
     <div style={s.wrap}>
-      {deleting && <DeleteSkillConfirm skill={skill} onClose={() => setDeleting(false)} />}
+      {deleting && (
+        <DeleteSkillConfirm skill={skill} onClose={() => setDeleting(false)} onDeleted={() => router.push("/skills")} />
+      )}
       <div style={s.header}>
         <h2 style={s.h2}>{t("config.title")}</h2>
         <Badge mono>{t("editor.version", { version: skill.version })}</Badge>

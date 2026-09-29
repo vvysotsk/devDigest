@@ -1,7 +1,6 @@
 "use client";
 
 import React from "react";
-import { useRouter } from "next/navigation";
 import { useTranslations } from "next-intl";
 import { Button, Modal } from "@devdigest/ui";
 import type { Skill } from "@devdigest/shared";
@@ -9,16 +8,27 @@ import { useDeleteSkill } from "@/features/skills/hooks";
 import { skillErrorMessage } from "@/app/skills/helpers";
 import { s } from "./styles";
 
-/** Delete confirm: "Used by N agents" from `Skill.agent_count` (links are removed by FK cascade). */
-export function DeleteSkillConfirm({ skill, onClose }: { skill: Skill; onClose: () => void }) {
+/**
+ * Delete confirm (confirm / cancel / X): "Used by N agents" from
+ * `Skill.agent_count` (links are removed by FK cascade). Opened from the skill
+ * card and from the Config tab; `onDeleted` decides where to go afterwards.
+ */
+export function DeleteSkillConfirm({
+  skill,
+  onClose,
+  onDeleted,
+}: {
+  skill: Skill;
+  onClose: () => void;
+  onDeleted?: () => void;
+}) {
   const t = useTranslations("skills");
-  const router = useRouter();
   const del = useDeleteSkill();
   const confirm = () =>
     del.mutate(skill.id, {
       onSuccess: () => {
         onClose();
-        router.push("/skills");
+        onDeleted?.();
       },
     });
   return (

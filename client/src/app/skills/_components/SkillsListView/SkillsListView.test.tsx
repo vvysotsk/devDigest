@@ -1,5 +1,5 @@
 /**
- * /skills list — cards (type, source, "N agents"), the enabled switch (with the
+ * /skills list — cards (type, source, version, "N agents", delete with a confirm), the enabled switch (with the
  * first-enable acknowledgement for an imported skill) and the create flow.
  */
 import { describe, it, expect, afterEach, beforeEach, vi } from "vitest";
@@ -16,6 +16,7 @@ const h = vi.hoisted(() => ({
   skills: [] as Skill[],
   update: vi.fn(),
   create: vi.fn(),
+  del: vi.fn(),
 }));
 
 vi.mock("next/navigation", () => ({ useRouter: () => ({ push: h.push, replace: vi.fn() }) }));
@@ -28,6 +29,7 @@ vi.mock("@/features/skills/hooks", async () => {
     useSkills: () => ({ data: h.skills, isLoading: false, isError: false, refetch: vi.fn() }),
     useUpdateSkill: fakeMutation((v: unknown) => h.update(v)),
     useCreateSkill: fakeMutation((v: unknown) => h.create(v)),
+    useDeleteSkill: fakeMutation((id: string) => h.del(id)),
     useImportPreview: fakeMutation(() => undefined),
     useImportSkill: fakeMutation(() => undefined),
   };
@@ -41,11 +43,11 @@ beforeEach(() => {
   h.update.mockImplementation(({ id, patch }: { id: string; patch: Partial<Skill> }) => skill({ id, ...patch }));
 });
 
-function renderList() {
+function renderList(activeId?: string) {
   return render(
     <NextIntlClientProvider locale="en" messages={{ skills: messages }}>
       <ToastProvider>
-        <SkillsListView />
+        <SkillsListView activeId={activeId} />
       </ToastProvider>
     </NextIntlClientProvider>,
   );
@@ -57,13 +59,14 @@ describe("SkillsListView", () => {
   it("lists skill cards with type, source and agent count; the switch and a click act on that skill", async () => {
     const user = userEvent.setup();
     h.skills = [
-      skill({ id: "s1", name: "pr-quality-rubric", agent_count: 3 }),
+      skill({ id: "s1", name: "pr-quality-rubric", agent_count: 3, version: 4 }),
       skill({ id: "s2", name: "no-then-chains", type: "convention", enabled: false, agent_count: 1 }),
     ];
     renderList();
 
     const first = card("pr-quality-rubric");
     expect(within(first).getByText("3 agents")).toBeInTheDocument();
+    expect(within(first).getByText("v4")).toBeInTheDocument();
     expect(within(first).getByText("rubric")).toBeInTheDocument();
     expect(within(first).getByText("Manual")).toBeInTheDocument();
     const second = card("no-then-chains");
@@ -75,7 +78,36 @@ describe("SkillsListView", () => {
     expect(h.push).not.toHaveBeenCalled();
 
     await user.click(first);
-    expect(h.push).toHaveBeenCalledWith("/skills/s1?tab=config");
+    // From /skills a card opens the side-pane preview (HW02 #10).
+    expect(h.push).toHaveBeenCalledWith("/skills/s1?tab=preview");
+  });
+
+  it("the card Delete opens the confirm modal (confirm / cancel / X) and deletes without opening the skill", async () => {
+    const user = userEvent.setup();
+    h.del.mockResolvedValue(undefined);
+    h.skills = [skill({ id: "s1", name: "pr-quality-rubric", agent_count: 2 })];
+    renderList("s1");
+
+    await user.click(within(card("pr-quality-rubric")).getByRole("button", { name: "Delete pr-quality-rubric" }));
+    let dialog = screen.getByRole("dialog");
+    expect(within(dialog).getByText("Delete skill pr-quality-rubric?")).toBeInTheDocument();
+    expect(within(dialog).getByText("Used by 2 agents — their links will be removed.")).toBeInTheDocument();
+    expect(h.push).not.toHaveBeenCalled(); // the click did not open the skill
+
+    await user.click(within(dialog).getByRole("button", { name: "Cancel" }));
+    expect(screen.queryByRole("dialog")).not.toBeInTheDocument();
+
+    await user.click(within(card("pr-quality-rubric")).getByRole("button", { name: "Delete pr-quality-rubric" }));
+    dialog = screen.getByRole("dialog");
+    await user.click(within(dialog).getByRole("button", { name: "Close" }));
+    expect(screen.queryByRole("dialog")).not.toBeInTheDocument();
+    expect(h.del).not.toHaveBeenCalled();
+
+    await user.click(within(card("pr-quality-rubric")).getByRole("button", { name: "Delete pr-quality-rubric" }));
+    await user.click(within(screen.getByRole("dialog")).getByRole("button", { name: "Delete" }));
+    expect(h.del).toHaveBeenCalledWith("s1");
+    // The deleted skill was the open one: back to /skills.
+    await vi.waitFor(() => expect(h.push).toHaveBeenCalledWith("/skills"));
   });
 
   it("the first enable of an imported skill asks for the acknowledgement and sends acknowledge_injection", async () => {

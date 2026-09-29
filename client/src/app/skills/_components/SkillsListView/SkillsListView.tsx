@@ -1,5 +1,7 @@
 /* /skills and /skills/:id — master column (search, "Add Skill ▾", skill cards)
-   plus the detail pane: the route's children, or a "select a skill" hint. */
+   plus the detail pane: the route's children, or a "select a skill" hint.
+   A card click opens the skill in the side pane on the current tab; from
+   /skills that is Preview (HW02 #10). */
 "use client";
 
 import React from "react";
@@ -18,7 +20,7 @@ type OpenModal = "create" | "import" | null;
 
 export function SkillsListView({
   activeId,
-  tab = "config",
+  tab = "preview",
   children,
 }: {
   activeId?: string;
@@ -96,6 +98,7 @@ export function SkillsListView({
                 skill={sk}
                 active={sk.id === activeId}
                 onClick={() => router.push(`/skills/${sk.id}?tab=${tab}`)}
+                onDeleted={sk.id === activeId ? () => router.push("/skills") : undefined}
               />
             ))}
           </div>

@@ -43,6 +43,13 @@ Never rewrite existing entries — correct with a dated note.
   - 2026-09-28 note: root cause was that the kit `Modal` rendered in place;
     it now portals to `document.body` (`src/vendor/ui/kit/Modal.tsx:26-30`), so a
     dialog is never inside a label or card any more. Keep the `div` anyway.
+  - 2026-09-29 note: the portal moves the dialog out of the card in the DOM
+    only. React synthetic events still bubble along the React tree, so a
+    click in a portalled `Modal` rendered inside a clickable card's JSX still
+    reaches the card's `onClick`. Render such a modal as a sibling of the card
+    (a fragment), or stop propagation in a wrapper (evidence:
+    `src/app/skills/_components/SkillsListView/_components/SkillCard/SkillCard.tsx:33`, `:53`, `:73`;
+    `src/app/skills/_components/SkillEnabledToggle/SkillEnabledToggle.tsx:37`).
 - 2026-09-27: A clickable card (`role="button"`) that contains a switch must
   ignore bubbled keys — `if (e.key === "Enter" && e.target === e.currentTarget)`
   — and the switch's wrapper stops clicks (the switch's and its dialog's) from
