@@ -255,8 +255,13 @@ for the PR page (`FindingsPanel/FindingsPanel.tsx`, `RunHistory/RunHistory.tsx`,
   models and secrets status (`SettingsApiKeys/constants.ts:11-16`,
   `SettingsApiKeys/SettingsApiKeys.tsx:13-23`, `:42-50`; `core.ts:38-56`).
 - Feature Models: one `SearchableSelect` per `FEATURE_MODELS` entry, options
-  from `GET /providers/openrouter/models`, choice persisted with
-  `PUT /settings { feature_models }` (`SettingsModels/SettingsModels.tsx:20-46`).
+  from `GET /providers/openrouter/models` plus the current value, choice
+  persisted with `PUT /settings { feature_models }` as `{ provider, model }`
+  where the provider is the picked model's own: `openrouter` for a model from
+  the live list, the saved provider for the saved choice, `defaultProvider`
+  for the registry default (e.g. conventions → `openai` / `gpt-5.4`)
+  (`SettingsModels/SettingsModels.tsx:22-77`, `SettingsModels/helpers.ts`,
+  tested by `SettingsModels/helpers.test.ts`).
 
 ### Shell (every page)
 

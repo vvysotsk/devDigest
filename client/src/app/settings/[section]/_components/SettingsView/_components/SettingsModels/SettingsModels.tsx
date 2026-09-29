@@ -7,15 +7,17 @@ import { useSettings, useUpdateSettings } from "@/lib/hooks/core";
 import { useProviderModels } from "../../../../../../../lib/hooks/agents";
 import { toModelOptions } from "../../../../../../../lib/model-label";
 import { FEATURE_MODELS } from "../../../../../../../lib/feature-models";
-import type { FeatureModelChoice, FeatureModelId } from "../../../../../../../lib/types";
+import type { FeatureModelChoice, FeatureModelDef, FeatureModelId } from "../../../../../../../lib/types";
 import { SectionTitle } from "../SectionTitle";
+import { featureModelChoice } from "./helpers";
 import { s } from "./styles";
 
 /**
  * Settings → Feature Models. One picker per system LLM feature; the model list +
  * prices come LIVE from OpenRouter (useProviderModels), and the choice persists
- * to `settings.feature_models`. Each feature falls back to its registry default
- * when unset.
+ * to `settings.feature_models` with the provider the picked model belongs to
+ * (`featureModelChoice`). Each feature falls back to its registry default when
+ * unset; the server resolves it per run.
  */
 export function SettingsModels() {
   const t = useTranslations("settings");
@@ -27,9 +29,9 @@ export function SettingsModels() {
   const baseOptions = toModelOptions(models);
   const noModels = models !== undefined && models.length === 0;
 
-  const setModel = (id: FeatureModelId, model: string) =>
+  const setModel = (f: FeatureModelDef, model: string) =>
     update.mutate({
-      feature_models: { ...chosen, [id]: { provider: "openrouter", model } },
+      feature_models: { ...chosen, [f.id]: featureModelChoice(f, model, chosen[f.id], models) },
     });
 
   return (
@@ -57,7 +59,7 @@ export function SettingsModels() {
             >
               <SearchableSelect
                 value={current}
-                onChange={(m) => setModel(f.id, m)}
+                onChange={(m) => setModel(f, m)}
                 options={options}
                 placeholder={t("models.search")}
               />
