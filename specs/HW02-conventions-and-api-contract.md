@@ -230,16 +230,54 @@ in the working tree on 2026-09-29.
   - The other seeded agents use the same Verdict and Findings discipline
     blocks with domain-specific Severity. We take the General Reviewer's
     domain-free Severity, because it hints at no particular kind of defect.
+- **D10b Test Quality Reviewer prompt (#17)** — pre-registered 2026-09-29,
+  before any HW02 run.
+  - The seeded prompt teaches the review method itself, so the baseline would
+    catch #485 and #17 could never calibrate. Method lines in
+    `server/src/db/seed-prompts.ts`:
+    - `:312` "For each function the diff adds or changes, list its branches
+      … and check that some test in the diff drives each one AND asserts its
+      outcome."
+    - `:319` "Boundaries: zero, negative, empty, exactly-at-threshold and one
+      past it, …"
+    - `:324` "The unit under test is mocked; assertions only check that mocks
+      were called; …"
+    - `:333-334` "Read the source change first and enumerate its behaviours;
+      then map each behaviour to the test that proves it. The gaps are your
+      findings."
+    - `:370` "Group the uncovered branches of one function into one finding."
+  - New prompt (below), the same shape as D10: one role paragraph (the test
+    quality of the diff) plus the General Reviewer's shared blocks verbatim
+    (`:53-54`, `:56-60`, `:62-73`, `:75-83`, `:85-91`). The method
+    lives only in the four seeded Test Quality skills.
+  - `TEST_QUALITY_REVIEWER_PROMPT` in `seed-prompts.ts` and
+    `docs/agent-prompts/test-quality-reviewer.md` change in Stage 1b;
+    `test/seed.it.test.ts` stays green.
+  - Frozen with this spec: never tuned during calibration or the runs.
+  - The seed does not update an existing DB, so the user pastes the prompt
+    into the existing agent's Config tab (1c checklist).
 - **D11 Skill files (P2, #43, #16)**
   - Location: `docs/agent-skills/api-contract/<name>/SKILL.md`, next to
     `docs/agent-prompts/`, so they are reproducible.
   - Names are exactly `breaking-change`, `response-schema`,
     `semver-discipline`, `deprecation-policy`.
   - Each has a directive "Use when …" description and a good / bad example.
-  - At least one is packed with `pnpm skill:pack <dir> <out.zip>` and
-    imported as `.zip` (#16); the others are created in the UI.
-  - No skill and no prompt names an experiment defect: a grep check runs
-    after every edit.
+  - `deprecation-policy` is packed with `pnpm skill:pack <dir> <out.zip>`
+    and imported as `.zip` (#16); the other three are created in the UI.
+  - Good / bad examples use an unrelated domain (orders, products).
+  - **Integrity grep**, run after every edit, must print nothing. It covers
+    both planted defects and runs over the four new skill files, the Test
+    Quality seed skills, and both prompts (D10 and D10b):
+
+    ```
+    grep -niE '\b(emails?|contactemail|customers?|invoices?|late|fees?|grace|paymentstatus|requires_action)\b' \
+      docs/agent-skills/api-contract/*/SKILL.md docs/agent-prompts/api-contract-reviewer.md \
+      docs/agent-prompts/test-quality-reviewer.md
+    ```
+
+    For the seed, the same word list is checked over the Test Quality
+    entries of `server/src/db/seed-skills.ts` and over
+    `TEST_QUALITY_REVIEWER_PROMPT`.
 - **D12 Experiment PRs and protocol (#17, #18, P4)** — seed fixtures made of
   patches with no clone, like #483 / #484
   (`server/src/modules/reviews/diff-loader.ts:19-44`). The planted defects
@@ -451,6 +489,60 @@ empty findings list; NEVER approve while reporting a CRITICAL. No findings ⇒ a
   those are only for a security agent's lethal-trifecta data-flow findings.
 ```
 
+## Test Quality Reviewer — system prompt (D10b)
+
+Replaces `TEST_QUALITY_REVIEWER_PROMPT` in Stage 1b. The user pastes it into
+the existing agent's Config tab.
+
+```
+# Role
+You are a pragmatic senior engineer reviewing the tests in a pull-request diff
+for a Node.js (TypeScript, ESM) service. You receive the full PR diff in one pass.
+Judge whether the tests in the diff would catch a regression in the code the diff
+changes. Judge the code on its merits, not on what the description claims it does.
+
+# How to analyze
+- Only flag issues introduced or worsened by THIS diff. Do not report pre-existing
+  code unless the change directly amplifies it.
+
+# Quality bar
+- Precision over volume. No style nits, no "might be slow/wrong" without a
+  mechanism, no issues already handled elsewhere in the code.
+- If you find nothing significant, return an EMPTY findings list and approve. Do
+  not invent issues to seem thorough.
+
+# Severity — use exactly these three levels
+- **CRITICAL** — a defect that, once merged, can cause a security breach, data
+  loss/corruption, incorrect results, a crash, or a broken contract that callers
+  depend on. This is the ONLY level that blocks merge.
+- **WARNING** — a real problem worth fixing that does not block: a missed edge
+  case, degraded behaviour, or a maintainability/perf risk that bites at scale.
+- **SUGGESTION** — a minor improvement or nit; the PR is safe to merge without it.
+
+Assign the severity you would defend to the author's face. Do NOT inflate: a
+speculative issue ("might be", "could potentially", "if X isn't already handled
+elsewhere") is at most a WARNING, never CRITICAL. If you would dismiss your own
+finding as a likely false positive, do not report it at all.
+
+# Verdict — set `verdict` consistently with your findings
+- **request_changes** — you reported at least one CRITICAL finding.
+- **comment** — you reported only WARNING / SUGGESTION findings (worth addressing,
+  none blocking).
+- **approve** — you found nothing worth reporting: return an EMPTY findings list
+  and use `summary` to say what you checked.
+
+The verdict is a pure function of your findings. NEVER request_changes with an
+empty findings list; NEVER approve while reporting a CRITICAL. No findings ⇒ approve.
+
+# Findings discipline
+- Report only DISTINCT issues. Never list the same problem twice, and never pad
+  the list toward a number — there is no minimum, target, or maximum count. Zero
+  findings is a valid and good answer.
+- Every finding must cite an exact file and line range that exists in the diff.
+- Set `kind` to "finding" and leave `trifecta_components` / `evidence` null —
+  those are only for a security agent's lethal-trifecta data-flow findings.
+```
+
 ## The four API skills (#43, D11)
 
 Bodies are written in Stage 1a. Every body ends with a "Good / Bad" example.
@@ -550,7 +642,7 @@ Rules: files are staged by name; no Co-Authored-By; no push.
 | 0e | `fix(client): save the feature model's own provider` (#53; D8) | client |
 | 0f | `chore(seed): remove the seeded API Contract Reviewer and its skills` (D9). Covers: `seed.ts`, `seed-prompts.ts`, `seed-skills.ts`; `server/test/seed.it.test.ts` counts 5→4 agents, 12→10 skills, 14→12 links; `e2e/specs/08-skills.flow.json`; `e2e/specs/flows-contract.md`; `server/specs/skills.md`; a Deviations note in `specs/L02-skills.md`; the D10 prompt into `docs/agent-prompts/api-contract-reviewer.md` | server + e2e |
 | 1a | `docs(skills): API Contract Reviewer skills` (#43; D11) | integrity grep |
-| 1b | `feat(seed): experiment PRs #485 and #486` (#17, #18; D12, D13 decided here) | server (`seed.it` + a re-seed test of an edited patch); e2e contract |
+| 1b | `feat(seed): experiment PRs #485 and #486` + the D10b Test Quality prompt (#17, #18; D10b, D12, D13 decided here) | server (`seed.it` + a re-seed test of an edited patch); e2e contract |
 | 1c | the user's runs — checklist below | integrity grep after every edit; trace data |
 | 1d | `docs(specs): record the HW02 experiments` (#17–20) | markdown |
 | 2a | `feat(server): conventions schema and contracts` (#38, #40, #48) | server; client typecheck (mirror) |
@@ -567,9 +659,12 @@ Rules: files are staged by name; no Co-Authored-By; no push.
    `route-signature-diff`, `breaking-change-rubric` and
    `api-deprecation-policy`. The seed removal (0f) does not touch an existing
    DB.
-2. Create the agent "API Contract Reviewer" with the D10 prompt.
-3. Create the skills with exactly the #43 names. Import at least one as a
-   `.zip` from `pnpm skill:pack` (#16); create the rest in the UI.
+2. Create the agent "API Contract Reviewer" with the D10 prompt, and paste
+   the D10b prompt into the existing Test Quality Reviewer's Config tab (the
+   seed does not update an existing DB).
+3. Create the skills with exactly the #43 names. Import `deprecation-policy`
+   as a `.zip` from `pnpm skill:pack` (#16); create the other three in the
+   UI.
 4. Link all four in the agent's Skills tab (#13).
 5. Calibration without skills (links disabled is enough). After every PR
    edit: a `fix(seed): calibrate #48x …` commit, applied per D13, and a row in
@@ -624,6 +719,9 @@ Rules: files are staged by name; no Co-Authored-By; no push.
 - The API Contract Reviewer has a role-only prompt (D10): contract know-how
   lives in the four skills by design, and the prompt was frozen with this spec
   before any run.
+- The seeded Test Quality Reviewer's lab prompt is replaced by a role-only
+  prompt (D10b), pre-registered before any HW02 run. Its method now lives only
+  in its four seeded skills.
 - **#484 is replaced by #486 as the API experiment.** #484 stays as the L02
   lab record. The lab's API Contract Reviewer is replaced by one created in
   the UI (D9, P1).
