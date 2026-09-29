@@ -79,6 +79,14 @@ Never rewrite existing entries — correct with a dated note.
   the cited symbol appears near the line; a "path exists" check catches none
   of these (evidence: `.claude/skills/package-docs/SKILL.md:61`, `:88`).
 
+- 2026-09-29: On Node 24 (v24.18.0 here), `node --test .claude/hooks/` fails
+  with `Cannot find module 'C:\...\.claude\hooks'`. Since Node 21 the
+  arguments of `--test` are files or glob patterns, and a directory is not
+  expanded. Run `node --test ".claude/hooks/*.test.mjs"`; quote the pattern
+  so node expands it, not the shell (evidence:
+  `.claude/hooks/course-integrity.test.mjs:1`, `CLAUDE.md` "Course integrity
+  (hard rule)").
+
 ## Recurring Errors & Fixes
 
 - 2026-09-27: A gate written as `pnpm exec vitest run … | grep -E "Tests "`

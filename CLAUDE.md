@@ -4,6 +4,25 @@ Local-first AI PR review: import GitHub PRs, run LLM reviewer agents, get
 grounded findings. Four standalone packages — deliberately NOT a pnpm
 workspace: each has its own package.json and lockfile; install per package.
 
+## Course integrity (hard rule)
+
+This fork's history contains other students' homework and lab commits:
+upstream merged their PRs (#101, #112, #137) and then reverted them. Never
+read them in any way (show, diff, log -p, grep, blame, checkout, restore,
+cherry-pick) - main session and every subagent. The commits
+(= `git rev-list 66727c8..c6af1e4`):
+c6af1e452969 376ac49a98d3 98eaf5712c84 2006964c78b7 641b6370a3ff 56e3eb778ac4
+ae55e4b955d1 8fa0ad036589 512f3096d441 84e2c1e69ee4 ddd833d91dbf 0953fdceb219
+97b6edc7f301 3b17261d511f 7641b481ef09 93119a5e1352
+
+Use only the working tree, the starter (history up to 66727c8) and our own
+commits (8ae46a9..HEAD). For history always pass a range on our lineage (e.g.
+`git log -p 8ae46a9..HEAD`); never `--all` or an open-ended `git log -p` /
+`-S` / `-G`. If such content shows up by accident: stop, tell the user, do
+not use it. Enforced for Bash by the PreToolUse hook
+`.claude/hooks/course-integrity.mjs` (`.claude/settings.json`); tests:
+`node --test ".claude/hooks/*.test.mjs"`.
+
 ## Map
 
 - `server/` — Fastify 5 API (:3001) — modules / platform / adapters
