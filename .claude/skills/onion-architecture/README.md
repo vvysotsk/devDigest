@@ -44,7 +44,7 @@ A new entry in the baseline file is a mechanical CRITICAL in
 
 ## Version
 
-**1.1.2** — see `metadata.version` in `SKILL.md` and the row in
+**1.2.0** — see `metadata.version` in `SKILL.md` and the row in
 `.claude/skills/README.md`.
 
 When you change `SKILL.md`, bump the version and add a Changelog line:
@@ -54,6 +54,7 @@ When you change `SKILL.md`, bump the version and add a Changelog line:
 
 ## Changelog
 
+- **1.2.0 — 2026-09-29** — new rule in R2: a route never calls an adapter, not by import and not through `app.container` (`container.llm`, `github`, `secrets`, `git`, …); it may take from the container only `getContext`, the instances for its own service, its own module's service or facade, and the R8 platform pieces (`jobs`, `runBus`). The import-rules row for routes says so, review check 13 covers calls through the container (dependency-cruiser cannot see them), and Known violations lists the one existing case, `settings/routes.ts` (key save and connection test; fix when `settings` is next changed). Minor: a new rule and review check (HW02 #4); every server file is re-checked for this skill by `pr-self-review`.
 - **1.1.2 — 2026-09-29** — pointers only, no rule changes: the rules files moved to `AGENTS.md` (`CLAUDE.md` is now a one-line `@AGENTS.md` import, HW02 Stage 0a), so references to the repo's rules file name `AGENTS.md`.
 - **1.1.1 — 2026-09-27** — wording only, no rule changes, after `specs/refactor-onion.md` finished: Known violations lists the one remaining baseline entry (`repos/helpers.ts`, was 18); R2 no longer describes `pulls`/`polling` as deferred (they are layered); R4 and the triggers table record the `pulls`/`polling` transactions as done and name the executor's five writes as the next candidate.
 - **1.1.0 — 2026-09-27** — R5: a port used by one module lives in that module's `types.ts`, ports shared across modules or with the client stay in `vendor/shared/adapters.ts`, adapters only implement ports; Map "Ports" row lists `modules/repo-intel/types.ts` (`RepoIntel`, `CodeParser`, `Tokenizer`, `DepGraph`), and the domain-core row gains `modules/_shared/{diff-parser,job-kinds}.ts` and `modules/repo-intel/extract.ts` (stage d of `specs/refactor-onion.md`).

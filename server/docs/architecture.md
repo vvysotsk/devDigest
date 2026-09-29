@@ -30,7 +30,7 @@ workspace (`src/adapters/auth/local.ts`).
 | `src/platform/resilience.ts` | `withTimeout` / `withRetry` used by adapters, jobs and the indexer. |
 | `src/platform/grounding.ts`, `prompt.ts`, `structured.ts` | Re-export shims over `@devdigest/reviewer-core` for older import paths. |
 | `src/modules/index.ts` | Static module registry (9 plugins). |
-| `src/modules/<name>/` | `routes.ts` (Fastify plugin + zod schemas) → `service.ts` → `repository.ts` (Drizzle). `workspace`, `settings` still query Drizzle from the route directly (the thin-module exception). `pulls` (service + repository) and `polling` (service only — it owns no table and writes through `container.pullsRepo` / `container.reposRepo`) are layered since the onion refactor, see `../specs/refactor-onion.md`. |
+| `src/modules/<name>/` | `routes.ts` (Fastify plugin + zod schemas) → `service.ts` → `repository.ts` (Drizzle). `workspace`, `settings` still query Drizzle from the route directly (the thin-module exception). `settings` also calls adapters through `app.container` from its routes (key save, connection test), a known violation of the `onion-architecture` rule "a route never calls an adapter" (see "Architecture decisions"). `pulls` (service + repository) and `polling` (service only — it owns no table and writes through `container.pullsRepo` / `container.reposRepo`) are layered since the onion refactor, see `../specs/refactor-onion.md`. |
 | `src/modules/_shared/` | `context.ts` (tenancy), `schemas.ts` (`IdParams`), `run-cost.ts`, `latest-batch.ts`, `diff-parser.ts` (`parseUnifiedDiff`, also used by the git adapter and its mock), `job-kinds.ts` (JobRunner kind strings that `repos` enqueues and `repo-intel` handles) — helpers two modules need without importing each other. |
 | `src/modules/skills/` | Skills (L02): owns `skills`, `skill_versions` and `agent_skills`. `routes.ts` (`/skills*`, `/agents/:id/skills`, every route with `schema.response`) → `service.ts` (transactions) → `repository.ts`; `errors.ts` (`SkillErrorCode` errors), `helpers.ts` (pure: DTO mapping, version-bump / link-change rules), `types.ts` (the `SkillsPort` other modules reach via `container.skillsRepo`); `import/` is the pure import pipeline (base64 → in-memory zip via `fflate` → `SKILL.md` + YAML frontmatter via `yaml` → preview / save; no I/O, nothing written or executed). See `../specs/skills.md`. |
 | `src/modules/repo-intel/` | Facade `RepoIntel` (`src/modules/repo-intel/types.ts`) + indexer pipeline; `extract.ts` is the pure regex extractor (endpoints, crons, fallback symbols/references), also used by the ripgrep `codeindex` adapter; see its `README.md`. |
@@ -304,6 +304,15 @@ when" condition appears.
   `NUMERIC` needs a separate decision and a new migration (0010 is applied
   and never edited), plus string ↔ number mapping in the repositories.
   Revisit when costs are billed, reconciled or exported for accounting.
+- 2026-09-29 — The `onion-architecture` skill (1.2.0, R2, review check 13)
+  now states that a route never calls an adapter, not by import and not
+  through `app.container` (HW02 #4). One existing case predates the rule:
+  `src/modules/settings/routes.ts` calls `container.secrets` (`:43`,
+  `:80-84`), `container.github()` (`:87`) and `container.llm(…)` (`:91`) for
+  the API-key save and the connection test. Recorded as a known violation,
+  not fixed in the docs-only step that added the rule. Proposed fix, pending
+  the user's decision: move these calls into a settings service when
+  `settings` is next changed.
 
 ## Open questions
 

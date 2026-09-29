@@ -2,7 +2,7 @@
 name: onion-architecture
 description: "Where backend code lives in server/ and reviewer-core/ and which way imports may point (onion / ports and adapters). Use when adding or changing a route, service, repository, adapter, job or port, moving code between modules, touching reviewer-core's public API, or deciding whether a use case needs a transaction, a port, a response schema or a separate type."
 metadata:
-  version: 1.1.2
+  version: 1.2.0
   applies_to: "server/src/**, reviewer-core/src/**, server/.dependency-cruiser.cjs, !**/*.test.ts, !**/*.it.test.ts"
   blocking: "true"
 ---
@@ -46,7 +46,7 @@ packages (and the client copy) consume. Its mirroring rule lives in
 | application | ✓ | ✓ | same module | injected instance (type import ✓) | ✗ — through a port | via `RunLogger`/port type |
 | repository | ✓ | ✓ | ✗ | same module | `db/` ✓ | ✗ |
 | `adapters/` | ✓ | ✓ | ✗ | ✗ | own folder | `resilience` ✓ |
-| routes | ✓ | ✓ | same module's service | ✗ | ✗ (thin-module exception, R2) | via `app.container` |
+| routes | ✓ | ✓ | same module's service | ✗ | ✗ — not by import, not via `app.container` (R2; Drizzle: thin-module exception) | via `app.container` |
 | reviewer-core `src/` | ✓ (`@devdigest/shared` only) | own | own | ✗ | ✗ | ✗ |
 
 - A module never imports another module's folder. Shared pure code goes to
@@ -73,6 +73,17 @@ packages (and the client copy) consume. Its mirroring rule lives in
 - A route: zod `schema` for params/body/querystring, `getContext`, one
   service call, return a contract-shaped object. No SDK calls, no multi-step
   logic.
+- **A route never calls an adapter** — not by importing it, and not through
+  `app.container` (`container.llm(…)`, `container.github()`,
+  `container.secrets`, `container.git`, `container.embedder`, …). Integrations
+  with the outside world sit in adapters at the edge. A route calls its own
+  module's service, and that service reaches the adapter through a port
+  (R5). From `app.container` a route may take only:
+  - `getContext`;
+  - the instances it hands to its own service when constructing it;
+  - its own module's service or facade (e.g. `container.repoIntelService` in
+    `repo-intel`);
+  - the platform pieces of R8 (`container.jobs`, `container.runBus`).
 - **Thin-module exception:** a module may query Drizzle from its routes only
   for its own tables plus read-only access to another module's tables.
   Qualifying today: `settings`, `workspace`. `pulls` and `polling` are
@@ -186,6 +197,12 @@ explanation, 1 entry on 2026-09-27, down from 18 after `specs/refactor-onion.md`
 - `no-drizzle-outside-persistence` ×1: `repos/helpers.ts` imports the `repos`
   row type for `toRepoDto` (R1 "fix when touched"; the `repos` module was
   out of the refactor's scope).
+- Not covered by dependency-cruiser (review check 13):
+  `settings/routes.ts` calls adapters through `app.container` for the API-key
+  save and the connection test: `container.secrets` (`:43`, `:80-84`),
+  `container.github()` (`:87`) and `container.llm(…)` (`:91`). It predates the
+  rule. Fix it when `settings` is next changed, by moving those calls into a
+  settings service.
 - Not covered by rules: `repo-intel` reads clones with `node:fs`
   (`modules/repo-intel/service.ts`, `pipeline/{full,incremental,walk}.ts`;
   trigger "Port for clone file access" not fired).
@@ -217,6 +234,9 @@ risks; the underlying smells are covered by R1 and R5.
 12. **CRITICAL:** in the diff, `server/.dependency-cruiser-known-violations.json`
     only loses entries. Any added entry = a violation accepted without a
     decision.
+13. No adapter call from a new or changed route — not by import, not via
+    `app.container` (R2). dependency-cruiser cannot see calls through the
+    container: read the route's `container.*` uses.
 
 Report one line per finding:
 ```
@@ -245,7 +265,7 @@ report instead.
 ## Checklist — before reporting a change in server/ or reviewer-core/
 
 - [ ] New code sits in the ring the Map assigns to its role.
-- [ ] Review checks 1–12 hold, or each exception has a `Layers:` line.
+- [ ] Review checks 1–13 hold, or each exception has a `Layers:` line.
 - [ ] `pnpm deps:check` shows no new violations (baseline refreshed with `pnpm deps:baseline` only when a known one was fixed).
 - [ ] A trigger that fired was checked against "Architecture decisions" and
       proposed, not applied.

@@ -4,6 +4,9 @@ The agent loads `SKILL.md` only; this file is for people maintaining the skill.
 
 ## What it does
 
+Type: **Workflow (skill dispatcher)** — it runs no review rules of its own; it
+dispatches each changed file to the skills that own it.
+
 A gate before a pull request. It takes every file changed since the
 merge-base with `origin/main` (commits, staged, unstaged, untracked), routes
 each file to the skills whose `metadata.applies_to` matches it, and re-checks
@@ -83,7 +86,7 @@ Files:
 
 ## Version
 
-**2.2.1** — see `metadata.version` in `SKILL.md` and the row in
+**2.2.2** — see `metadata.version` in `SKILL.md` and the row in
 `.claude/skills/README.md`.
 
 When you change `SKILL.md`, `checker.md` or the script, bump the version
@@ -94,6 +97,8 @@ and add a Changelog line:
   decision D1–D13 changes.
 
 ## Changelog
+
+- **2.2.2 — 2026-09-29** — labelled a Workflow (skill dispatcher): `metadata.type: workflow`, the description starts with it, and the catalog row in `.claude/skills/README.md` says so (HW02 #5). Wording only; routing, guards and the CRITICAL list are unchanged.
 
 - **2.2.1 — 2026-09-29** — pointers only, no rule changes: the rules files moved to `AGENTS.md` (`CLAUDE.md` is now a one-line `@AGENTS.md` import, HW02 Stage 0a), so references to the repo's rules file name `AGENTS.md`.
 

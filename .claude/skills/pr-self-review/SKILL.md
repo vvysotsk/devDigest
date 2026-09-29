@@ -1,10 +1,11 @@
 ---
 name: pr-self-review
-description: "Self-review gate before a pull request, started by the user with /pr-self-review (the model never invokes it on its own). Run it before gh pr create or pushing a branch for review. Routes every changed file to the skills whose metadata.applies_to matches it, re-checks only what the journal has not seen at the current content, runs typecheck/tests of touched packages and the Do-not-touch guards, and refuses to create the PR while any CRITICAL finding is open."
+description: "Workflow (skill dispatcher): self-review gate before a pull request, started by the user with /pr-self-review (the model never invokes it on its own). Run it before gh pr create or pushing a branch for review. Routes every changed file to the skills whose metadata.applies_to matches it, re-checks only what the journal has not seen at the current content, runs typecheck/tests of touched packages and the Do-not-touch guards, and refuses to create the PR while any CRITICAL finding is open."
 argument-hint: "[--mode full|blocking] [--skills a,b] [--full] [--base <ref>]"
 disable-model-invocation: true
 metadata:
-  version: 2.2.1
+  version: 2.2.2
+  type: workflow
 ---
 
 # PR self-review

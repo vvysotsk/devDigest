@@ -9,7 +9,7 @@ Reusable AI skills that provide specialized knowledge and workflows. Canonical l
 | [fastify-best-practices](fastify-best-practices/SKILL.md) | Backend | Fastify routes, plugins, JSON-schema validation, error handling |
 | [drizzle-orm-patterns](drizzle-orm-patterns/SKILL.md) | Backend | Drizzle schema, queries, relations, transactions, migrations |
 | [postgresql-table-design](postgresql-table-design/SKILL.md) | Backend | Postgres schema design, data types, indexing, constraints |
-| [onion-architecture](onion-architecture/SKILL.md) (v1.1.2) | Backend | Layers and import direction in `server/` + `reviewer-core/`: ring map, thin-module exception, response schema + shape test, use-case transactions, advisory `pnpm deps:check`, architecture-change triggers (104-source research in `references/`; versioning rules in its `README.md`) |
+| [onion-architecture](onion-architecture/SKILL.md) (v1.2.0) | Backend | Layers and import direction in `server/` + `reviewer-core/`: ring map, thin-module exception, response schema + shape test, use-case transactions, advisory `pnpm deps:check`, architecture-change triggers (104-source research in `references/`; versioning rules in its `README.md`) |
 | [next-best-practices](next-best-practices/SKILL.md) | Frontend | Next.js App Router, RSC boundaries, data fetching, optimization |
 | [react-best-practices](react-best-practices/SKILL.md) | Frontend | React anti-patterns, state management, hooks rules |
 | [frontend-architecture](frontend-architecture/SKILL.md) (v2.0.1) | Frontend | Where code lives in `client/` and how it splits: placement map, `index.ts` boundary, helpers vs lib, domain features (`features/reviews`, `features/skills`), review signals, architecture-change triggers (275-source research in `references/`; versioning rules in its `README.md`) |
@@ -19,7 +19,7 @@ Reusable AI skills that provide specialized knowledge and workflows. Canonical l
 | [security](security/SKILL.md) | Full-stack | OWASP Top 10:2025, auth, injection, uploads, secrets |
 | [mermaid-diagram](mermaid-diagram/SKILL.md) | Shared | Mermaid diagrams in markdown (flowcharts, sequence, ERD, …) |
 | [engineering-insights](engineering-insights/SKILL.md) | Process | Captures non-obvious lessons into per-module INSIGHTS.md (append-only learnings loop) |
-| [pr-self-review](pr-self-review/SKILL.md) (v2.2.1) | Process | User-invoked (`/pr-self-review`, never auto-invoked) gate before `gh pr create`: routes changed files to skills by `metadata.applies_to`, re-checks only what its journal has not seen at the current content, runs Do-not-touch guards and typecheck/tests of touched packages, blocks the PR on any open CRITICAL (design and decisions in `references/plan.md`) |
+| [pr-self-review](pr-self-review/SKILL.md) (v2.2.2) | Workflow | Skill dispatcher, user-invoked (`/pr-self-review`, never auto-invoked) gate before `gh pr create`: routes changed files to skills by `metadata.applies_to`, re-checks only what its journal has not seen at the current content, runs Do-not-touch guards and typecheck/tests of touched packages, blocks the PR on any open CRITICAL (design and decisions in `references/plan.md`) |
 | [devdigest-demo](devdigest-demo/SKILL.md) | Process | Project rules for demo videos filmed with the `screencast-demo-maker` plugin (URLs, data PR, never-click list) |
 
 ## What Are Skills?
