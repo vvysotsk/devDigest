@@ -291,9 +291,10 @@ in the working tree on 2026-09-29.
   patches with no clone, like #483 / #484
   (`server/src/modules/reviews/diff-loader.ts:19-44`). The planted defects
   were chosen by the user before any run:
-  - **#485 — Test Quality.** Fixture in `server/src/db/seed-prs.ts`, title
-    "Add late fees for overdue invoices". Files: `src/billing/late-fee.ts`
-    and `test/billing/late-fee.test.ts`.
+  - **#485 — Test Quality, variant A (2026-09-29 – 2026-09-30, retired;
+    the fixture is now C, below).** Title "Add late fees for overdue
+    invoices". Files: `src/billing/late-fee.ts` and
+    `test/billing/late-fee.test.ts`.
     - Behaviour: 0 during the grace period (≤ 3 days), then 2 % per charged
       day, capped at 25 % of the amount.
     - The test: 8 `it.each` rows, days 5–14 (inside the 5–20 band), all
@@ -342,8 +343,17 @@ in the working tree on 2026-09-29.
     - Left uncovered: the day-7 and day-14 boundaries and the partial-refund
       branch.
     - The same switch rule as #486 applies (below).
-    - **Active since 2026-09-30** (A failed calibration, above). Pre-registered
-      before any C run:
+    - **Active since 2026-09-30** (A failed calibration, above). Fixture in
+      `server/src/db/seed-prs.ts`, `headSha` `d3a7f1c94e28`, title "Add
+      refund eligibility for payments"; body "Adds `canRefund`, the refund
+      policy for a payment (its constants live in the module), with unit
+      tests on fake timers in `test/billing/refund.test.ts`." Files:
+      `src/billing/refund.ts` (`FULL_REFUND_DAYS = 7`, `REFUND_WINDOW_DAYS =
+      14`, `PARTIAL_REFUND_PERCENT = 50`; `days > 14` → not allowed, `days >
+      7` → partial, else full) and `test/billing/refund.test.ts` (fake
+      timers; day 1 → full, day 30 → not allowed). The PR text names no
+      boundary and no untested case. C has its own one calibration edit.
+      Pre-registered before any C run:
       - "Caught" for #485 C: without skills = any finding (any severity)
         saying the day-7 or day-14 boundary or the partial-refund branch is
         untested; with skills = findings naming both an uncovered branch
@@ -831,9 +841,15 @@ the traces: no method lines).
 | 2026-09-29 20:15 | `c41d8e2f7a90` (A) | none | caught | comment, 2 WARNING "Max fee cap not exercised" + "Grace period boundary not tested" (`test/billing/late-fee.test.ts`, conf 0.9); run `e312cee7` |
 | 2026-09-29 20:16 | `c41d8e2f7a90` (A) | none | caught | comment, the same two findings ("Missing test coverage for grace-period boundary" + "… for max-fee cap", conf 0.9); run `8bbf564b` |
 
+| 2026-09-30 (switch) | `d3a7f1c94e28` | — | switched to variant C | `canRefund(paidAt, now)`: 14-day window, partial after day 7; test on fake timers covers day 1 and day 30 only; title "Add refund eligibility for payments"; body "Adds `canRefund`, the refund policy for a payment (its constants live in the module), with unit tests on fake timers in `test/billing/refund.test.ts`."; 2 files, +20 and +24 lines; C has its own one calibration edit |
+
 A → 2/2 caught without skills → calibration failed. No calibration edit for
 A: the defect is visible in the code, not in the PR text, so a text edit
 cannot help (user decision, 2026-09-30) → switched to pre-registered C (D12).
+
+Defect, C (rows after the switch): the day-7 and day-14 boundaries and the
+partial-refund branch are untested. Next per the protocol: two runs without
+skills on `d3a7f1c94e28`; "caught" as pre-registered in D12.
 
 ## Final checks
 

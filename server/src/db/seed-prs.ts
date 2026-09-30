@@ -267,77 +267,82 @@ export const SEED_EXPERIMENT_PRS: readonly SeedPr[] = [
   },
   {
     number: 485,
-    title: 'Add late fees for overdue invoices',
+    title: 'Add refund eligibility for payments',
     author: 'priya.raman',
-    branch: 'feat/late-fees',
+    branch: 'feat/refund-window',
     base: 'main',
-    headSha: 'c41d8e2f7a90',
+    headSha: 'd3a7f1c94e28',
     body:
-      'Adds `lateFeeCents`, the late-fee policy for overdue invoices (its constants live ' +
-      'in the module), with table-driven unit tests in `test/billing/late-fee.test.ts`.',
+      'Adds `canRefund`, the refund policy for a payment (its constants live in the ' +
+      'module), with unit tests on fake timers in `test/billing/refund.test.ts`.',
     refreshOnSeed: true,
     files: [
       {
-        path: 'src/billing/late-fee.ts',
-        additions: 22,
+        path: 'src/billing/refund.ts',
+        additions: 20,
         deletions: 0,
-        patch: `@@ -0,0 +1,22 @@
-+/** Late-fee policy for overdue invoices. All amounts are integer cents. */
-+export const GRACE_PERIOD_DAYS = 3;
-+export const DAILY_RATE_PERCENT = 2;
-+export const MAX_FEE_PERCENT = 25;
+        patch: `@@ -0,0 +1,20 @@
++/** Refund policy for a payment. Days are whole days since it was paid. */
++export const FULL_REFUND_DAYS = 7;
++export const REFUND_WINDOW_DAYS = 14;
++export const PARTIAL_REFUND_PERCENT = 50;
 +
-+/**
-+ * Late fee for an invoice of amountCents that is daysOverdue whole days
-+ * past its due date.
-+ */
-+export function lateFeeCents(amountCents: number, daysOverdue: number): number {
-+  if (daysOverdue <= GRACE_PERIOD_DAYS) {
-+    return 0;
-+  }
++const MS_PER_DAY = 86_400_000;
 +
-+  const chargedDays = daysOverdue - GRACE_PERIOD_DAYS;
-+  const fee = Math.round((amountCents * DAILY_RATE_PERCENT * chargedDays) / 100);
-+  const maxFee = Math.round((amountCents * MAX_FEE_PERCENT) / 100);
-+  if (fee > maxFee) {
-+    return maxFee;
++export type RefundDecision = { allowed: false } | { allowed: true; percent: number };
++
++/** Whether a payment made at paidAt can still be refunded at now, and at what rate. */
++export function canRefund(paidAt: Date, now: Date): RefundDecision {
++  const days = Math.floor((now.getTime() - paidAt.getTime()) / MS_PER_DAY);
++  if (days > REFUND_WINDOW_DAYS) {
++    return { allowed: false };
 +  }
-+  return fee;
++  if (days > FULL_REFUND_DAYS) {
++    return { allowed: true, percent: PARTIAL_REFUND_PERCENT };
++  }
++  return { allowed: true, percent: 100 };
 +}`,
       },
       {
-        path: 'test/billing/late-fee.test.ts',
-        additions: 17,
+        path: 'test/billing/refund.test.ts',
+        additions: 24,
         deletions: 0,
-        patch: `@@ -0,0 +1,17 @@
-+import { describe, expect, it } from 'vitest';
-+import { lateFeeCents } from '../../src/billing/late-fee.js';
+        patch: `@@ -0,0 +1,24 @@
++import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
++import { canRefund } from '../../src/billing/refund.js';
 +
-+describe('lateFeeCents', () => {
-+  it.each([
-+    { amountCents: 10_000, days: 5, expected: 400 },
-+    { amountCents: 10_000, days: 6, expected: 600 },
-+    { amountCents: 10_000, days: 8, expected: 1_000 },
-+    { amountCents: 10_000, days: 10, expected: 1_400 },
-+    { amountCents: 25_000, days: 7, expected: 2_000 },
-+    { amountCents: 25_000, days: 12, expected: 4_500 },
-+    { amountCents: 4_999, days: 9, expected: 600 },
-+    { amountCents: 4_999, days: 14, expected: 1_100 },
-+  ])('charges $expected cents on $amountCents cents, $days days overdue', ({ amountCents, days, expected }) => {
-+    expect(lateFeeCents(amountCents, days)).toBe(expected);
++const PAID_AT = new Date('2026-03-01T10:00:00Z');
++
++describe('canRefund', () => {
++  beforeEach(() => {
++    vi.useFakeTimers();
++  });
++
++  afterEach(() => {
++    vi.useRealTimers();
++  });
++
++  it('refunds in full the day after the payment', () => {
++    vi.setSystemTime(new Date('2026-03-02T10:00:00Z'));
++    expect(canRefund(PAID_AT, new Date())).toEqual({ allowed: true, percent: 100 });
++  });
++
++  it('refuses a refund a month after the payment', () => {
++    vi.setSystemTime(new Date('2026-03-31T10:00:00Z'));
++    expect(canRefund(PAID_AT, new Date())).toEqual({ allowed: false });
 +  });
 +});`,
       },
     ],
     commits: [
       {
-        sha: '8b2f6c1d0e57',
-        message: 'feat(billing): add lateFeeCents',
+        sha: '4c9e2b7a1f03',
+        message: 'feat(billing): add canRefund',
         author: 'priya.raman',
       },
       {
-        sha: 'c41d8e2f7a90',
-        message: 'test(billing): table-driven tests for lateFeeCents',
+        sha: 'd3a7f1c94e28',
+        message: 'test(billing): canRefund on fake timers',
         author: 'priya.raman',
       },
     ],
