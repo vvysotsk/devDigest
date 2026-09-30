@@ -24,6 +24,13 @@ import {
   SkillImportPreview,
   SkillImportSave,
   SkillErrorCode,
+  ConventionScan,
+  ConventionCandidate,
+  ConventionsState,
+  ConventionPatch,
+  ConventionSkillSave,
+  ConventionSkillDraft,
+  ConventionErrorCode,
 } from '@devdigest/shared';
 
 /**
@@ -343,5 +350,70 @@ describe('L02 skills contracts', () => {
         ],
       }),
     ).not.toThrow();
+  });
+
+  it('Convention contracts (HW02 2a) parse a scan, a candidate, the state, a patch and a skill save', () => {
+    const scanId = '00000000-0000-4000-8000-00000000000a';
+    const scan = ConventionScan.strict().parse({
+      id: scanId,
+      repo_id: '00000000-0000-4000-8000-00000000000b',
+      status: 'done',
+      head_sha: 'abc123',
+      sample_count: 12,
+      candidates_dropped: 1,
+      provider: 'openrouter',
+      model: 'deepseek/deepseek-v4-flash',
+      error: null,
+      started_at: '2026-09-30T10:00:00.000Z',
+      finished_at: '2026-09-30T10:01:00.000Z',
+    });
+    const candidateId = '00000000-0000-4000-8000-00000000000c';
+    const candidate = ConventionCandidate.strict().parse({
+      id: candidateId,
+      scan_id: scanId,
+      category: 'naming',
+      rule: 'Hooks are named useXxx',
+      evidence_path: 'src/lib/hooks/agents.ts',
+      evidence_line: 12,
+      evidence_snippet: 'export function useAgents() {',
+      confidence: 0.9,
+      status: 'pending',
+      created_at: '2026-09-30T10:01:00.000Z',
+      updated_at: '2026-09-30T10:01:00.000Z',
+    });
+    expect(() => ConventionsState.strict().parse({ scan, candidates: [candidate] })).not.toThrow();
+    expect(() => ConventionsState.strict().parse({ scan: null, candidates: [] })).not.toThrow();
+
+    expect(() => ConventionPatch.parse({ status: 'accepted' })).not.toThrow();
+    expect(() => ConventionPatch.parse({ rule: 'edited', category: 'structure' })).not.toThrow();
+    expect(() =>
+      ConventionSkillSave.strict().parse({
+        name: 'repo-conventions',
+        description: 'Conventions of acme/payments-api',
+        type: 'convention',
+        enabled: true,
+        body: '# repo-conventions\n\n## Hooks are named useXxx',
+        agent_id: '00000000-0000-4000-8000-00000000000d',
+        candidate_ids: [candidateId],
+      }),
+    ).not.toThrow();
+    expect(() =>
+      ConventionSkillDraft.strict().parse({
+        name: 'repo-conventions',
+        description: '',
+        type: 'convention',
+        body: '',
+        existing: { id: '00000000-0000-4000-8000-00000000000e', version: 2 },
+      }),
+    ).not.toThrow();
+    expect(ConventionErrorCode.options).toContain('scan_running');
+
+    // Rejections the routes rely on.
+    expect(() => ConventionCandidate.parse({ ...candidate, confidence: 1.5 })).toThrow();
+    expect(() => ConventionCandidate.parse({ ...candidate, category: 'style' })).toThrow();
+    expect(() => ConventionCandidate.parse({ ...candidate, evidence_line: 0 })).toThrow();
+    expect(() => ConventionPatch.parse({})).toThrow();
+    expect(() => ConventionSkillSave.parse({ name: 'Repo Conventions', description: '', type: 'convention', enabled: true, body: 'b', agent_id: '00000000-0000-4000-8000-00000000000d', candidate_ids: [candidateId] })).toThrow();
+    expect(() => ConventionSkillSave.parse({ name: 'repo-conventions', description: '', type: 'convention', enabled: true, body: 'b', agent_id: '00000000-0000-4000-8000-00000000000d', candidate_ids: [] })).toThrow();
   });
 });

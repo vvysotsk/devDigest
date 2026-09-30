@@ -85,6 +85,20 @@
       "when": 1790537604697,
       "tag": "0011_white_sumo",
       "breakpoints": true
+    },
+    {
+      "idx": 12,
+      "version": "7",
+      "when": 1790801195759,
+      "tag": "0012_ordinary_sway",
+      "breakpoints": true
+    },
+    {
+      "idx": 13,
+      "version": "7",
+      "when": 1790801262372,
+      "tag": "0013_mute_namorita",
+      "breakpoints": true
     }
   ]
 }

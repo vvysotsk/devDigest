@@ -317,16 +317,115 @@ export const CommunitySkill = z.object({
 });
 export type CommunitySkill = z.infer<typeof CommunitySkill>;
 
-// ---- Conventions ----
+// ---- Conventions (HW02 D14–D18) ----
+/** The category the model assigns to a candidate (D16). */
+export const ConventionCategory = z.enum([
+  'naming',
+  'structure',
+  'async',
+  'error-handling',
+  'types',
+  'imports',
+  'testing',
+  'other',
+]);
+export type ConventionCategory = z.infer<typeof ConventionCategory>;
+
+/** The user's decision on a candidate; a rejection survives re-scans (D17, #48). */
+export const ConventionStatus = z.enum(['pending', 'accepted', 'rejected']);
+export type ConventionStatus = z.infer<typeof ConventionStatus>;
+
+export const ConventionScanStatus = z.enum(['running', 'done', 'failed']);
+export type ConventionScanStatus = z.infer<typeof ConventionScanStatus>;
+
+/**
+ * A convention candidate with verified evidence: `evidence_line` is the line
+ * where the model's quote was found and `evidence_snippet` is read from the
+ * file by code (D16). Rows whose quote was not found are never stored.
+ */
 export const ConventionCandidate = z.object({
   id: z.string(),
+  scan_id: z.string(),
+  category: ConventionCategory,
   rule: z.string(),
   evidence_path: z.string(),
+  evidence_line: z.number().int().positive(),
   evidence_snippet: z.string(),
   confidence: z.number().min(0).max(1),
-  accepted: z.boolean(),
+  status: ConventionStatus,
+  created_at: z.string(),
+  updated_at: z.string(),
 });
 export type ConventionCandidate = z.infer<typeof ConventionCandidate>;
+
+/** One extraction run (D14, D17). `provider` / `model` are resolved per run (D8). */
+export const ConventionScan = z.object({
+  id: z.string(),
+  repo_id: z.string(),
+  status: ConventionScanStatus,
+  head_sha: z.string(),
+  sample_count: z.number().int().nonnegative(),
+  candidates_dropped: z.number().int().nonnegative(),
+  provider: z.string().nullable(),
+  model: z.string().nullable(),
+  error: z.string().nullable(),
+  started_at: z.string(),
+  finished_at: z.string().nullable(),
+});
+export type ConventionScan = z.infer<typeof ConventionScan>;
+
+/** `GET /repos/:id/conventions`: the latest scan and its non-rejected candidates. */
+export const ConventionsState = z.object({
+  scan: ConventionScan.nullable(),
+  candidates: z.array(ConventionCandidate),
+});
+export type ConventionsState = z.infer<typeof ConventionsState>;
+
+/** `PATCH /conventions/:id` — accept / reject, or edit the rule and category in place (#47, #49). */
+export const ConventionPatch = z
+  .object({
+    status: ConventionStatus.optional(),
+    rule: z.string().min(1).optional(),
+    category: ConventionCategory.optional(),
+  })
+  .refine((p) => p.status !== undefined || p.rule !== undefined || p.category !== undefined, {
+    message: 'empty patch',
+  });
+export type ConventionPatch = z.infer<typeof ConventionPatch>;
+
+/** `GET /repos/:id/conventions/skill-draft` — the default skill built from the accepted candidates (D18). */
+export const ConventionSkillDraft = z.object({
+  name: SkillName,
+  description: z.string(),
+  type: SkillType,
+  body: z.string(),
+  /** The existing `repo-conventions` skill, when Create will save a new version of it. */
+  existing: z.object({ id: z.string(), version: z.number().int() }).nullable(),
+});
+export type ConventionSkillDraft = z.infer<typeof ConventionSkillDraft>;
+
+/** `POST /repos/:id/conventions/skill` — save the edited draft and link it to an agent (D18). */
+export const ConventionSkillSave = z.object({
+  name: SkillName,
+  description: z.string(),
+  type: SkillType,
+  enabled: z.boolean(),
+  body: z.string().min(1),
+  agent_id: z.string().uuid(),
+  /** Accepted candidates only; the server refuses any other id (400). */
+  candidate_ids: z.array(z.string().uuid()).min(1),
+});
+export type ConventionSkillSave = z.infer<typeof ConventionSkillSave>;
+
+/** `error.code` values of the conventions routes. */
+export const ConventionErrorCode = z.enum([
+  'scan_running', // 409 — extract: a scan is already running for the repo (D14)
+  'repo_not_cloned', // 409 — extract: the repo has no clone (D15)
+  'repo_not_indexed', // 409 — extract: the repo was never indexed (D15)
+  'candidate_not_accepted', // 400 — skill save: a candidate_id is not accepted (D18)
+  'skill_name_taken', // 409 — skill save: the name belongs to another, non-extracted skill (D18)
+]);
+export type ConventionErrorCode = z.infer<typeof ConventionErrorCode>;
 
 // ---- Agents ----
 // 'openrouter' routes through the OpenAI-compatible API (OpenAIProvider with a
