@@ -320,7 +320,8 @@ in the working tree on 2026-09-29.
       confirmation goes out only when an address is present." It names no
       consequence, no other route and no client.
     - This matches the brief's response-schema class (field optionality) and
-      #18. Variant A starts fresh: it has its own one calibration edit.
+      #18. Frozen at `9a4e7c3b1d68` on 2026-09-30: 0/2 caught without
+      skills, no calibration edit used ("Stage 1c results").
     - **A' (2026-09-29 – 2026-09-30, retired):** `Customer.email` renamed to
       `contactEmail`; the same three files; the routes outside the diff
       returned the new name. Caught 3/4 without skills, including 2/2 after
@@ -347,6 +348,11 @@ in the working tree on 2026-09-29.
     pre-registered variant (#486: A' → A → B; #485: A → C).
 
     Every switch is recorded with its reason. There are no other PR changes.
+  - **"Caught" for #486 A** (fixed 2026-09-30, before the 16:38 finding was
+    read): Caught = at least one finding of ANY severity whose rationale says
+    a Customer can now come back without `email` and that this breaks
+    readers of the response (API contract, consumers, other routes returning
+    Customer). Findings about anything else do not count.
   - **Protocol:**
     1. Calibrate WITHOUT skills until the agent misses the defect in 2 of 2
        runs. During calibration the links may simply be disabled. Every PR
@@ -762,9 +768,21 @@ the same two routes may now return a customer without `email`.
 | 2026-09-30 15:55 | `7f3c1a9e4b02` | none | caught | 1 CRITICAL, request_changes |
 | 2026-09-30 15:59 | `7f3c1a9e4b02` | none | caught | 1 CRITICAL, request_changes |
 | 2026-09-30 (switch) | `9a4e7c3b1d68` | — | switched to variant A | `Customer.email` → `.optional()`; title "Allow guest checkout without an email"; body "Guest checkout creates a customer from the name alone, so `Customer.email` becomes optional and the order confirmation goes out only when an address is present."; 3 files, +14 −9; A has its own one calibration edit |
+| 2026-09-30 16:07 | `9a4e7c3b1d68` | none | missed | approve, 0 findings |
+| 2026-09-30 16:38 | `9a4e7c3b1d68` | none | missed | comment, 1 WARNING "Ambiguous checkout body schema allows both customerId and guestName" (`src/api/checkout.ts:12-15`, security, 80 % conf) — unrelated to the planted defect, does not count under the D12 "caught" definition |
 
 A' → 3/4 caught without skills, calibration failed after its one edit →
 switched to A (D12).
+
+A → 0/2 caught without skills → calibrated, no calibration edit used. PR
+frozen at `9a4e7c3b1d68`.
+
+Observation: both variant A runs produced very long outputs (109k and 132k
+tokens out; one run cost $0.021) for a 3-file diff. Recorded here; not
+investigated in Stage 1c.
+
+Next per the protocol: 2 recorded runs with the skills **detached**, then 2
+runs with all four skills linked and enabled.
 
 ### #485 — Test Quality Reviewer
 
