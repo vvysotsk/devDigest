@@ -11,6 +11,20 @@ Never rewrite existing entries — correct with a dated note.
 
 ## What Works
 
+- 2026-09-30: A role-only reviewer can see a test gap and still file nothing:
+  on #485 C (canRefund, only day 1 and day 30 tested) two of four no-skills
+  runs named the untested partial-refund branch in the summary yet returned
+  approve with 0 findings, one filed a branch-only WARNING, one missed it.
+  The pipeline scores, grounds and counts findings only, so a summary-only
+  mention is a miss. With the four seeded Test Quality skills both runs filed
+  a WARNING naming the exact day-7 / day-14 boundaries. Judge experiments by
+  findings, never by summaries; on this fixture the skills' value was turning
+  an inconsistent mention into a consistent, precise finding (n = 2, unstable
+  baseline) (evidence: `src/db/seed-skills.ts` Test Quality entries;
+  `src/db/seed-prs.ts` #485; runs `9f907ecd`, `ed0c7743`, `7fae85c1` vs
+  `40c5db49`, `58257669` in `../specs/HW02-conventions-and-api-contract.md`
+  "Stage 1c results").
+
 ## What Doesn't Work
 
 - 2026-09-27: A two-step import ("preview returns the parsed text, the client

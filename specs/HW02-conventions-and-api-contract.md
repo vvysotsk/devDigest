@@ -64,7 +64,7 @@ in the working tree on 2026-09-29.
 | 14 | Drag order = order of skill blocks in the prompt | ✅ `SkillsTab.tsx:76` → `server/src/modules/skills/helpers.ts:48` → `repository.ts:235-254` → `reviewer-core/src/prompt.ts:78-81`, `:160` | Final | live: reorder → run → trace blocks swapped |
 | 15 | Import `.md` / `.zip` with a preview | ✅ `ImportSkillModal.tsx:36-63`, `server/src/modules/skills/routes.ts:57-74` | — | final walk |
 | 16 | ≥ 1 skill of the new agents is "imported" | ✅ since 2026-09-30: all four API skills imported as `.zip` (`imported_file` in the traces; was ❌, every seed skill `manual`) | 1c | one of the four API skills imported as `.zip` |
-| 17 | Test Quality experiment: no skill → no flag; skill linked → flags the uncovered branch and the boundary | ⚠ #483's baseline catches its defect 2/2 (`specs/L02-skills.md` "Stage 8 results") | 1b–1d | PR #485, D12 protocol |
+| 17 | Test Quality experiment: no skill → no flag; skill linked → flags the uncovered branch and the boundary | ✅ reproduced 2026-09-30 on #485 C: without skills 1/2 (strict 0/2), with skills 2/2 strict ("Stage 1c results"; caveat: unstable baseline, n = 2; was ⚠, #483's baseline caught its defect 2/2) | 1b–1d | PR #485, D12 protocol |
 | 18 | API Contract experiment: no skill → miss; skill → catches the breaking change | ✅ reproduced 2026-09-30 on #486 A: 0/2 without, 2/2 with skills ("Stage 1c results"; was ⚠, #484's baseline caught it) | 1b–1d | PR #486, D12 protocol |
 | 19 | Trace: separate skills block + tokens of that block only | ✅ `…/RunTraceDrawer/_components/TraceBody/TraceBody.tsx:79-88`, `server/src/modules/reviews/run-executor.ts:367` | 1c | trace screenshot in the results |
 | 20 | Enabled skill = block; disabled = absent | ✅ `server/src/modules/skills/repository.ts:246-251` | 1c | a run with one skill disabled |
@@ -362,6 +362,14 @@ in the working tree on 2026-09-29.
         calibration edit, there is no further variant: #17 is recorded as not
         reproduced with this model and the role-only prompt. No model or
         prompt change mid-experiment without the user's explicit decision.
+      - **Interpretation rule** (fixed 2026-09-30 after the recorded no-skills
+        runs and before the with-skills runs): #17 counts as reproduced only
+        if both with-skills runs meet the strict definition (an uncovered
+        branch — partial refund or window expiry — AND a boundary — day 7 or
+        day 14); otherwise "not reproduced", no reruns. The report must state
+        that the no-skills baseline is unstable (1/2) and n = 2.
+      - C frozen at `d3a7f1c94e28` on 2026-09-30: 0/2 in calibration, no
+        calibration edit used ("Stage 1c results").
   - **Pre-registered fallbacks for #486, in order:**
     - A: `email` becomes `.optional()` — **active since 2026-09-30** (above);
     - B: the `PaymentStatus` value `requires_action` is merged into
@@ -848,8 +856,44 @@ A: the defect is visible in the code, not in the PR text, so a text edit
 cannot help (user decision, 2026-09-30) → switched to pre-registered C (D12).
 
 Defect, C (rows after the switch): the day-7 and day-14 boundaries and the
-partial-refund branch are untested. Next per the protocol: two runs without
-skills on `d3a7f1c94e28`; "caught" as pre-registered in D12.
+partial-refund branch are untested. Agent v8 without skills, v9 with: the
+version bump is only the skill links. The system prompt (D10b, 3410 chars) is
+byte-identical across all six C runs, and the user prompt differs only by the
+inserted `## Skills / rules` block. "Caught" as pre-registered in D12.
+
+| Time (local) | Fixture | Skills | Result | Finding summary |
+|---|---|---|---|---|
+| 2026-09-30 18:03:10 | `d3a7f1c94e28` (C) | none | missed (calibration) | approve, 0 findings; run `a410413f` |
+| 2026-09-30 18:03:42 | `d3a7f1c94e28` (C) | none | missed (calibration) | approve, 0 findings; the summary says the tests "miss the partial-refund branch (e.g., day 10)" but calls it not critical and files no finding — the pre-registered definition counts findings only, so a miss (same treatment as the #486 16:38 WARNING); run `9f907ecd` |
+| 2026-09-30 18:19:15 | `d3a7f1c94e28` (C) | none (recorded, fresh run) | missed | approve, 0 findings; the summary notes days 8–14 untested as "an acceptable scope choice", no finding; run `ed0c7743` |
+| 2026-09-30 18:20:09 | `d3a7f1c94e28` (C) | none (recorded, fresh run) | caught (no-skills definition); not strict | comment, 1 WARNING "Test missing for partial refund case at days 8–14" (`test/billing/refund.test.ts:16-22`, conf 0.95) — names the partial-refund branch, no boundary; run `7fae85c1` |
+| 2026-09-30 18:22:12 | `d3a7f1c94e28` (C) | `branch-coverage-check`, `edge-case-hunter`, `over-mocking-smell`, `flaky-test-patterns` v1, all `manual` (330 + 355 + 249 + 277 = 1211 tok cl100k; agent v9) | caught (strict) | comment, 1 WARNING "Untested branch boundaries for FULL_REFUND_DAYS and REFUND_WINDOW_DAYS" (`src/billing/refund.ts:10-13`, conf 0.95) — names the day-7 and day-14 boundaries and "No test checks day 8 (partial refund)"; run `40c5db49` |
+| 2026-09-30 18:22:50 | `d3a7f1c94e28` (C) | same | caught (strict) | comment, 1 WARNING "Missing boundary-condition tests for the three refund windows" (`test/billing/refund.test.ts:1-17`, conf 0.95) — names days 7 / 8 / 14 / 15 including the first partial-refund day; plus 1 SUGGESTION "Timezone offset in paiddAt vs now not tested" (`src/billing/refund.ts:8-9`, conf 0.8, self-described as theoretical — noise, does not affect the result); run `58257669` |
+
+C calibration → 0/2 caught without skills → calibrated and frozen at
+`d3a7f1c94e28`. The optional calibration edit was not used.
+
+Recorded runs without skills (fresh runs, not the calibration runs; no D12
+step 3 deviation for #485): 1/2 caught (strict 0/2).
+
+**Interpretation rule** (fixed 2026-09-30 after the recorded no-skills runs
+and before the with-skills runs): #17 counts as reproduced only if both
+with-skills runs meet the strict definition (an uncovered branch — partial
+refund or window expiry — AND a boundary — day 7 or day 14); otherwise "not
+reproduced", no reruns. The report must state that the no-skills baseline is
+unstable (1/2) and n = 2.
+
+With skills: 2/2 strict.
+
+**#485 C: without skills 1/2 (strict 0/2), with skills 2/2 strict → #17
+reproduced, with caveat: unstable baseline, n=2; the skills turn an
+inconsistent branch-only mention into a consistent branch + exact-boundary
+finding.**
+
+Observation: without skills the gap was noticed in 3 of 4 runs, but in 2 of
+them (9f907ecd, ed0c7743) only in the summary, with approve and 0 findings; 1
+run filed a branch-only WARNING (7fae85c1); 1 run did not mention it
+(a410413f). With skills it became a branch + exact-boundary WARNING in 2/2.
 
 ## Final checks
 
