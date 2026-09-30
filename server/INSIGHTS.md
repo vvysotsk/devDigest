@@ -179,6 +179,20 @@ Never rewrite existing entries — correct with a dated note.
 
 ## Tool & Library Notes
 
+- 2026-09-30: OpenRouter deepseek/deepseek-v4-flash single-pass reviews have
+  a heavy latency tail. On 2–3-file diffs most runs finished in 6 s–7 min
+  with 0.1–3.6k tokens out, but both #486 variant A no-skills runs
+  (066ebca1, f36a22cf; the same prompt) took 26 and 21 min with 132k / 109k
+  tokens out, while the with-skills runs on that PR took 24–40 s; #483 run
+  35178148 took 11 min with 15k tokens out; #483 run 5caf4e59 failed after
+  27.8 min with "Premature close" from openrouter.ai (no user prompt in the
+  trace, 0 tokens). Budget experiment time for the tail, keep every run, and
+  treat a failed run as neither evidence nor a reason to rerun the others.
+  cost_usd does not scale with tokens_out across these runs (f36a22cf: 109k
+  out, $0.0004; 066ebca1: 132k out, $0.021), so do not compare runs by cost
+  (evidence: `src/modules/reviews/run-executor.ts:287`, `:367`;
+  `../specs/HW02-conventions-and-api-contract.md` "Stage 1c results" and
+  "Trace evidence").
 - 2026-09-27: fflate `unzipSync` inflates each entry into
   `new Uint8Array(declaredSize)` and never checks CRC-32: a header that
   under-declares the size is silently truncated (memory stays capped, content

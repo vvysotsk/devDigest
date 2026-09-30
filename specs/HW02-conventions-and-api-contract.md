@@ -66,8 +66,8 @@ in the working tree on 2026-09-29.
 | 16 | ≥ 1 skill of the new agents is "imported" | ✅ since 2026-09-30: all four API skills imported as `.zip` (`imported_file` in the traces; was ❌, every seed skill `manual`) | 1c | one of the four API skills imported as `.zip` |
 | 17 | Test Quality experiment: no skill → no flag; skill linked → flags the uncovered branch and the boundary | ✅ reproduced 2026-09-30 on #485 C: without skills 1/2 (strict 0/2), with skills 2/2 strict ("Stage 1c results"; caveat: unstable baseline, n = 2; was ⚠, #483's baseline caught its defect 2/2) | 1b–1d | PR #485, D12 protocol |
 | 18 | API Contract experiment: no skill → miss; skill → catches the breaking change | ✅ reproduced 2026-09-30 on #486 A: 0/2 without, 2/2 with skills ("Stage 1c results"; was ⚠, #484's baseline caught it) | 1b–1d | PR #486, D12 protocol |
-| 19 | Trace: separate skills block + tokens of that block only | ✅ `…/RunTraceDrawer/_components/TraceBody/TraceBody.tsx:79-88`, `server/src/modules/reviews/run-executor.ts:367` | 1c | trace screenshot in the results |
-| 20 | Enabled skill = block; disabled = absent | ✅ `server/src/modules/skills/repository.ts:246-251` | 1c | a run with one skill disabled |
+| 19 | Trace: separate skills block + tokens of that block only | ✅ `…/RunTraceDrawer/_components/TraceBody/TraceBody.tsx:79-88`, `server/src/modules/reviews/run-executor.ts:367` · evidence: run 58257669 (#485), `specs/assets/hw02-19-trace-skills.png` ("Stage 1c results" → Trace evidence) | 1c | trace screenshot in the results |
+| 20 | Enabled skill = block; disabled = absent | ✅ `server/src/modules/skills/repository.ts:246-251` · evidence: run 35178148 (#483, `over-mocking-smell` off → Skills · 3 · ≈ 962 tok), `specs/assets/hw02-20-disabled-skill.png` | 1c | a run with one skill disabled |
 | 21 | Manual `pr-self-review` on a client+server diff; no auto hook | ✅ static: `SKILL.md:5`, `:15`; `self-review.mjs:165-177` | Final | the user runs `/pr-self-review` |
 | 22 | Skill card: current version + agent count | ⚠ agent count only (`SkillCard.tsx:40`) | 0c | `v{version}` chip; client test |
 | 23 | Delete button on the skill card | ❌ only in Config (`…/ConfigTab/ConfigTab.tsx:82-84`) | 0c | client test |
@@ -783,7 +783,7 @@ Rules: files are staged by name; no Co-Authored-By; no push.
 8. Two runs with skills, on the same model. After that, only skill wording
    may change, and every iteration is recorded.
 9. From the traces: the skills block with its tokens (#19); a disabled skill
-   is absent (#20).
+   is absent (#20) — done 2026-09-30, see "Trace evidence (#19, #20)".
 10. The same protocol applies to #485 with the Test Quality Reviewer and its
     seeded skills.
 
@@ -895,6 +895,38 @@ them (9f907ecd, ed0c7743) only in the summary, with approve and 0 findings; 1
 run filed a branch-only WARNING (7fae85c1); 1 run did not mention it
 (a410413f). With skills it became a branch + exact-boundary WARNING in 2/2.
 
+### Trace evidence (#19, #20)
+
+- **#19 — a separate Skills block with its own tokens.**
+
+  ![Trace of run 58257669: Skills · 4 · ≈ 1211 tok](assets/hw02-19-trace-skills.png)
+
+  Run `58257669` on #485 (2026-09-30 18:22:50, the second with-skills run of
+  the C experiment; 44 116 ms, single pass). The Prompt assembly panel shows
+  three parts: System, "Skills · 4 · ≈ 1211 tok (cl100k)" with per-skill
+  tokens 330 / 355 / 249 / 277 (`manual`, v1), and User / diff. The count is
+  of the block only (`server/src/modules/reviews/run-executor.ts:367`;
+  rendered by `TraceBody.tsx:79-88`, cited in the traceability row).
+- **#20 — a disabled skill is absent.**
+
+  ![Trace of run 35178148: Skills · 3 · ≈ 962 tok, over-mocking-smell absent](assets/hw02-20-disabled-skill.png)
+
+  Run `35178148` on #483 (2026-09-30 20:56:50; Test Quality Reviewer agent
+  v10 with `over-mocking-smell` toggled off in the agent's Skills tab). The
+  block reads "Skills · 3 · ≈ 962 tok" (`branch-coverage-check` 330,
+  `edge-case-hunter` 355, `flaky-test-patterns` 277); `over-mocking-smell`
+  is absent. Result: comment, 1 WARNING "applyCoupon has multiple untested
+  branches" (`src/billing/discount.ts:24-42`, conf 0.9); 683 s. The skill
+  was re-enabled afterwards. #483 is outside the #485 / #486 tables; this
+  run is evidence for #20 only and does not change the L02 "Stage 8 results"
+  record.
+- **Not evidence:** run `5caf4e59` on #483 (2026-09-30 20:28:02, agent v10)
+  failed after 27.8 min with "Invalid response body while trying to fetch
+  https://openrouter.ai/api/v1/chat/completions: Premature close" — a
+  network failure. Its trace has no user prompt, no Skills block and zero
+  tokens (the log shows the same three skills resolving, then the failure at
+  20:55:48). It counts for nothing.
+
 ## Final checks
 
 | Check | Evidence |
@@ -904,7 +936,7 @@ run filed a branch-only WARNING (7fae85c1); 1 run did not mention it
 | #6–16, #22–37 lab surfaces | client tests + a UI walk with screenshots |
 | #8 CRUD really hits Postgres | live: API create → `psql` select; `psql` delete → `GET /skills` |
 | #14 order reaches the prompt | live: reorder → run → trace |
-| #17–20 experiments | the "Stage 1c results" tables (completed in 1d) and traces |
+| #17–20 experiments | the "Stage 1c results" tables and "Trace evidence (#19, #20)" with the screenshots in `specs/assets/` |
 | #21 | the user's `/pr-self-review` on the final client+server diff |
 | #38–53 Conventions | `.it` + client tests; e2e with the seeded scan (D20); **Run Scan verified manually and in the demo with the real model** |
 | K5 — the evidence link opens the file at that line on GitHub | manual, on the Stage 2 demo repo (the seeded e2e repo has no GitHub remote) |
