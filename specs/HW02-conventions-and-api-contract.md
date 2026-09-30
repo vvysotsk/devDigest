@@ -331,6 +331,10 @@ in the working tree on 2026-09-29.
     - with skills the agent still misses it after one skill-wording
       iteration.
 
+    Each variant gets at most ONE calibration edit. If the variant is still
+    caught in either of the next two runs without skills, switch to the next
+    pre-registered variant (#486: A' → A → B; #485: A → C).
+
     Every switch is recorded with its reason. There are no other PR changes.
   - **Protocol:**
     1. Calibrate WITHOUT skills until the agent misses the defect in 2 of 2
@@ -722,6 +726,37 @@ Rules: files are staged by name; no Co-Authored-By; no push.
 10. The same protocol applies to #485 with the Test Quality Reviewer and its
     seeded skills.
 
+## Stage 1c results
+
+**Setup.** The seed PRs #485 / #486 on `acme/payments-api` (D12,
+`server/src/db/seed-prs.ts`). The API Contract Reviewer was created in the UI
+with the frozen D10 prompt. Model `openrouter` / `deepseek/deepseek-v4-flash`
+(single-pass). Calibration runs have the skill links disabled: the user
+checked that neither trace has a Skills block. Every calibration edit is its
+own row (fixture = the PR's `headSha` at the time of the run).
+
+### #486 — API Contract Reviewer
+
+Defect: `Customer.email` is renamed to `contactEmail` in the shared schema;
+`GET /customers/:id` and `/invoices` return `toCustomer(…)`, so their
+response changes without being in the diff.
+
+| Time (local) | Fixture | Skills | Result | Finding summary |
+|---|---|---|---|---|
+| 2026-09-29 20:20 | `5e0a93d7c2b1` (A', title "Rename Customer.email to contactEmail") | none | caught | 1 CRITICAL — "breaks clients relying on the email field", request_changes |
+| 2026-09-29 20:21 | same | none | missed | approve, 0 findings |
+
+1/2 → not calibrated. A' gets its one calibration edit (title and body only;
+diff unchanged) — see the next row.
+
+### #485 — Test Quality Reviewer
+
+Defect: the grace branch with its day 3 / 4 boundary and the cap branch are
+untested.
+
+| Time (local) | Fixture | Skills | Result | Finding summary |
+|---|---|---|---|---|
+
 ## Final checks
 
 | Check | Evidence |
@@ -731,7 +766,7 @@ Rules: files are staged by name; no Co-Authored-By; no push.
 | #6–16, #22–37 lab surfaces | client tests + a UI walk with screenshots |
 | #8 CRUD really hits Postgres | live: API create → `psql` select; `psql` delete → `GET /skills` |
 | #14 order reaches the prompt | live: reorder → run → trace |
-| #17–20 experiments | the Stage 1d results tables and traces |
+| #17–20 experiments | the "Stage 1c results" tables (completed in 1d) and traces |
 | #21 | the user's `/pr-self-review` on the final client+server diff |
 | #38–53 Conventions | `.it` + client tests; e2e with the seeded scan (D20); **Run Scan verified manually and in the demo with the real model** |
 | K5 — the evidence link opens the file at that line on GitHub | manual, on the Stage 2 demo repo (the seeded e2e repo has no GitHub remote) |
