@@ -344,14 +344,14 @@ export const SEED_EXPERIMENT_PRS: readonly SeedPr[] = [
   },
   {
     number: 486,
-    title: 'Rename Customer.email to contactEmail',
+    title: 'Align customer contact fields with merchants',
     author: 'marco.bellini',
     branch: 'refactor/customer-contact-email',
     base: 'main',
-    headSha: '5e0a93d7c2b1',
+    headSha: '7f3c1a9e4b02',
     body:
-      'Renames the `email` field of `Customer` to `contactEmail` for consistency with ' +
-      '`Merchant.contactEmail`, and updates the checkout flow to the new name.',
+      'Uses `contactEmail` for customers as well, matching `Merchant.contactEmail`, ' +
+      'and updates the checkout flow.',
     refreshOnSeed: true,
     files: [
       {
@@ -399,7 +399,7 @@ export const SEED_EXPERIMENT_PRS: readonly SeedPr[] = [
     ],
     commits: [
       {
-        sha: '5e0a93d7c2b1',
+        sha: '7f3c1a9e4b02',
         message: 'refactor(customers): rename Customer.email to contactEmail',
         author: 'marco.bellini',
       },
