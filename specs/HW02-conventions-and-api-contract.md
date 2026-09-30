@@ -63,9 +63,9 @@ in the working tree on 2026-09-29.
 | 13 | Agent Skills tab: link, enable, drag & drop | ✅ `…/AgentEditor/_components/SkillsTab/SkillsTab.tsx:107-132`, `…/SkillRow/SkillRow.tsx:39-55` | — | final walk |
 | 14 | Drag order = order of skill blocks in the prompt | ✅ `SkillsTab.tsx:76` → `server/src/modules/skills/helpers.ts:48` → `repository.ts:235-254` → `reviewer-core/src/prompt.ts:78-81`, `:160` | Final | live: reorder → run → trace blocks swapped |
 | 15 | Import `.md` / `.zip` with a preview | ✅ `ImportSkillModal.tsx:36-63`, `server/src/modules/skills/routes.ts:57-74` | — | final walk |
-| 16 | ≥ 1 skill of the new agents is "imported" | ❌ every seed skill is `manual` (`server/src/db/seed-skills.ts:35`) | 1c | one of the four API skills imported as `.zip` |
+| 16 | ≥ 1 skill of the new agents is "imported" | ✅ since 2026-09-30: all four API skills imported as `.zip` (`imported_file` in the traces; was ❌, every seed skill `manual`) | 1c | one of the four API skills imported as `.zip` |
 | 17 | Test Quality experiment: no skill → no flag; skill linked → flags the uncovered branch and the boundary | ⚠ #483's baseline catches its defect 2/2 (`specs/L02-skills.md` "Stage 8 results") | 1b–1d | PR #485, D12 protocol |
-| 18 | API Contract experiment: no skill → miss; skill → catches the breaking change | ⚠ #484's baseline catches it | 1b–1d | PR #486, D12 protocol |
+| 18 | API Contract experiment: no skill → miss; skill → catches the breaking change | ✅ reproduced 2026-09-30 on #486 A: 0/2 without, 2/2 with skills ("Stage 1c results"; was ⚠, #484's baseline caught it) | 1b–1d | PR #486, D12 protocol |
 | 19 | Trace: separate skills block + tokens of that block only | ✅ `…/RunTraceDrawer/_components/TraceBody/TraceBody.tsx:79-88`, `server/src/modules/reviews/run-executor.ts:367` | 1c | trace screenshot in the results |
 | 20 | Enabled skill = block; disabled = absent | ✅ `server/src/modules/skills/repository.ts:246-251` | 1c | a run with one skill disabled |
 | 21 | Manual `pr-self-review` on a client+server diff; no auto hook | ✅ static: `SKILL.md:5`, `:15`; `self-review.mjs:165-177` | Final | the user runs `/pr-self-review` |
@@ -264,6 +264,9 @@ in the working tree on 2026-09-29.
   - Each has a directive "Use when …" description and a good / bad example.
   - `deprecation-policy` is packed with `pnpm skill:pack <dir> <out.zip>`
     and imported as `.zip` (#16); the other three are created in the UI.
+    Deviation (2026-09-30): the user imported all four as `.zip` (the traces
+    show `imported_file, v1` on all four). #16 is satisfied either way;
+    creating a skill in the UI (#11, #12) is covered by the final walk.
   - Good / bad examples use an unrelated domain (orders, products).
   - The `response-schema` "Bad" example (a shared `Product.price` becoming
     nullable, which breaks routes outside the diff) was checked against the
@@ -303,6 +306,12 @@ in the working tree on 2026-09-29.
       reason the rows stop at day 14, since days 16–20 would cover the cap.
     - The PR text describes the feature only. It does not mention the grace
       boundary or the cap as risks.
+    - **Calibration result (2026-09-29, runs 20:15 / 20:16 without skills,
+      agent v7 with the D10b prompt):** caught 2/2 — both runs report the cap
+      branch and the grace boundary as untested (2 WARNING, comment). Variant
+      A fails calibration. Decision 2026-09-30: no calibration edit for A,
+      because the defect is visible in the code, not in the PR text, so a text
+      edit cannot help; switch to pre-registered C.
   - **#486 — API Contract, variant A** (since 2026-09-30; A' failed
     calibration, see "Stage 1c results"). In the shared schema,
     `Customer.email` becomes `.optional()` so guest checkout can create a
@@ -333,6 +342,16 @@ in the working tree on 2026-09-29.
     - Left uncovered: the day-7 and day-14 boundaries and the partial-refund
       branch.
     - The same switch rule as #486 applies (below).
+    - **Active since 2026-09-30** (A failed calibration, above). Pre-registered
+      before any C run:
+      - "Caught" for #485 C: without skills = any finding (any severity)
+        saying the day-7 or day-14 boundary or the partial-refund branch is
+        untested; with skills = findings naming both an uncovered branch
+        (partial refund or window expiry) and a boundary (day 7 or day 14).
+      - If C is also caught without skills after its (optional) one
+        calibration edit, there is no further variant: #17 is recorded as not
+        reproduced with this model and the role-only prompt. No model or
+        prompt change mid-experiment without the user's explicit decision.
   - **Pre-registered fallbacks for #486, in order:**
     - A: `email` becomes `.optional()` — **active since 2026-09-30** (above);
     - B: the `PaymentStatus` value `requires_action` is merged into
@@ -360,6 +379,13 @@ in the working tree on 2026-09-29.
     2. Freeze the PR.
     3. The two recorded "without" runs use **detached** skills (#17 / #18 say
        "без прив'язаного скіла"), not merely disabled ones.
+       - Deviation for #486 A (user decision, 2026-09-30): no separate
+         post-freeze "without" runs were made; the two calibration runs
+         (16:07, 16:38) serve as the recorded ones. Variant A needed no
+         calibration edit, so both runs were already on the final frozen PR,
+         with no skills linked to the agent at all (removed, not just
+         disabled; the traces have no Skills block), the same D10 prompt
+         (agent v3) and the same model — the conditions this step asks for.
     4. Two runs WITH skills, on the same model.
     5. After the freeze, only skill wording may change, and every iteration
        is recorded.
@@ -774,23 +800,40 @@ the same two routes may now return a customer without `email`.
 A' → 3/4 caught without skills, calibration failed after its one edit →
 switched to A (D12).
 
+| 2026-09-30 17:18 | `9a4e7c3b1d68` | `breaking-change`, `response-schema`, `semver-discipline`, `deprecation-policy` v1, all `imported_file` (566 + 470 + 420 + 453 = 1909 tok cl100k; agent v4) | caught | 1 CRITICAL "Breaking change: Customer.email made optional without mitigation" (`src/schemas/customers.ts:6-7`, conf 0.95), request_changes; names `GET /customers/:id`, `GET /customers` and "any other route that uses the shared `Customer` schema" |
+| 2026-09-30 17:20 | `9a4e7c3b1d68` | same | caught | 1 CRITICAL, the same title (`src/schemas/customers.ts:6`, conf 0.95), request_changes; names `GET /customers/:id`, `POST /customers`, `GET /customers` |
+
 A → 0/2 caught without skills → calibrated, no calibration edit used. PR
-frozen at `9a4e7c3b1d68`.
+frozen at `9a4e7c3b1d68`. The two calibration runs are the recorded
+"without" runs (D12 step 3 deviation): no skills were linked to the agent
+(removed, not just disabled), the traces have no Skills block, prompt D10,
+agent v3.
 
-Observation: both variant A runs produced very long outputs (109k and 132k
-tokens out; one run cost $0.021) for a 3-file diff. Recorded here; not
+**#486 A: without skills 0/2, with skills 2/2 → #18 reproduced.**
+
+Run details (UTC in the dump, local = UTC+2): 16:07 = `066ebca1`, 132 039
+tokens out, 26.4 min, $0.021; 16:38 = `f36a22cf`, 108 730 tokens out,
+21.2 min; 17:18 = `cc249084`; 17:20 = `c1824528`.
+
+Observation: both variant A runs without skills produced very long outputs
+(109k and 132k tokens out; one run cost $0.021) for a 3-file diff, while the
+runs with skills took 1.4k and 2.8k tokens out. Recorded here; not
 investigated in Stage 1c.
-
-Next per the protocol: 2 recorded runs with the skills **detached**, then 2
-runs with all four skills linked and enabled.
 
 ### #485 — Test Quality Reviewer
 
-Defect: the grace branch with its day 3 / 4 boundary and the cap branch are
-untested.
+Defect, A (rows up to the switch): the grace branch with its day 3 / 4
+boundary and the cap branch are untested. Agent v7, D10b prompt (verified in
+the traces: no method lines).
 
 | Time (local) | Fixture | Skills | Result | Finding summary |
 |---|---|---|---|---|
+| 2026-09-29 20:15 | `c41d8e2f7a90` (A) | none | caught | comment, 2 WARNING "Max fee cap not exercised" + "Grace period boundary not tested" (`test/billing/late-fee.test.ts`, conf 0.9); run `e312cee7` |
+| 2026-09-29 20:16 | `c41d8e2f7a90` (A) | none | caught | comment, the same two findings ("Missing test coverage for grace-period boundary" + "… for max-fee cap", conf 0.9); run `8bbf564b` |
+
+A → 2/2 caught without skills → calibration failed. No calibration edit for
+A: the defect is visible in the code, not in the PR text, so a text edit
+cannot help (user decision, 2026-09-30) → switched to pre-registered C (D12).
 
 ## Final checks
 
@@ -839,6 +882,14 @@ untested.
 - **#484 is replaced by #486 as the API experiment.** #484 stays as the L02
   lab record. The lab's API Contract Reviewer is replaced by one created in
   the UI (D9, P1).
+- **D12 step 3 for #486 A.** No separate post-freeze "without" runs: the two
+  calibration runs (2026-09-30 16:07, 16:38) are the recorded ones, because
+  variant A needed no calibration edit and both runs already met the step's
+  conditions (frozen PR, no skills linked, same prompt and model). User
+  decision, 2026-09-30.
+- **D11 import.** All four API skills were imported as `.zip`, not one. #16
+  is satisfied either way; creating a skill in the UI (#11, #12) is covered
+  by the final walk.
 
 ## Out of scope
 
