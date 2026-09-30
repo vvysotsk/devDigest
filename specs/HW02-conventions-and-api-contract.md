@@ -749,10 +749,11 @@ response changes without being in the diff.
 | 2026-09-29 20:20 | `5e0a93d7c2b1` (A', title "Rename Customer.email to contactEmail") | none | caught | 1 CRITICAL — "breaks clients relying on the email field", request_changes |
 | 2026-09-29 20:21 | same | none | missed | approve, 0 findings |
 | 2026-09-30 (edit) | `7f3c1a9e4b02` | — | calibration edit 1 of 1 for A' | title → "Align customer contact fields with merchants"; body → "Uses `contactEmail` for customers as well, matching `Merchant.contactEmail`, and updates the checkout flow."; diff unchanged |
+| 2026-09-30 15:55 | `7f3c1a9e4b02` | none | caught | 1 CRITICAL, request_changes |
+| 2026-09-30 15:59 | `7f3c1a9e4b02` | none | caught | 1 CRITICAL, request_changes |
 
-1/2 → not calibrated. A' got its one calibration edit (title and body only;
-diff unchanged). If either of the next two runs without skills still catches
-the defect, the next variant is A.
+A' → 3/4 caught without skills, calibration failed after its one edit →
+switched to A (D12).
 
 ### #485 — Test Quality Reviewer
 
