@@ -344,14 +344,14 @@ export const SEED_EXPERIMENT_PRS: readonly SeedPr[] = [
   },
   {
     number: 486,
-    title: 'Align customer contact fields with merchants',
+    title: 'Allow guest checkout without an email',
     author: 'marco.bellini',
-    branch: 'refactor/customer-contact-email',
+    branch: 'feat/guest-checkout',
     base: 'main',
-    headSha: '7f3c1a9e4b02',
+    headSha: '9a4e7c3b1d68',
     body:
-      'Uses `contactEmail` for customers as well, matching `Merchant.contactEmail`, ' +
-      'and updates the checkout flow.',
+      'Guest checkout creates a customer from the name alone, so `Customer.email` ' +
+      'becomes optional and the order confirmation goes out only when an address is present.',
     refreshOnSeed: true,
     files: [
       {
@@ -363,7 +363,7 @@ export const SEED_EXPERIMENT_PRS: readonly SeedPr[] = [
    id: z.string(),
    name: z.string(),
 -  email: z.string().email(),
-+  contactEmail: z.string().email(),
++  email: z.string().email().optional(),
    createdAt: z.string().datetime(),
  });
  export type Customer = z.infer<typeof Customer>;`,
@@ -378,29 +378,51 @@ export const SEED_EXPERIMENT_PRS: readonly SeedPr[] = [
      id: row.id,
      name: row.name,
 -    email: row.email,
-+    contactEmail: row.email,
++    email: row.email ?? undefined,
      createdAt: row.createdAt.toISOString(),
    };
  }`,
       },
       {
         path: 'src/api/checkout.ts',
-        additions: 1,
-        deletions: 1,
-        patch: `@@ -41,6 +41,6 @@ export async function checkoutRoutes(app: FastifyInstance) {
+        additions: 12,
+        deletions: 7,
+        patch: `@@ -12,5 +12,6 @@ import { z } from 'zod';
+ const CheckoutBody = z.object({
+-  customerId: z.string(),
++  customerId: z.string().optional(),
++  guestName: z.string().min(1).optional(),
+   items: z.array(OrderItem).min(1),
+ });
+ 
+@@ -38,11 +39,15 @@ export async function checkoutRoutes(app: FastifyInstance) {
+     async (req, reply) => {
+-      const customer = await app.customers.get(req.body.customerId);
++      const customer = req.body.customerId
++        ? await app.customers.get(req.body.customerId)
++        : await app.customers.create({ name: req.body.guestName ?? 'Guest' });
        const order = await app.orders.place(customer.id, req.body.items);
-       await app.mailer.send({
+-      await app.mailer.send({
 -        to: customer.email,
-+        to: customer.contactEmail,
-         template: 'order-confirmation',
-         data: { orderId: order.id, totalCents: order.totalCents },
-       });`,
+-        template: 'order-confirmation',
+-        data: { orderId: order.id, totalCents: order.totalCents },
+-      });
++      if (customer.email) {
++        await app.mailer.send({
++          to: customer.email,
++          template: 'order-confirmation',
++          data: { orderId: order.id, totalCents: order.totalCents },
++        });
++      }
+       return reply.code(201).send(order);
+     },
+   );`,
       },
     ],
     commits: [
       {
-        sha: '7f3c1a9e4b02',
-        message: 'refactor(customers): rename Customer.email to contactEmail',
+        sha: '9a4e7c3b1d68',
+        message: 'feat(checkout): allow guest checkout without an email',
         author: 'marco.bellini',
       },
     ],

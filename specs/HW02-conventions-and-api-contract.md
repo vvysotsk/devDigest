@@ -303,20 +303,28 @@ in the working tree on 2026-09-29.
       reason the rows stop at day 14, since days 16–20 would cover the cap.
     - The PR text describes the feature only. It does not mention the grace
       boundary or the cap as risks.
-  - **#486 — API Contract, variant A'.** In the shared schema,
-    `Customer.email` is renamed to `contactEmail` "for consistency".
+  - **#486 — API Contract, variant A** (since 2026-09-30; A' failed
+    calibration, see "Stage 1c results"). In the shared schema,
+    `Customer.email` becomes `.optional()` so guest checkout can create a
+    customer without one.
     - The diff: `src/schemas/customers.ts` (the schema),
-      `src/api/customers.mapper.ts` (the shared `toCustomer` mapper) and
-      `src/api/checkout.ts` (the checkout route).
+      `src/api/customers.mapper.ts` (the shared `toCustomer` mapper, `row.email
+      ?? undefined`) and `src/api/checkout.ts` (`customerId` optional plus
+      `guestName`; a guest gets `customers.create({ name })`; the confirmation
+      mail is sent only when `customer.email` is set).
     - `GET /customers/:id` and `/invoices` return `toCustomer(…)` and are not
-      in the diff, yet they now return the new name.
-    - The PR text says what a real author would. After the A' calibration
-      edit of 2026-09-30 (title "Align customer contact fields with
-      merchants"; body "Uses `contactEmail` for customers as well, matching
-      `Merchant.contactEmail`, and updates the checkout flow.") it names no
-      rename, no consequence and no other route. The diff is byte-identical
-      to the first version.
-    - This matches the brief ("перейменовує поле у відповіді") and #18.
+      in the diff, yet they may now return a customer without `email`.
+    - The PR text says what a real author would: title "Allow guest checkout
+      without an email"; body "Guest checkout creates a customer from the
+      name alone, so `Customer.email` becomes optional and the order
+      confirmation goes out only when an address is present." It names no
+      consequence, no other route and no client.
+    - This matches the brief's response-schema class (field optionality) and
+      #18. Variant A starts fresh: it has its own one calibration edit.
+    - **A' (2026-09-29 – 2026-09-30, retired):** `Customer.email` renamed to
+      `contactEmail`; the same three files; the routes outside the diff
+      returned the new name. Caught 3/4 without skills, including 2/2 after
+      its one calibration edit (title and body only).
   - **Pre-registered fallback for #485** (recorded 2026-09-29, before any
     run): C — `src/billing/refund.ts`, `canRefund(paidAt, now)`.
     - Behaviour: a 14-day refund window, with a partial refund after day 7.
@@ -325,7 +333,7 @@ in the working tree on 2026-09-29.
       branch.
     - The same switch rule as #486 applies (below).
   - **Pre-registered fallbacks for #486, in order:**
-    - A: `email` becomes `.optional()`;
+    - A: `email` becomes `.optional()` — **active since 2026-09-30** (above);
     - B: the `PaymentStatus` value `requires_action` is merged into
       `pending`.
   - **Switch rule** (both PRs: #485 A → C; #486 A' → A → B) — move to the
@@ -740,9 +748,11 @@ own row (fixture = the PR's `headSha` at the time of the run).
 
 ### #486 — API Contract Reviewer
 
-Defect: `Customer.email` is renamed to `contactEmail` in the shared schema;
-`GET /customers/:id` and `/invoices` return `toCustomer(…)`, so their
-response changes without being in the diff.
+Defect, A' (rows up to the switch): `Customer.email` is renamed to
+`contactEmail` in the shared schema; `GET /customers/:id` and `/invoices`
+return `toCustomer(…)`, so their response changes without being in the diff.
+Defect, A (rows after the switch): `Customer.email` becomes `.optional()`;
+the same two routes may now return a customer without `email`.
 
 | Time (local) | Fixture | Skills | Result | Finding summary |
 |---|---|---|---|---|
@@ -751,6 +761,7 @@ response changes without being in the diff.
 | 2026-09-30 (edit) | `7f3c1a9e4b02` | — | calibration edit 1 of 1 for A' | title → "Align customer contact fields with merchants"; body → "Uses `contactEmail` for customers as well, matching `Merchant.contactEmail`, and updates the checkout flow."; diff unchanged |
 | 2026-09-30 15:55 | `7f3c1a9e4b02` | none | caught | 1 CRITICAL, request_changes |
 | 2026-09-30 15:59 | `7f3c1a9e4b02` | none | caught | 1 CRITICAL, request_changes |
+| 2026-09-30 (switch) | `9a4e7c3b1d68` | — | switched to variant A | `Customer.email` → `.optional()`; title "Allow guest checkout without an email"; body "Guest checkout creates a customer from the name alone, so `Customer.email` becomes optional and the order confirmation goes out only when an address is present."; 3 files, +14 −9; A has its own one calibration edit |
 
 A' → 3/4 caught without skills, calibration failed after its one edit →
 switched to A (D12).

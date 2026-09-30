@@ -60,6 +60,16 @@ Never rewrite existing entries — correct with a dated note.
   - 2026-09-29 note: HW02 Stage 0f removed `route-signature-diff` from the
     seed. The cited lines are in git history, `src/db/seed-skills.ts:417-419`
     at `8d65d15`; the lesson still applies to the HW02 API skills.
+- 2026-09-30: A field rename in a shared zod schema cannot be calibrated as
+  an API-contract experiment defect: the role-only reviewer (no skills, no
+  method text) caught #486 A' in 3 of 4 runs, and rewriting the title and
+  body so they no longer name the rename did not help (2/2 caught after the
+  edit). The three-line diff itself gives the rename away. When you plant a
+  "missed without skills" defect, prefer the subtler classes from the
+  pre-registered list (optionality, an enum value merged) over renames, and
+  pre-register them first (evidence: `src/db/seed-prs.ts` #486, fixtures
+  `5e0a93d7c2b1` → `7f3c1a9e4b02` → `9a4e7c3b1d68`;
+  `../specs/HW02-conventions-and-api-contract.md` "Stage 1c results").
 
 ## Codebase Patterns
 
