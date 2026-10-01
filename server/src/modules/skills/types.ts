@@ -49,9 +49,11 @@ export interface SkillUpdateValues {
   enabled?: boolean;
   version?: number;
   acknowledgedAt?: Date;
+  /** Files an extracted skill cites (HW02 D18); untouched when absent. */
+  evidenceFiles?: string[] | null;
 }
 
-/** Values of a manual create (`SkillInput` after zod defaults). */
+/** Values of a create (`SkillInput` after zod defaults, an import, or an extraction). */
 export interface NewSkillValues {
   name: string;
   description: string;
@@ -59,6 +61,22 @@ export interface NewSkillValues {
   source: SkillSource;
   body: string;
   enabled: boolean;
+  /** Files an extracted skill cites (HW02 D18); `null` / absent otherwise. */
+  evidenceFiles?: string[] | null;
+}
+
+/**
+ * A skill built from accepted convention candidates (HW02 D18): the create
+ * input of `createExtracted` and the full new state of `updateExtracted`.
+ * `source` is always `extracted` and is set by the service.
+ */
+export interface ExtractedSkillInput {
+  name: string;
+  description: string;
+  type: SkillType;
+  body: string;
+  enabled: boolean;
+  evidenceFiles: string[];
 }
 
 /**

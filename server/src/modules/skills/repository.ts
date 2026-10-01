@@ -136,6 +136,15 @@ export class SkillsRepository implements SkillsPort {
     return rows.map((r) => r.id);
   }
 
+  /** The workspace's skill with this name (`skills_ws_name_uq`), if any. */
+  async findByName(workspaceId: string, name: string): Promise<StoredSkill | undefined> {
+    const [row] = await this.db
+      .select({ skill: t.skills, agents: agentCount })
+      .from(t.skills)
+      .where(and(eq(t.skills.workspaceId, workspaceId), eq(t.skills.name, name)));
+    return row ? toStoredSkill(row.skill, row.agents) : undefined;
+  }
+
   async namesInWorkspace(workspaceId: string): Promise<string[]> {
     const rows = await this.db
       .select({ name: t.skills.name })

@@ -85,6 +85,24 @@ Never rewrite existing entries — correct with a dated note.
   `5e0a93d7c2b1` → `7f3c1a9e4b02` → `9a4e7c3b1d68`;
   `../specs/HW02-conventions-and-api-contract.md` "Stage 1c results").
 
+- 2026-10-01: A path that comes back from the LLM is attacker-influenced
+  (the model read the repo's files, README and comments). Never pass it to
+  `GitClient.readFile` — the real adapter is `readFile(join(clonePath, path))`
+  with no traversal guard, so `../../.devdigest/secrets.json` would be read
+  and stored as "evidence". Allowlist it against the exact set of paths the
+  server itself sent to the model, and reuse the contents already in memory
+  for any check (plan correction by the user before 2b) (evidence:
+  `src/adapters/git/simple-git.ts:129-131`;
+  `src/modules/conventions/helpers.ts:106-112`, `:118-147`;
+  `test/conventions.it.test.ts:214` asserts `git.reads`).
+- 2026-10-01: A "quote may span lines" fallback that joins the candidate line
+  with the next two and does `includes(q)` attributes a quote found on line
+  N+2 to line N (the join contains it), so the stored `evidence_line` is
+  wrong and the ±2 window degrades to ±4. Require the match to START inside
+  the first line (`indexOf(q) < first.length`); caught by the helpers test
+  "expected 1 to be 3" (evidence: `src/modules/conventions/helpers.ts:60-74`;
+  `test/conventions-helpers.test.ts:82-92`).
+
 ## Codebase Patterns
 
 - 2026-09-27: `test/reviews-golden.it.test.ts` pins a mocked run's trace
@@ -176,6 +194,41 @@ Never rewrite existing entries — correct with a dated note.
   read the config files from the clone itself and treat `[]` as "not
   indexed", not as "no samples" (evidence:
   `src/modules/repo-intel/service.ts:636-662`, `:729-733`).
+
+- 2026-10-01: `resolveFeatureModel` (`src/modules/settings/feature-models.ts`)
+  cannot be imported by another module: it imports `drizzle-orm`, `db/schema`,
+  `Container` and a settings helper, so both `no-cross-module` and
+  `no-drizzle-outside-persistence` fire. Expose it as a port on the
+  container instead — `FeatureModelResolver` in `src/modules/settings/types.ts`,
+  wired as `container.featureModels` — and let the consumer type it as
+  `Pick<Container, 'featureModels'>` (evidence: `src/modules/settings/feature-models.ts:1-9`;
+  `src/platform/container.ts:162-166`; `src/modules/conventions/types.ts:102`).
+- 2026-10-01: Nothing on the container could create, version or link a skill
+  before 2b: `container.skillsRepo` is the read-only `SkillsPort`, and
+  `SkillsService.create` accepts `source: 'manual'` only (the import path sets
+  its source privately). A module that must write skills with another
+  `source` gets a new service method (`createExtracted` / `updateExtracted`,
+  which carry `evidence_files`) and reaches the service through
+  `container.skillsService`, typed on the consumer side as a structural
+  interface (`SkillsWriter`) so `modules/skills` is never imported (evidence:
+  `src/modules/skills/types.ts:69-78`, `src/modules/skills/service.ts:64-73`,
+  `:118-160`; `src/modules/conventions/types.ts:92-99`;
+  `src/platform/container.ts:144-150`).
+- 2026-10-01: An advisory lock (`sql\`select pg_advisory_xact_lock(…)\``)
+  belongs in a repository method, not in the service's `db.transaction`
+  callback: the `sql` tag is a `drizzle-orm` import and the conventions
+  module is not in dependency-cruiser's `PERSISTENCE` list, so a service
+  using it is a `no-drizzle-outside-persistence` violation. Put
+  "lock → check → insert" in one repository method that returns what the
+  service needs to decide (plan correction by the user) (evidence:
+  `.dependency-cruiser.cjs` `PERSISTENCE`;
+  `src/modules/conventions/repository.ts:70-89`).
+- 2026-10-01: `MockGitClient.readFile` returns `''` for an unknown path while
+  `SimpleGitClient.readFile` throws ENOENT, so a sampler that only catches
+  the throw would count a missing file as a sample under the mock. Skip
+  empty contents as well as throws, and the two behave the same (evidence:
+  `src/adapters/mocks.ts:303-306`; `src/adapters/git/simple-git.ts:129-131`;
+  `src/modules/conventions/service.ts:172-180`).
 
 ## Tool & Library Notes
 
@@ -375,6 +428,16 @@ Never rewrite existing entries — correct with a dated note.
   `RepoIntelService`, the pipelines and `ReviewService` (+ executor,
   `loadDiff`) take `Pick<Container, …>`; `test/repo-intel-registration.test.ts`
   pins the single instance and the three job kinds via `JobRunner.hasHandler`.
+
+- 2026-10-01: HW02 Stage 2b — the conventions module
+  (`src/modules/conventions/`): five routes with response schemas, the 202 +
+  detached extraction with a boot reaper, the per-repo advisory lock in the
+  repository, the D16 evidence check as an allowlist over the sampled paths,
+  decision carry-over by normalised rule, `repo-conventions` created /
+  versioned / linked through `container.skillsService`; `GitClient.listRootFiles`
+  added to the port (server + client mirror of the one member);
+  `container.featureModels` is the first caller of `resolveFeatureModel`.
+  `pnpm deps:check` 0 new violations before and after (1 known).
 
 ## Open Questions
 

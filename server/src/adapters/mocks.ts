@@ -54,9 +54,9 @@ export interface MockLLMOptions {
   /** Fixture returned by completeStructured (validated against the schema). */
   structured?: unknown;
   /**
-   * Per-schemaName fixtures for multi-call flows (e.g. the conventions 2-step
-   * dialogue: 'ConventionFileSelection' then 'ConventionExtraction'). Looked up
-   * by req.schemaName; falls back to `structured` when no entry matches.
+   * Per-schemaName fixtures for flows with several structured calls (the
+   * conventions extractor makes one, 'ConventionExtraction'). Looked up by
+   * req.schemaName; falls back to `structured` when no entry matches.
    */
   structuredBySchema?: Record<string, unknown>;
   completionText?: string;
@@ -262,6 +262,8 @@ export interface MockGitOptions {
 export class MockGitClient implements GitClient {
   public cloned: { repo: RepoRef; url: string }[] = [];
   public syncs: { repo: RepoRef; branch: string }[] = [];
+  /** Every `readFile` path, in order — lets a test assert that a path was NEVER read. */
+  public reads: string[] = [];
   private syncedHead?: string;
 
   constructor(private opts: MockGitOptions = {}) {}
@@ -299,7 +301,12 @@ export class MockGitClient implements GitClient {
     return [{ sha: 'a1b2c3d4', message: 'init', author: 'marisa.koch', date: '2026-06-01' }];
   }
   async readFile(_repo: RepoRef, path: string): Promise<string> {
+    this.reads.push(path);
     return this.opts.files?.[path] ?? '';
+  }
+  /** The top-level keys of `files` (no `/` in the key) — the clone root. */
+  async listRootFiles(): Promise<string[]> {
+    return Object.keys(this.opts.files ?? {}).filter((k) => !k.includes('/'));
   }
 }
 

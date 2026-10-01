@@ -85,22 +85,22 @@ in the working tree on 2026-09-29.
 | 35 | Exactly 2 agent tabs: Config, Skills | ✅ `…/AgentEditor/constants.ts:11-14` | — | final walk |
 | 36 | Agent Config: name, description, provider, model (from a list), strategy, system prompt | ✅ `…/AgentEditor/_components/ConfigTab/ConfigTab.tsx:87-132` | — | final walk |
 | 37 | Agent Skills tab: all skills, a toggle, a type label | ⚠ all skills + label (`SkillsTab/helpers.ts:55-69`), but a checkbox, not a toggle (`SkillRow.tsx:65`) | 0d | D6; client test |
-| 38 | `POST /repos/:id/conventions/extract` runs the analysis; results persist | ❌ the `conventions` table exists (`server/src/db/schema/knowledge.ts:31-42`); no module | 2a–2b | D14; `.it`: extract → wait → new app → GET returns it |
-| 39 | Sampling in code only: eslint / tsconfig / prettier configs + top-12 `repoIntel.getConventionSamples()` | ❌ (the method exists: `server/src/modules/repo-intel/service.ts:636`) | 2b | D15; unit + `.it` (no LLM call before sampling ends) |
-| 40 | LLM answer `{category, rule, evidence: file+line, confidence}` | ❌ | 2b | D16; zod schema; `.it` with `MockLLMProvider` |
+| 38 | `POST /repos/:id/conventions/extract` runs the analysis; results persist | ⚠ server side done 2026-10-01 (2b): `server/src/modules/conventions/routes.ts:34`, `service.ts:81`; `server/test/conventions.it.test.ts:273` (new app on the same DB → GET returns the scan); UI in 2c | 2a–2b | D14; `.it`: extract → wait → new app → GET returns it |
+| 39 | Sampling in code only: eslint / tsconfig / prettier configs + top-12 `repoIntel.getConventionSamples()` | ✅ 2026-10-01 (2b): `server/src/modules/conventions/service.ts:167` (`readSamples`), `helpers.ts:30` (`isRootConfigFile`); `server/test/conventions-helpers.test.ts:26`, `conventions.it.test.ts:195` (409s with zero LLM calls), `:214` (numbered samples in the one call) | 2b | D15; unit + `.it` (no LLM call before sampling ends) |
+| 40 | LLM answer `{category, rule, evidence: file+line, confidence}` | ✅ 2026-10-01 (2b): `ConventionExtraction` (`server/src/modules/conventions/types.ts:27`); `server/test/conventions-helpers.test.ts:180`, `conventions.it.test.ts:214` | 2b | D16; zod schema; `.it` with `MockLLMProvider` |
 | 41 | Create modal edits the body and metadata | ❌ | 2c | client test |
-| 42 | Approved → ONE skill `repo-conventions`, linked to an agent | ❌ | 2b–2c | D18; `.it` |
+| 42 | Approved → ONE skill `repo-conventions`, linked to an agent | ⚠ server side done 2026-10-01 (2b): `server/src/modules/conventions/service.ts:231` (`saveSkill`); `server/test/conventions.it.test.ts:345` (201, then 200 v2, one link, one skill); modal in 2c | 2b–2c | D18; `.it` |
 | 43 | Four API skills with a directive description and a good / bad example | ❌ | 1a | files + Skills page |
 | 44 | Conventions in SKILLS LAB | ❌ (`activeKeyFor` already maps `/conventions`: `client/src/components/app-shell/helpers.ts:31`) | 2c | client test |
 | 45 | Run Scan and ReScan buttons | ❌ | 2c | D19; client test; Run Scan manual (D20) |
 | 46 | Cards: rule, source file, confidence % | ❌ | 2c | client test; e2e |
 | 47 | Accept / Reject / Edit on each card | ❌ | 2c | client test; e2e |
-| 48 | Reject persists; never returns, never enters the skill | ❌ | 2b–2c | `.it`; e2e reload |
+| 48 | Reject persists; never returns, never enters the skill | ⚠ server side done 2026-10-01 (2b): `server/src/modules/conventions/repository.ts:205` (`decisionsByRule`), `service.ts:126`; `server/test/conventions.it.test.ts:302` (re-scan keeps the rejection), `:345` (400 for a non-accepted id); UI + e2e reload in 2c / 2d | 2b–2c | `.it`; e2e reload |
 | 49 | Inline edit | ❌ | 2c | client test |
 | 50 | Create skill appears after ≥ 1 accept | ❌ | 2c | client test |
 | 51 | Modal says it is created from conventions; Name / Description; Cancel / Create | ❌ | 2c | client test (DZ 2.png) |
 | 52 | The new skill is listed on `/skills` | ❌ | 2d | e2e |
-| 53 | Settings → Models: a conventions row, searchable dropdown, dynamic model | ⚠ the row and `SearchableSelect` exist (`…/SettingsModels/SettingsModels.tsx:58-63`), but the save hard-codes `provider: "openrouter"` (`:32`) and no server code calls `resolveFeatureModel` | 0e + 2b | D8; the extractor resolves its model per run |
+| 53 | Settings → Models: a conventions row, searchable dropdown, dynamic model | ✅ 2026-10-01 (2b): the extractor resolves `'conventions'` per run through `container.featureModels` (`server/src/platform/container.ts:162` → `resolveFeatureModel`; `server/src/modules/conventions/service.ts:110`); `server/test/conventions.it.test.ts:214` runs on the model chosen via `PUT /settings`. The 0e client fix (`SettingsModels.tsx`) saves the model's own provider | 0e + 2b | D8; the extractor resolves its model per run |
 
 ## Traceability — brief lines
 
@@ -455,6 +455,17 @@ in the working tree on 2026-09-29.
   - A repo with no clone or no index → 409 with an error code. There is no
     fallback that would bypass #39.
   - File contents go to the model with line numbers, capped per file.
+  - **2b note (2026-10-01):** the glob patterns need a listing of the clone
+    root and `GitClient` had none, so the port gained one narrow member,
+    `listRootFiles(repo): Promise<string[]>` — the regular files directly in
+    the clone root, non-recursive, no path argument (it cannot be pointed
+    outside the clone). Mirrored to the client copy as the one identical
+    member; the two `adapters.ts` files still differ elsewhere
+    (`server/AGENTS.md`). The pattern match itself is the pure
+    `isRootConfigFile` in `server/src/modules/conventions/helpers.ts`. Each
+    sampled file goes to the model inside an `<untrusted source="file:<path>">`
+    block, and the system prompt says file contents are data, never
+    instructions.
 - **D16 Model answer and evidence check (#40, R3, R4)**
   - The model returns, validated with zod,
     `{candidates: [{category, rule, evidence: {file, line, quote}, confidence}]}`.
@@ -468,6 +479,15 @@ in the working tree on 2026-09-29.
   - The stored `evidence_line` is the line where the quote was found. The
     snippet (±2 lines) is read from the file by code, not taken from the
     model.
+  - **2b note (2026-10-01, security):** `evidence.file` comes from the model,
+    which read untrusted repo content, and the real `GitClient.readFile` has
+    no traversal guard. So "the file exists in the clone" is implemented as
+    "the normalised path (forward slashes, no leading `./`) is exactly one of
+    the files sampled and sent to the model in this scan". Anything else
+    (`../x`, an absolute path, a real repo file that was not sampled) is
+    dropped and counted in `candidates_dropped` without any read. The quote
+    check and the snippet reuse the contents already read for the prompt. A
+    quote that spans lines counts for the line it starts on.
   - `category` is one of `naming`, `structure`, `async`, `error-handling`,
     `types`, `imports`, `testing`, `other`.
   - `confidence` is 0..1 and is shown as a percentage.
@@ -1003,6 +1023,14 @@ run filed a branch-only WARNING (7fae85c1); 1 run did not mention it
 - **D11 import.** All four API skills were imported as `.zip`, not one. #16
   is satisfied either way; creating a skill in the UI (#11, #12) is covered
   by the final walk.
+- **D18 — an existing `repo-conventions` that is not `extracted`.** D18 says
+  an existing skill with the default name gets a next version, and that 409
+  is only for a typed name owned by another non-extracted skill. The 2b
+  reading (2026-10-01): any name — default or typed — that belongs to an
+  `extracted` skill gets the next version (200); a name that belongs to a
+  skill of any other source is a 409 `skill_name_taken`, also when it is
+  `repo-conventions`. The draft's `existing` is set only in the first case,
+  so the modal never promises a version bump it cannot deliver.
 - **Data model: two migrations, not "a new migration".** drizzle-kit 0.30 in
   strict mode prompts "renamed or created?" when one table drops and adds
   columns in the same `generate`, and the prompt cannot be answered

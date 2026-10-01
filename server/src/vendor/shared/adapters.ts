@@ -224,6 +224,12 @@ export interface GitClient {
   blame(repo: RepoRef, path: string): Promise<BlameLine[]>;
   log(repo: RepoRef, path?: string): Promise<GitCommit[]>;
   readFile(repo: RepoRef, path: string): Promise<string>;
+  /**
+   * Names of the regular files directly in the clone root (non-recursive, no
+   * directories, no dotfile filtering). No path argument on purpose: the
+   * caller cannot point it outside the clone (HW02 D15 sampling).
+   */
+  listRootFiles(repo: RepoRef): Promise<string[]>;
   clonePathFor(repo: RepoRef): string;
 }
 

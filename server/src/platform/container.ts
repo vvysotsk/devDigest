@@ -25,7 +25,11 @@ import { PriceBook } from './price-book.js';
 import { ConfigError } from './errors.js';
 import { AgentsRepository } from '../modules/agents/repository.js';
 import { SkillsRepository } from '../modules/skills/repository.js';
+import { SkillsService } from '../modules/skills/service.js';
 import type { SkillsPort } from '../modules/skills/types.js';
+import { ConventionsRepository } from '../modules/conventions/repository.js';
+import { resolveFeatureModel } from '../modules/settings/feature-models.js';
+import type { FeatureModelResolver } from '../modules/settings/types.js';
 import { ReviewRepository } from '../modules/reviews/repository.js';
 import { PullsRepository } from '../modules/pulls/repository.js';
 import { RepoRepository } from '../modules/repos/repository.js';
@@ -80,6 +84,9 @@ export class Container {
   // `container.agentsRepo` instead of reaching into another module's folder.
   private _agentsRepo?: AgentsRepository;
   private _skillsRepo?: SkillsRepository;
+  private _skillsService?: SkillsService;
+  private _conventionsRepo?: ConventionsRepository;
+  private _featureModels?: FeatureModelResolver;
   private _reviewRepo?: ReviewRepository;
   private _pullsRepo?: PullsRepository;
   private _reposRepo?: RepoRepository;
@@ -125,6 +132,37 @@ export class Container {
    */
   get skillsRepo(): SkillsPort {
     return this.skillsModuleRepo;
+  }
+
+  /**
+   * The skills module's use cases for OTHER modules (HW02 D18: the conventions
+   * extractor creates / versions the `repo-conventions` skill and links it to
+   * an agent through `setAgentSkills`). Consumers type it structurally
+   * (`SkillsWriter` in `modules/conventions/types.ts`). The skills routes keep
+   * their own instance; the service is stateless, so two are fine.
+   */
+  get skillsService(): SkillsService {
+    return (this._skillsService ??= new SkillsService(this, {
+      skills: this.skillsModuleRepo,
+      agents: this.agentsRepo,
+    }));
+  }
+
+  /** Owner of `convention_scans` / `conventions` (conventions module); the boot reaper reads it too. */
+  get conventionsRepo(): ConventionsRepository {
+    return (this._conventionsRepo ??= new ConventionsRepository(this.db));
+  }
+
+  /**
+   * The settings module's feature-model port (HW02 D8, #53): the provider and
+   * model a system feature runs with — the workspace override, else the
+   * `FEATURE_MODELS` default. Consumers call `container.featureModels.resolve`
+   * instead of importing `modules/settings`.
+   */
+  get featureModels(): FeatureModelResolver {
+    return (this._featureModels ??= {
+      resolve: (workspaceId, id) => resolveFeatureModel(this, workspaceId, id),
+    });
   }
 
   get reviewRepo(): ReviewRepository {

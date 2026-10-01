@@ -25,7 +25,7 @@ import {
   toSkillDto,
 } from './helpers.js';
 import type { SkillsRepository } from './repository.js';
-import type { NewSkillValues, SkillUpdateValues } from './types.js';
+import type { ExtractedSkillInput, NewSkillValues, SkillUpdateValues } from './types.js';
 
 export type SkillsServiceDeps = Pick<Container, 'db' | 'tokenizer'>;
 
@@ -58,6 +58,12 @@ export class SkillsService {
     const stored = await this.repos.skills.get(workspaceId, id);
     if (!stored) throw new NotFoundError('Skill not found');
     return toSkillDto(stored, this.countTokens);
+  }
+
+  /** The workspace's skill with this exact name, or `undefined` (HW02 D18 draft / save). */
+  async findByName(workspaceId: string, name: string): Promise<Skill | undefined> {
+    const stored = await this.repos.skills.findByName(workspaceId, name);
+    return stored ? toSkillDto(stored, this.countTokens) : undefined;
   }
 
   /** Manual create: the skill at v1 plus its `skill_versions` v1 row, atomically. */
@@ -102,6 +108,55 @@ export class SkillsService {
     const built = buildImportPreview({ filename, bytes: decoded.bytes }, names);
     if (!built.ok) throw new SkillImportError(built);
     return built.preview;
+  }
+
+  /**
+   * HW02 D18: a skill built from accepted convention candidates, at v1 with
+   * `source: 'extracted'` and its `evidence_files`. 409 `skill_name_taken` on
+   * a duplicate name (the unique index).
+   */
+  async createExtracted(workspaceId: string, input: ExtractedSkillInput): Promise<Skill> {
+    return this.insertAtV1(workspaceId, {
+      name: input.name,
+      description: input.description,
+      type: input.type,
+      source: 'extracted',
+      body: input.body,
+      enabled: input.enabled,
+      evidenceFiles: input.evidenceFiles,
+    });
+  }
+
+  /**
+   * HW02 D18: save a re-extraction as the next version of an existing
+   * `extracted` skill — the same transaction and bump rule as `update`
+   * (description / type / body changes bump and snapshot; `enabled` alone does
+   * not), plus the new `evidence_files`. No ack rule: the skill is ours, not
+   * an import. The caller checks that the skill is `extracted`.
+   */
+  async updateExtracted(workspaceId: string, id: string, input: ExtractedSkillInput): Promise<Skill> {
+    await this.deps.db.transaction(async (tx) => {
+      const current = await this.repos.skills.lockForEdit(tx, workspaceId, id);
+      if (!current) throw new NotFoundError('Skill not found');
+      const patch: SkillPatch = {
+        description: input.description,
+        type: input.type,
+        body: input.body,
+        enabled: input.enabled,
+      };
+      const bump = bumpsVersion(current, patch);
+      const version = bump ? current.version + 1 : current.version;
+      await this.repos.skills.update(tx, id, {
+        description: input.description,
+        type: input.type,
+        body: input.body,
+        enabled: input.enabled,
+        evidenceFiles: input.evidenceFiles,
+        ...(bump ? { version } : {}),
+      });
+      if (bump) await this.repos.skills.insertVersion(tx, id, version, input.body);
+    });
+    return this.get(workspaceId, id);
   }
 
   private async insertAtV1(workspaceId: string, values: NewSkillValues): Promise<Skill> {

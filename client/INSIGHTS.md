@@ -209,6 +209,16 @@ Never rewrite existing entries — correct with a dated note.
   `SkillBodyEditor.tsx:44-47`, `:84`; before the fix, e2e flow `08-skills`
   failed on `BODY_EDITOR_OK`).
 
+- 2026-10-01: Running `pnpm test` here while the server's Docker `.it` suite
+  runs on the same machine makes the slowest jsdom test miss vitest's 5 s
+  default timeout (`SkillsListView.test.tsx` "creates a manual skill …":
+  5246 ms under load, 2055 ms alone; two full-suite failures, green alone and
+  green in a third full run without the concurrent suite). Run the client
+  tests and the server integration suite one after the other, not in
+  parallel, before reading a failure as a regression (evidence:
+  `src/app/skills/_components/SkillsListView/SkillsListView.test.tsx`;
+  `vitest.config.ts` sets no `testTimeout`).
+
 ## Session Notes
 
 - 2026-09-28: L02 Stage 9 moved the `reviews` domain — entries above that

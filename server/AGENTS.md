@@ -30,7 +30,7 @@ Cross-module access ONLY through the DI container (`container.agentsRepo`,
 
 - zod type-provider validates every request schema; it serializes a response
   ONLY when the route declares `schema.response` (so far the `pulls`,
-  `polling` and `skills` routes do — plain `JSON.stringify` otherwise). New and changed routes declare one
+  `polling`, `skills` and `conventions` routes do — plain `JSON.stringify` otherwise). New and changed routes declare one
   plus a response-shape test (`onion-architecture` skill, R3). Errors use the
   envelope `{ error: { code, message, details } }`.
 - Tests swap dependencies via ContainerOverrides; services never construct
@@ -65,6 +65,8 @@ Cross-module access ONLY through the DI container (`container.agentsRepo`,
   when to add a port → use the `onion-architecture` skill (`.claude/skills/onion-architecture/SKILL.md`)
 - DI container, modules/adapters, request flow → read `docs/architecture.md`
 - Review run end to end (what must stay true) → read `specs/review-flow.md`
+- Skills CRUD, import, agent links → read `specs/skills.md`
+- Conventions extractor (scan, evidence check, the `repo-conventions` skill) → read `specs/conventions.md`
 - API surface, DI/request flow → read `README.md`
 - repo-intel internals (indexer, repo map) → read `src/modules/repo-intel/README.md`
 - Schema questions → read `src/db/schema/` (14 domains; 6 are future lessons)
