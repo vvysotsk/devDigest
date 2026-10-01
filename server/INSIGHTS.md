@@ -249,6 +249,22 @@ Never rewrite existing entries — correct with a dated note.
   `src/adapters/mocks.ts:303-306`; `src/adapters/git/simple-git.ts:129-131`;
   `src/modules/conventions/service.ts:172-180`).
 
+- 2026-10-01: `withTimeout` (`src/platform/resilience.ts:13`) only races a
+  promise against a timer — it cannot abort the underlying `fetch`, so a slow
+  download would keep streaming after the "timeout". For outbound HTTP
+  create ONE `AbortSignal.timeout(ms)` per operation and pass it to every
+  redirect hop AND the body read; a per-hop signal lets a chain of hops each
+  under the limit run far past it (plan correction by the user) (evidence:
+  `src/adapters/http/url-fetcher.ts:48`, `:76`;
+  `test/skill-import-url.test.ts:236`).
+- 2026-10-01: `new URL(…).hostname` already normalises numeric host forms
+  (`2130706433`, `0x7f.0.0.1`, `0177.0.0.1` → `127.0.0.1`), so an SSRF
+  allow/deny check must run on the PARSED hostname, never on the raw string;
+  IPv6 literals keep their brackets in `hostname` (`[::1]`) and need them
+  stripped before the range check (evidence:
+  `src/modules/skills/import/url.ts:98-108`;
+  `test/skill-import-url.test.ts:50-61`).
+
 ## Tool & Library Notes
 
 - 2026-09-30: OpenRouter deepseek/deepseek-v4-flash single-pass reviews have
@@ -461,6 +477,11 @@ Never rewrite existing entries — correct with a dated note.
 - 2026-10-01 (fix): conventions carry-over keyed on evidence location +
   category as well as rule text; earlier decisions sent to the model in a
   `<prior-decisions>` data block; rephrased-fixture `.it` case.
+
+- 2026-10-01 (3a): skill import from a URL — `UrlFetcher` port +
+  `FetchUrlFetcher` adapter (SSRF rules, manual redirects, one deadline,
+  streamed cap), `import/url.ts` pure checks, two routes with `sha256`
+  preview/save integrity, `needsAck` for `imported_url`.
 
 ## Open Questions
 

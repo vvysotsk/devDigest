@@ -54,6 +54,11 @@ describe('skills helpers — ack rule (D4)', () => {
       false,
     );
     expect(needsAck(state({ source: 'manual', enabled: false }), patch({ enabled: true }))).toBe(false);
+    // HW02 D21: a URL import is just as untrusted as a file import.
+    const fromUrl = state({ source: 'imported_url', enabled: false });
+    expect(needsAck(fromUrl, patch({ enabled: true }))).toBe(true);
+    expect(needsAck(state({ source: 'imported_url', acknowledgedAt: new Date() }), patch({ enabled: true }))).toBe(false);
+    expect(needsAck(state({ source: 'extracted', enabled: false }), patch({ enabled: true }))).toBe(false);
   });
 });
 

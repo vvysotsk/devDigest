@@ -37,12 +37,11 @@ export function bumpsVersion(current: SkillEditState, patch: SkillPatch): boolea
  * requires `acknowledge_injection` and stores `acknowledged_at`).
  */
 export function needsAck(current: SkillEditState, patch: SkillPatch): boolean {
-  return (
-    patch.enabled === true &&
-    current.source === 'imported_file' &&
-    current.acknowledgedAt === null
-  );
+  return patch.enabled === true && IMPORTED_SOURCES.has(current.source) && current.acknowledgedAt === null;
 }
+
+/** Sources whose text came from outside the workspace: the D4 ack rule applies to them. */
+export const IMPORTED_SOURCES: ReadonlySet<SkillEditState['source']> = new Set(['imported_file', 'imported_url']);
 
 /** The ordered links a `PUT /agents/:id/skills` body describes (`order = index`). */
 export function toLinks(body: AgentSkillsPut): AgentVersionSkill[] {

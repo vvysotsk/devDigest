@@ -170,7 +170,7 @@
   },
   "ack": {
     "title": "Enable an imported skill",
-    "body": "“{name}” was imported from a file. Read its text in the Preview tab before you enable it.",
+    "body": "“{name}” was imported. Read its text in the Preview tab before you enable it.",
     "statement": "I have read this text; it will be injected into the agent's prompt as instructions",
     "cancel": "Cancel",
     "confirm": "Enable skill"
@@ -182,6 +182,7 @@
     "chooseFile": "Choose file",
     "noFile": "No file chosen",
     "reading": "Reading file…",
+    "fetchPreview": "Fetch preview",
     "draft": "Draft",
     "rawSource": "Raw SKILL.md (exactly as it will be parsed — never rendered)",
     "files": "Files",
@@ -222,6 +223,13 @@
     "import_description_missing": "Write a description — the file has none.",
     "import_invalid_name": "The name must be kebab-case (lowercase letters, digits, single dashes).",
     "import_invalid_field": "The skill is out of bounds: the description must be at most 500 characters and the body 1 to 50,000 characters.",
+    "import_url_not_https": "Enter an https:// URL.",
+    "import_url_blocked": "This address cannot be fetched (private, loopback or blocked host).",
+    "import_url_redirect": "The URL redirects to a non-https address or too many times.",
+    "import_url_bad_status": "The server did not return the file.",
+    "import_url_timeout": "Fetching the URL took too long.",
+    "import_url_network": "The URL could not be fetched.",
+    "import_url_changed": "The file changed since the preview — fetch the preview again.",
     "readFailed": "The file could not be read."
   },
   "preview": {

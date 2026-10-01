@@ -48,9 +48,14 @@ export class SkillNotInWorkspaceError extends SkillError {
 const IMPORT_STATUS: Partial<Record<SkillErrorCode, number>> = {
   import_unsupported_file: 415,
   import_too_large: 413,
+  // URL import (HW02 D21)
+  import_url_bad_status: 502,
+  import_url_network: 502,
+  import_url_timeout: 504,
+  import_url_changed: 409,
 };
 
-/** A failure of the pure import pipeline as a `SkillError` (413 / 415, else 422). */
+/** A failure of the import pipeline or the URL fetch as a `SkillError` (413 / 415 / 409 / 502 / 504, else 422). */
 export class SkillImportError extends SkillError {
   constructor(failure: { code: SkillErrorCode; message: string; details?: unknown }) {
     super(failure.code, failure.message, IMPORT_STATUS[failure.code] ?? 422, failure.details);

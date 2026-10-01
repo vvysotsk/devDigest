@@ -6,6 +6,9 @@ import type {
   SkillImportPreview,
   SkillImportRequest,
   SkillImportSave,
+  SkillImportUrlPreview,
+  SkillImportUrlRequest,
+  SkillImportUrlSave,
   SkillInput,
   SkillPatch,
   SkillVersion,
@@ -13,7 +16,17 @@ import type {
 import type { Container } from '../../platform/container.js';
 import { NotFoundError } from '../../platform/errors.js';
 import { SkillAckRequiredError, SkillImportError, SkillNotInWorkspaceError } from './errors.js';
-import { buildImportPreview, decodeImportBase64, resolveImportSave } from './import/index.js';
+import { SKILL_IMPORT_MAX_BYTES } from '@devdigest/shared';
+import {
+  IMPORT_URL_TIMEOUT_MS,
+  buildImportPreview,
+  checkImportUrl,
+  decodeImportBase64,
+  fetchFailureMessage,
+  mapFetchFailure,
+  resolveImportSave,
+  sha256Hex,
+} from './import/index.js';
 import {
   INITIAL_SKILL_VERSION,
   bumpsVersion,
@@ -27,7 +40,7 @@ import {
 import type { SkillsRepository } from './repository.js';
 import type { ExtractedSkillInput, NewSkillValues, SkillUpdateValues } from './types.js';
 
-export type SkillsServiceDeps = Pick<Container, 'db' | 'tokenizer'>;
+export type SkillsServiceDeps = Pick<Container, 'db' | 'tokenizer' | 'urlFetcher'>;
 
 export interface SkillsServiceRepos {
   skills: SkillsRepository;
@@ -104,10 +117,64 @@ export class SkillsService {
   private async parseUpload(workspaceId: string, filename: string, contentBase64: string): Promise<SkillImportPreview> {
     const decoded = decodeImportBase64(contentBase64);
     if (!decoded.ok) throw new SkillImportError(decoded);
+    return this.parseBytes(workspaceId, filename, decoded.bytes);
+  }
+
+  private async parseBytes(workspaceId: string, filename: string, bytes: Uint8Array): Promise<SkillImportPreview> {
     const names = new Set(await this.repos.skills.namesInWorkspace(workspaceId));
-    const built = buildImportPreview({ filename, bytes: decoded.bytes }, names);
+    const built = buildImportPreview({ filename, bytes }, names);
     if (!built.ok) throw new SkillImportError(built);
     return built.preview;
+  }
+
+  /** `POST /skills/import-url/preview` (HW02 D21) — fetch the URL and parse it; stores nothing. */
+  async previewImportUrl(workspaceId: string, req: SkillImportUrlRequest): Promise<SkillImportUrlPreview> {
+    const { preview, sha256 } = await this.fetchForImport(workspaceId, req.url);
+    return { ...preview, sha256 };
+  }
+
+  /**
+   * `POST /skills/import-url` — fetch the URL AGAIN, refuse it when the bytes
+   * differ from the previewed ones (409 `import_url_changed`), apply only the
+   * name / description / type overrides, and save it ourselves as
+   * `imported_url`, disabled, unacknowledged — the same trust path as the
+   * file import.
+   */
+  async saveImportUrl(workspaceId: string, req: SkillImportUrlSave): Promise<Skill> {
+    const { preview, sha256 } = await this.fetchForImport(workspaceId, req.url);
+    if (sha256 !== req.sha256) {
+      throw new SkillImportError({
+        code: 'import_url_changed',
+        message: 'The file changed since the preview — fetch the preview again.',
+        details: { url: req.url },
+      });
+    }
+    const resolved = resolveImportSave(preview, { name: req.name, description: req.description, type: req.type });
+    if (!resolved.ok) throw new SkillImportError(resolved);
+    return this.insertAtV1(workspaceId, { ...resolved.skill, source: 'imported_url', enabled: false });
+  }
+
+  /**
+   * The URL half of the import pipeline (D21): the pure URL check, the fetch
+   * through the port (its refusals become `import_url_*` errors), then the
+   * same `buildImportPreview` as a file upload — the zip limits apply unchanged.
+   */
+  private async fetchForImport(workspaceId: string, rawUrl: string): Promise<{ preview: SkillImportPreview; sha256: string }> {
+    const checked = checkImportUrl(rawUrl);
+    if (!checked.ok) throw new SkillImportError(checked);
+    const fetched = await this.deps.urlFetcher.fetch(checked.url, {
+      maxBytes: SKILL_IMPORT_MAX_BYTES,
+      timeoutMs: IMPORT_URL_TIMEOUT_MS,
+    });
+    if (!fetched.ok) {
+      throw new SkillImportError({
+        code: mapFetchFailure(fetched.code),
+        message: fetchFailureMessage(fetched.code),
+        details: fetched.detail === undefined ? { url: checked.url } : { url: checked.url, detail: fetched.detail },
+      });
+    }
+    const preview = await this.parseBytes(workspaceId, checked.filename, fetched.bytes);
+    return { preview, sha256: sha256Hex(fetched.bytes) };
   }
 
   /**

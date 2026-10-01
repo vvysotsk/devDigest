@@ -9,6 +9,9 @@ import {
   SkillImportPreview,
   SkillImportRequest,
   SkillImportSave,
+  SkillImportUrlPreview,
+  SkillImportUrlRequest,
+  SkillImportUrlSave,
   SkillInput,
   SkillPatch,
   SkillVersion,
@@ -24,6 +27,8 @@ import { SkillsService } from './service.js';
  *   POST   /skills                → 201 Skill (manual create only)
  *   POST   /skills/import/preview → SkillImportPreview (parses the upload, stores nothing)
  *   POST   /skills/import         → 201 Skill (re-parses the file; imported_file, disabled)
+ *   POST   /skills/import-url/preview → SkillImportUrlPreview (fetches the URL server-side; stores nothing)
+ *   POST   /skills/import-url     → 201 Skill (re-fetches; 409 import_url_changed on a sha256 mismatch; imported_url, disabled)
  *   GET    /skills/:id            → Skill
  *   PUT    /skills/:id            → Skill (bump + snapshot; 409 skill_ack_required / skill_name_taken)
  *   DELETE /skills/:id            → 204 (links cascade)
@@ -69,6 +74,25 @@ export default async function skillsRoutes(appBase: FastifyInstance) {
     async (req, reply) => {
       const { workspaceId } = await getContext(container, req);
       const skill = await service.saveImport(workspaceId, req.body);
+      return reply.status(201).send(skill);
+    },
+  );
+
+  app.post(
+    '/skills/import-url/preview',
+    { schema: { body: SkillImportUrlRequest, response: { 200: SkillImportUrlPreview } } },
+    async (req) => {
+      const { workspaceId } = await getContext(container, req);
+      return service.previewImportUrl(workspaceId, req.body);
+    },
+  );
+
+  app.post(
+    '/skills/import-url',
+    { schema: { body: SkillImportUrlSave, response: { 201: Skill } } },
+    async (req, reply) => {
+      const { workspaceId } = await getContext(container, req);
+      const skill = await service.saveImportUrl(workspaceId, req.body);
       return reply.status(201).send(skill);
     },
   );

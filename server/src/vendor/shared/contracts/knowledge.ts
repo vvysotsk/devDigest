@@ -228,6 +228,14 @@ export const SkillErrorCode = z.enum([
   // 422 — save: a field breaks a SkillInput limit; details { field, limit }:
   // description > SKILL_DESCRIPTION_MAX, body > SKILL_BODY_MAX, empty body (limit 1)
   'import_invalid_field',
+  // URL import (HW02 D21) — details { url, detail? }:
+  'import_url_not_https', // 422 — not an https:// URL
+  'import_url_blocked', // 422 — credentials in the URL, a blocked host name, or a private / loopback address (literal or resolved)
+  'import_url_redirect', // 422 — redirect to a non-https URL, or more than 3 redirects
+  'import_url_bad_status', // 502 — the server did not return the file (non-2xx)
+  'import_url_timeout', // 504 — the whole fetch (every hop + the body) exceeded the deadline
+  'import_url_network', // 502 — DNS or connection failure
+  'import_url_changed', // 409 — save: the re-fetched file differs from the previewed one (sha256)
 ]);
 export type SkillErrorCode = z.infer<typeof SkillErrorCode>;
 
@@ -243,9 +251,9 @@ export type SkillImportRequest = z.infer<typeof SkillImportRequest>;
 
 /**
  * `POST /skills/import` body → 201 Skill. The server re-runs the import pipeline
- * on the file, applies ONLY these overrides and itself sets
- * source = 'imported_file', enabled = false, acknowledged_at = null; the body is
- * always the parsed body.
+ * on the file, applies ONLY these overrides and itself sets the source
+ * (`imported_file` here, `imported_url` for the URL routes), enabled = false,
+ * acknowledged_at = null; the body is always the parsed body.
  */
 export const SkillImportSave = SkillImportRequest.extend({
   name: SkillName.optional(),
@@ -253,6 +261,33 @@ export const SkillImportSave = SkillImportRequest.extend({
   type: SkillType.optional(),
 });
 export type SkillImportSave = z.infer<typeof SkillImportSave>;
+
+/**
+ * `POST /skills/import-url/preview` body (HW02 D21). Only the length is checked
+ * here; the server enforces https, the blocked hosts / addresses and the
+ * `.md` / `.zip` path with the `import_url_*` codes.
+ */
+export const SkillImportUrlRequest = z.object({
+  url: z.string().trim().min(1).max(2048),
+});
+export type SkillImportUrlRequest = z.infer<typeof SkillImportUrlRequest>;
+
+/** Hex SHA-256 of the fetched bytes: the preview returns it, the save must send it back. */
+export const Sha256Hex = z.string().regex(/^[0-9a-f]{64}$/, 'sha256 hex');
+
+/**
+ * `POST /skills/import-url` body → 201 Skill. The server fetches the URL
+ * again, compares the bytes' sha256 with the previewed one (409
+ * `import_url_changed` on a mismatch), applies ONLY these overrides and
+ * itself sets source = 'imported_url', enabled = false, acknowledged_at = null.
+ */
+export const SkillImportUrlSave = SkillImportUrlRequest.extend({
+  sha256: Sha256Hex,
+  name: SkillName.optional(),
+  description: z.string().trim().min(1).max(SKILL_DESCRIPTION_MAX).optional(),
+  type: SkillType.optional(),
+});
+export type SkillImportUrlSave = z.infer<typeof SkillImportUrlSave>;
 
 /** Unvalidated draft extracted from SKILL.md — the user edits it, then saves it as SkillInput. */
 export const SkillDraft = z.object({
@@ -307,6 +342,10 @@ export const SkillImportPreview = z.object({
   warnings: z.array(SkillImportWarning),
 });
 export type SkillImportPreview = z.infer<typeof SkillImportPreview>;
+
+/** `POST /skills/import-url/preview` response: the preview plus the fetched bytes' sha256 (HW02 D21). */
+export const SkillImportUrlPreview = SkillImportPreview.extend({ sha256: Sha256Hex });
+export type SkillImportUrlPreview = z.infer<typeof SkillImportUrlPreview>;
 
 export const CommunitySkill = z.object({
   name: z.string(),

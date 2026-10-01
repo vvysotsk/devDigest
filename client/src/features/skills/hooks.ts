@@ -12,6 +12,9 @@ import type {
   SkillImportPreview,
   SkillImportRequest,
   SkillImportSave,
+  SkillImportUrlPreview,
+  SkillImportUrlRequest,
+  SkillImportUrlSave,
   SkillInput,
   SkillPatch,
   SkillVersion,
@@ -96,6 +99,25 @@ export function useImportSkill() {
   const qc = useQueryClient();
   return useMutation({
     mutationFn: (input: SkillImportSave) => api.post<Skill>("/skills/import", input),
+    onSuccess: (data) => {
+      qc.invalidateQueries({ queryKey: ["skills"] });
+      qc.setQueryData(["skill", data.id], data);
+    },
+  });
+}
+
+/** Fetch an https URL server-side and parse it into a preview (HW02 D21). The server stores nothing. */
+export function useImportUrlPreview() {
+  return useMutation({
+    mutationFn: (input: SkillImportUrlRequest) => api.post<SkillImportUrlPreview>("/skills/import-url/preview", input),
+  });
+}
+
+/** Save a URL import: the server re-fetches, checks the preview's sha256 and applies only the overrides. */
+export function useImportUrlSkill() {
+  const qc = useQueryClient();
+  return useMutation({
+    mutationFn: (input: SkillImportUrlSave) => api.post<Skill>("/skills/import-url", input),
     onSuccess: (data) => {
       qc.invalidateQueries({ queryKey: ["skills"] });
       qc.setQueryData(["skill", data.id], data);

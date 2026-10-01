@@ -16,6 +16,7 @@ import { LocalNoAuthProvider } from '../adapters/auth/local.js';
 import { OctokitGitHubClient } from '../adapters/github/octokit.js';
 import { SimpleGitClient } from '../adapters/git/simple-git.js';
 import { RipgrepCodeIndex } from '../adapters/codeindex/ripgrep.js';
+import { FetchUrlFetcher } from '../adapters/http/url-fetcher.js';
 import { OpenAIProvider } from '../adapters/llm/openai.js';
 import { AnthropicProvider } from '../adapters/llm/anthropic.js';
 import { OpenAIEmbedder } from '../adapters/embedder/openai.js';
@@ -26,7 +27,7 @@ import { ConfigError } from './errors.js';
 import { AgentsRepository } from '../modules/agents/repository.js';
 import { SkillsRepository } from '../modules/skills/repository.js';
 import { SkillsService } from '../modules/skills/service.js';
-import type { SkillsPort } from '../modules/skills/types.js';
+import type { SkillsPort, UrlFetcher } from '../modules/skills/types.js';
 import { ConventionsRepository } from '../modules/conventions/repository.js';
 import { resolveFeatureModel } from '../modules/settings/feature-models.js';
 import type { FeatureModelResolver } from '../modules/settings/types.js';
@@ -63,6 +64,8 @@ export interface ContainerOverrides {
   tokenizer?: Tokenizer;
   /** repo-intel TS/JS parser (facade + indexer pipeline). */
   codeParser?: CodeParser;
+  /** Outbound HTTP of the skill URL import (HW02 D21); tests inject `MockUrlFetcher`. */
+  urlFetcher?: UrlFetcher;
 }
 
 export class Container {
@@ -76,6 +79,7 @@ export class Container {
   private _git?: GitClient;
   private _github?: GitHubClient;
   private _codeIndex?: CodeIndex;
+  private _urlFetcher?: UrlFetcher;
   private _embedder?: Embedder;
   private llmCache = new Map<string, LLMProvider>();
 
@@ -188,6 +192,13 @@ export class Container {
     if (this.overrides.codeIndex) return this.overrides.codeIndex;
     this._codeIndex ??= new RipgrepCodeIndex(this.git);
     return this._codeIndex;
+  }
+
+  /** The skill URL import's outbound HTTP port (HW02 D21): https only, SSRF-checked, streamed and capped. */
+  get urlFetcher(): UrlFetcher {
+    if (this.overrides.urlFetcher) return this.overrides.urlFetcher;
+    this._urlFetcher ??= new FetchUrlFetcher();
+    return this._urlFetcher;
   }
 
   /**

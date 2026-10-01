@@ -79,6 +79,30 @@ export interface ExtractedSkillInput {
   evidenceFiles: string[];
 }
 
+/** Why the outbound fetch of a skill URL did not return bytes (HW02 D21). */
+export type UrlFetchFailure =
+  | 'not_https'
+  | 'blocked_address'
+  | 'redirect'
+  | 'timeout'
+  | 'too_large'
+  | 'bad_status'
+  | 'network';
+
+export type UrlFetchResult =
+  | { ok: true; bytes: Uint8Array; finalUrl: string }
+  | { ok: false; code: UrlFetchFailure; detail?: string };
+
+/**
+ * Outbound HTTP port of the skill URL import (HW02 D21), used by this module
+ * only; the adapter is `src/adapters/http/url-fetcher.ts`, wired as
+ * `container.urlFetcher`. It never throws across the port: every refusal
+ * is a `UrlFetchResult` failure the service maps to a `SkillErrorCode`.
+ */
+export interface UrlFetcher {
+  fetch(url: string, limits: { maxBytes: number; timeoutMs: number }): Promise<UrlFetchResult>;
+}
+
 /**
  * Cross-module port onto skills and agent links (`container.skillsRepo`).
  * Consumers: agents (`skill_count`, version snapshots), reviews (Stage 4b:

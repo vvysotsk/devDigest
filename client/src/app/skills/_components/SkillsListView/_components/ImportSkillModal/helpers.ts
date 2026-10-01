@@ -9,6 +9,11 @@ export function checkUpload(file: { name: string; size: number }): SkillErrorCod
   return null;
 }
 
+/** Client-side pre-check of a URL import (D21): only "looks like https://"; every other rule is the server's. */
+export function isHttpsUrl(url: string): boolean {
+  return /^https:\/\/\S+$/i.test(url);
+}
+
 /** Read a File as base64 (the data-URL payload without its `data:…;base64,` prefix). */
 export function readFileAsBase64(file: Blob): Promise<string> {
   return new Promise((resolve, reject) => {

@@ -16,7 +16,7 @@ import { CreateSkillModal } from "./_components/CreateSkillModal";
 import { ImportSkillModal } from "./_components/ImportSkillModal";
 import { s } from "./styles";
 
-type OpenModal = "create" | "import" | null;
+type OpenModal = "create" | "import" | "import-url" | null;
 
 export function SkillsListView({
   activeId,
@@ -46,6 +46,7 @@ export function SkillsListView({
     <AppShell crumb={crumb}>
       {modal === "create" && <CreateSkillModal onClose={() => setModal(null)} />}
       {modal === "import" && <ImportSkillModal onClose={() => setModal(null)} />}
+      {modal === "import-url" && <ImportSkillModal source="url" onClose={() => setModal(null)} />}
       <div style={s.layout}>
         <aside style={s.column}>
           <div style={s.columnHead}>
@@ -61,6 +62,7 @@ export function SkillsListView({
               items={[
                 { label: t("list.create"), icon: "Edit", onClick: () => setModal("create") },
                 { label: t("page.menu.fromFile"), icon: "Upload", onClick: () => setModal("import") },
+                { label: t("page.menu.fromUrl"), icon: "Link", onClick: () => setModal("import-url") },
               ]}
             />
           </div>

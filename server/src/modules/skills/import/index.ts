@@ -11,3 +11,14 @@ export {
   type ResolvedImportSkill,
 } from './pipeline.js';
 export { ZIP_MAX_ENTRIES, ZIP_MAX_UNCOMPRESSED_BYTES, type ImportFailure } from './types.js';
+export {
+  IMPORT_URL_MAX_REDIRECTS,
+  IMPORT_URL_TIMEOUT_MS,
+  checkImportUrl,
+  fetchFailureMessage,
+  hostBlockReason,
+  isIpLiteral,
+  isPrivateAddress,
+  mapFetchFailure,
+  sha256Hex,
+} from './url.js';

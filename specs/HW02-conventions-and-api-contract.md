@@ -125,7 +125,7 @@ in the working tree on 2026-09-29.
 | K5 | 2 | D19: `path:line` → `githubBlobUrl` (`client/src/lib/github-urls.ts:24-36`) at the scan's head sha |
 | K6 | 2 | link in the modal → a review run → a `repo-conventions` block in the trace |
 | K7 | 1 | #18 |
-| X1a | 3 | D21 |
+| X1a | 3 | D21 — built 2026-10-01 (3a): `server/src/modules/skills/import/url.ts`, `server/src/adapters/http/url-fetcher.ts`, routes `POST /skills/import-url(/preview)`, the client modal's URL mode |
 | X1b | — | **out of scope** (the agreed Stage 3 has two items only) |
 | X2 | 3 | D22 |
 | X3 | 3 | a "product ideas" note only, no code |
@@ -618,6 +618,29 @@ in the working tree on 2026-09-29.
   - A new outbound HTTP port with an adapter at the edge.
   - Limits: https only; ≤ 512 KB; a timeout; no redirect to a non-https
     URL; private and loopback addresses are refused (SSRF).
+  - **3a note (2026-10-01).** Contracts: `SkillImportUrlRequest { url }`,
+    `SkillImportUrlPreview` (the preview + `sha256` of the fetched bytes),
+    `SkillImportUrlSave { url, sha256, name?, description?, type? }`; codes
+    `import_url_not_https` 422, `import_url_blocked` 422 (credentials,
+    `localhost` / `*.localhost` / `*.local` / `*.internal`, a literal or
+    resolved private / loopback / link-local / CGNAT / multicast address —
+    the checks run on the parsed hostname, so `2130706433`, `0x7f.0.0.1` and
+    `[::1]` are refused), `import_url_redirect` 422 (non-https or > 3 hops),
+    `import_url_bad_status` 502, `import_url_timeout` 504,
+    `import_url_network` 502, `import_url_changed` 409. The URL path must
+    end in `.md` / `.zip` (else 415 `import_unsupported_file`): a raw-file
+    URL works, a GitHub "blob" page does not. The port is `UrlFetcher` in
+    `server/src/modules/skills/types.ts` (one consumer), the adapter
+    `server/src/adapters/http/url-fetcher.ts`: DNS checked per hop, manual
+    https-only redirects, ONE `AbortSignal.timeout(10 s)` for the whole
+    chain plus the body read, streamed 512 KB cap. The save re-fetches and
+    compares SHA-256 with the previewed bytes (TOCTOU): a changed file is a
+    409 and nothing is inserted. The fetched bytes run the unchanged L02 zip
+    pipeline (200 entries, 1 MiB declared, length + CRC per entry). The ack
+    rule covers `imported_url` on both sides. Known limit: no IP pinning
+    between the lookup and `fetch`'s own connection. The client reuses
+    `ImportSkillModal` with a `source` prop (Add Skill ▾ → Import from
+    URL).
 - **D22 Work repository (X2)** — the extractor runs on the user's work
   repository only after the user confirms that company policy allows sending
   that code to the LLM. Otherwise it runs on a personal repository. The

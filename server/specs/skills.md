@@ -1,6 +1,6 @@
 # server — skills
 
-Last verified: 2026-09-27 (L02 Stage 7: seed wired)
+Last verified: 2026-10-01 (HW02 3a: URL import)
 
 ## Scope
 
@@ -38,15 +38,24 @@ Paths are relative to `server/`. `knowledge.ts`, `trace.ts` →
   file again + optional `name` / `description` / `type` overrides — never a
   body, source or enabled flag; the server re-parses the file and sets
   `source = imported_file`, `enabled = false`, `acknowledged_at = null`),
+  `SkillImportUrlRequest` (`{ url }`, ≤ 2048 chars — the scheme / host / path
+  rules are the server's, HW02 D21) and `SkillImportUrlSave` (the URL again +
+  the preview's `sha256` (64 hex) + the same optional overrides; the server
+  re-fetches and sets `source = imported_url`),
   `SkillPatch` (non-empty; `acknowledge_injection` is the
   literal `true`), `AgentSkillsPut` (ordered, unique `skill_id`s, ≤ 100).
 - Outputs: `SkillVersion`, `AgentSkill`, `AgentSkillsResult {version,
   skills}`, `SkillImportPreview` (`raw_source`, `frontmatter`, `files`,
   `warnings` with kinds `SkillImportWarningKind`; `warnings[].line` is a
-  1-based line of `raw_source`), error codes `SkillErrorCode` (incl.
+  1-based line of `raw_source`), `SkillImportUrlPreview` (the same plus
+  `sha256` of the fetched bytes), error codes `SkillErrorCode` (incl.
   `import_description_missing`, `import_invalid_name` and
   `import_invalid_field` — `details: {field, limit}` for a description > 500,
-  a body > 50,000 or an empty body — for the save).
+  a body > 50,000 or an empty body — for the save; and the URL codes
+  `import_url_not_https` 422, `import_url_blocked` 422, `import_url_redirect`
+  422, `import_url_bad_status` 502, `import_url_timeout` 504,
+  `import_url_network` 502, `import_url_changed` 409, each with
+  `details: { url, detail? }`).
 - `Skill.agent_count` = agents with a link to the skill, enabled or not
   (the delete confirm's "Used by N agents").
 - `Agent.skill_count` = the agent's **effective** skills
@@ -70,32 +79,35 @@ foreign or unknown id is 404 `not_found`.
 
 | Route | Response | Errors |
 |---|---|---|
-| `GET /skills` (`:42`) | `Skill[]`, sorted by name | — |
-| `POST /skills` (`:47`, body `SkillInput`) | 201 `Skill` (v1) | 409 `skill_name_taken` |
-| `POST /skills/import/preview` (`:57`, body `SkillImportRequest`) | `SkillImportPreview`; stores nothing | 413 `import_too_large`, 415 `import_unsupported_file`, 422 other `import_*` |
-| `POST /skills/import` (`:66`, body `SkillImportSave`) | 201 `Skill` — `imported_file`, disabled, `acknowledged_at` null, v1 | as above + 409 `skill_name_taken`, 422 `import_description_missing` / `import_invalid_name` / `import_invalid_field` |
-| `GET /skills/:id` (`:76`) | `Skill` | 404 |
-| `PUT /skills/:id` (`:81`, body `SkillPatch`) | `Skill` | 404, 409 `skill_name_taken`, 409 `skill_ack_required` |
-| `DELETE /skills/:id` (`:90`) | 204, empty body (`reply.status(204).send(null)`) | 404 |
-| `GET /skills/:id/versions` (`:100`) | `SkillVersion[]`, newest first | 404 |
-| `GET /agents/:id/skills` (`:109`) | `AgentSkill[]` by `order` | 404 |
-| `PUT /agents/:id/skills` (`:118`, body `AgentSkillsPut`) | `AgentSkillsResult` | 404, 400 `skill_not_in_workspace` (`details.skill_ids`) |
+| `GET /skills` (`:47`) | `Skill[]`, sorted by name | — |
+| `POST /skills` (`:52`, body `SkillInput`) | 201 `Skill` (v1) | 409 `skill_name_taken` |
+| `POST /skills/import/preview` (`:62`, body `SkillImportRequest`) | `SkillImportPreview`; stores nothing | 413 `import_too_large`, 415 `import_unsupported_file`, 422 other `import_*` |
+| `POST /skills/import` (`:71`, body `SkillImportSave`) | 201 `Skill` — `imported_file`, disabled, `acknowledged_at` null, v1 | as above + 409 `skill_name_taken`, 422 `import_description_missing` / `import_invalid_name` / `import_invalid_field` |
+| `POST /skills/import-url/preview` (`:81`, body `SkillImportUrlRequest`) | `SkillImportUrlPreview` (the preview + `sha256`); fetched server-side, stores nothing | 422 `import_url_not_https` / `import_url_blocked` / `import_url_redirect`, 502 `import_url_bad_status` / `import_url_network`, 504 `import_url_timeout`, 413 `import_too_large`, 415 `import_unsupported_file` (path not `.md` / `.zip`), 422 other `import_*` |
+| `POST /skills/import-url` (`:90`, body `SkillImportUrlSave`) | 201 `Skill` — `imported_url`, disabled, `acknowledged_at` null, v1 | as above + 409 `import_url_changed` (the re-fetched bytes' sha256 ≠ the sent one), 409 `skill_name_taken`, 422 save codes |
+| `GET /skills/:id` (`:100`) | `Skill` | 404 |
+| `PUT /skills/:id` (`:105`, body `SkillPatch`) | `Skill` | 404, 409 `skill_name_taken`, 409 `skill_ack_required` |
+| `DELETE /skills/:id` (`:114`) | 204, empty body (`reply.status(204).send(null)`) | 404 |
+| `GET /skills/:id/versions` (`:124`) | `SkillVersion[]`, newest first | 404 |
+| `GET /agents/:id/skills` (`:133`) | `AgentSkill[]` by `order` | 404 |
+| `PUT /agents/:id/skills` (`:142`, body `AgentSkillsPut`) | `AgentSkillsResult` | 404, 400 `skill_not_in_workspace` (`details.skill_ids`) |
 
 ## Rules (`src/modules/skills/service.ts`, `helpers.ts`)
 
-- **Create** (`service.ts:64`): one transaction inserts the skill at v1 and its
+- **Create** (`service.ts:83`): one transaction inserts the skill at v1 and its
   `skill_versions` v1 row. A unique violation on `skills_ws_name_uq` maps to
   409 `skill_name_taken` (`helpers.ts:89`).
-- **Update** (`service.ts:122`): one transaction locks the row
+- **Update** (`service.ts:244`): one transaction locks the row
   (`SELECT … FOR UPDATE`, `repository.ts:75`), applies the ack rule and the
   version rule, writes, and snapshots the body on a bump.
   - Version rule (`bumpsVersion`, `helpers.ts:25`): a name / description /
     type / body value **different from the stored one** bumps; sending a
     field with its current value, or `enabled` only, does not.
-  - Ack rule (`needsAck`, `helpers.ts:39`): `enabled: true` on an
-    `imported_file` skill whose `acknowledged_at` is null needs
-    `acknowledge_injection: true` (else 409 `skill_ack_required`); with it,
-    `acknowledged_at` is stored once and never needed again.
+  - Ack rule (`needsAck`, `helpers.ts:39`; `IMPORTED_SOURCES`, `:44`):
+    `enabled: true` on an `imported_file` or `imported_url` skill whose
+    `acknowledged_at` is null needs `acknowledge_injection: true` (else 409
+    `skill_ack_required`); with it, `acknowledged_at` is stored once and
+    never needed again.
 - **Import** (`previewImport`, `saveImport` in `service.ts`): both decode the
   upload and run `buildImportPreview` with the workspace's skill names
   (`namesInWorkspace` → `name_exists`); the save re-runs it on the FILE,
@@ -105,6 +117,24 @@ foreign or unknown id is 404 `not_found`.
   enabled flag sent by the client is dropped by the `SkillImportSave` schema.
   Pipeline failures become `SkillImportError` (413 / 415 / 422,
   `errors.ts`).
+- **URL import** (`previewImportUrl` `service.ts:131`, `saveImportUrl`
+  `:143`, both through `fetchForImport` `:162`, HW02 D21): the pure
+  `checkImportUrl` (`import/url.ts:113`) first — https only, no credentials,
+  no `localhost` / `*.localhost` / `*.local` / `*.internal`, no literal
+  private / loopback address (the URL parser has already normalised
+  `2130706433`, `0x7f.0.0.1` and `[::1]` to loopback literals), hash
+  dropped, last path segment must end in `.md` / `.zip` (else 415
+  `import_unsupported_file`) — then `container.urlFetcher.fetch(url, {
+  maxBytes: SKILL_IMPORT_MAX_BYTES, timeoutMs: IMPORT_URL_TIMEOUT_MS })`;
+  a port refusal becomes the matching `import_url_*` / `import_too_large`
+  error (`mapFetchFailure`, `url.ts:164`); the bytes go through the SAME
+  `buildImportPreview` as an upload, so the zip limits (200 entries, 1 MiB
+  declared, length + CRC per entry) apply unchanged. The preview returns
+  the bytes' SHA-256; the save fetches the URL AGAIN, refuses it with 409
+  `import_url_changed` when the hash differs from the sent one (nothing is
+  inserted), then saves the parsed body as `imported_url`, disabled,
+  unacknowledged (`:154`). A client-sent body / source / enabled is dropped
+  by `SkillImportUrlSave`.
 - **Delete** cascades the skill's versions and agent links (FK).
 - **Link save** (`setAgentSkills`, `service.ts:172`): one transaction locks the
   agent row (`AgentsRepository.lockVersion`), checks that every skill is in
@@ -188,9 +218,39 @@ Skill bodies and prompts stay generic — they never name the experiment PRs'
 defects (see `../specs/L02-skills.md` D8). The seeded conventions scan
 (`src/db/seed-conventions.ts`) is specified in `conventions.md` → "Seed data".
 
+## URL fetch (`src/adapters/http/url-fetcher.ts`, the `UrlFetcher` port of `types.ts:102`)
+
+`FetchUrlFetcher` (`:36`) is the one outbound HTTP adapter; the container
+wires it as `urlFetcher` (`src/platform/container.ts:198`, override key
+`urlFetcher`, fake `MockUrlFetcher` in `src/adapters/mocks.ts:390`). It
+never throws across the port: every refusal is `{ ok: false, code, detail? }`
+with `code ∈ not_https | blocked_address | redirect | timeout | too_large |
+bad_status | network` (`types.ts:83`). Per call:
+
+- one `AbortSignal.timeout(timeoutMs)` is created (`:48`) and passed to
+  every hop and the body read — the whole redirect chain plus the download
+  share the 10 s deadline (`IMPORT_URL_TIMEOUT_MS`, `url.ts:15`);
+- per hop: https only; the parsed hostname through `hostBlockReason`
+  (`:60`); DNS `lookup(host, { all: true })` and every answer through
+  `isPrivateAddress` (`:70`; any private → `blocked_address`, a lookup error
+  → `network`); `fetch(url, { redirect: 'manual' })` (`:76`) with
+  `accept: text/markdown, text/plain, application/zip, …`;
+- 3xx: `Location` resolved against the current URL, must be https, at most
+  3 hops (`IMPORT_URL_MAX_REDIRECTS`), else `redirect` (`:103`); non-2xx →
+  `bad_status` with the status in `detail`;
+- `content-length` over `maxBytes` → `too_large` before reading; the body
+  is streamed with a running count and cancelled at `maxBytes + 1`
+  (`:107-120`); an abort → `timeout`, any other throw → `network`.
+
 ## Known limitations
 
 - ZIP64 archives and encrypted entries are rejected, not supported.
+- URL import: DNS is resolved by the adapter and then `fetch` opens its own
+  connection (no IP pinning), so a DNS-rebinding host could still reach a
+  private address inside that window; https-only and the refusal of every
+  private answer keep the exposure to it. An HTML page (a GitHub "blob"
+  URL) is not a skill: the path must end in `.md` / `.zip` — use the raw
+  file URL.
 
 - `skill_versions` holds only the body: a metadata-only edit bumps
   `skills.version` with an unchanged body (the UI labels it "metadata
@@ -208,6 +268,9 @@ defects (see `../specs/L02-skills.md` D8). The seeded conventions scan
 | CRUD, v1 + snapshot, version rule, no bump on enabled-only / unchanged values, 409 duplicate create + rename, ack 409 → OK → not needed again, `agent_count` incl. disabled links, delete cascade, workspace scope, R3 shapes | `test/skills.it.test.ts` |
 | link order/enabled, one bump per changed save, no bump on unchanged list, detach-all bump, 400 foreign/unknown skill with nothing written, 404 agent, effective `skill_count`, config edit snapshots links, port `enabledForAgent` / `namesInWorkspace`, R3 shapes | `test/agent-skills.it.test.ts` |
 | import routes + trust path: preview stores nothing and lists skipped scripts; save ignores a client body/source/enabled, stores `imported_file` disabled with the parsed body; `name_exists` then 409 duplicate; enable → 409 `skill_ack_required` → with ack 200 + `acknowledged_at`, no bump; overrides on a `.md`; 415 / 422 codes incl. `import_invalid_field` details; R3 shapes | `test/skill-import.it.test.ts` |
+| URL import routes: preview fetches through the port (limits 512 KB / 10 s), returns `sha256`, stores nothing; save re-fetches (two port calls), ignores a client body/source/enabled, stores `imported_url` disabled with the parsed body; ack on first enable; a changed file → 409 `import_url_changed` and nothing inserted; a malformed `sha256` → 422; every port refusal and pure check → its code and status, the pure checks without a port call; a `.zip` URL runs the zip pipeline; R3 shapes | `test/skill-import-url.it.test.ts:100`, `:115`, `:153`, `:172`, `:192` |
+| URL rules: `checkImportUrl` (https, credentials, blocked names, literal and parser-normalised private hosts, `.md` / `.zip` path, hash dropped), `isPrivateAddress` over every refused range and public addresses, `mapFetchFailure` total; the adapter with fake fetch + DNS: manual redirects, re-checked hops, non-https / over-long chains, private DNS answer refused before any request, 404, content-length and streamed caps, one signal shared by every hop, two hops that each fit the deadline but together exceed it → `timeout`, `ECONNRESET` → `network`; `MockUrlFetcher` | `test/skill-import-url.test.ts:28`, `:70`, `:117`, `:174`, `:256` |
+| `needsAck` for `imported_url` (true unacknowledged, false after; `extracted` never) | `test/skills-helpers.test.ts` |
 | seed idempotent (second run adds nothing); 4 agents, 10 skills + v1 snapshots, 12 links, PRs #482–#486 with `@@` patches; a refreshable PR is rewritten only on a new head sha, never an L02 PR, and counts are unchanged afterwards; Security 6 linked / 3 enabled in design order; a re-seed keeps a user's unticked link | `test/seed.it.test.ts` |
 | experiment PR fixtures: additions / deletions and hunk headers match each patch; only #485 / #486 refresh on seed | `test/seed-prs.test.ts` |
 | pure rules: `bumpsVersion`, `needsAck`, `linksChanged`, `missingIds`, DTO mapping, unique-violation detection | `test/skills-helpers.test.ts` |

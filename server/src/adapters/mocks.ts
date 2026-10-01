@@ -33,6 +33,7 @@ import type {
   SecretKey,
 } from '@devdigest/shared';
 import { parseUnifiedDiff } from '../modules/_shared/diff-parser.js';
+import type { UrlFetchResult, UrlFetcher } from '../modules/skills/types.js';
 import { SUPPORTED_EXT } from '../modules/repo-intel/constants.js';
 import type {
   CodeParser,
@@ -377,5 +378,25 @@ export class MockSecretsProvider implements SecretsProvider {
   constructor(private secrets: Partial<Record<string, string>> = {}) {}
   async get(key: SecretKey): Promise<string | undefined> {
     return this.secrets[key as string];
+  }
+}
+
+// ---------- Mock URL fetcher (skill URL import, HW02 D21) ----------
+/**
+ * Canned results per URL. A value may be an array: each call shifts the next
+ * result (the last one repeats), so a test can make the save's re-fetch return
+ * different bytes than the preview's. Unknown URL → `network` failure.
+ */
+export class MockUrlFetcher implements UrlFetcher {
+  public calls: { url: string; limits: { maxBytes: number; timeoutMs: number } }[] = [];
+
+  constructor(private responses: Record<string, UrlFetchResult | UrlFetchResult[]> = {}) {}
+
+  async fetch(url: string, limits: { maxBytes: number; timeoutMs: number }): Promise<UrlFetchResult> {
+    this.calls.push({ url, limits });
+    const r = this.responses[url];
+    if (!r) return { ok: false, code: 'network', detail: 'no mock response' };
+    if (Array.isArray(r)) return r.length > 1 ? r.shift()! : r[0]!;
+    return r;
   }
 }

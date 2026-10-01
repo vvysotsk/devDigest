@@ -274,6 +274,11 @@ Never rewrite existing entries — correct with a dated note.
   `relativeTime` to `lib/date-format.ts`; `messages/en/conventions.json`
   rewritten around the real keys.
 
+- 2026-10-01 (3a): `ImportSkillModal` gained a `source: "file" | "url"`
+  prop (both hook pairs called unconditionally, one view over the active
+  pair), the Add Skill menu's "Import from URL", `needsInjectionAck` for
+  `imported_url`, `errors.import_url_*` messages.
+
 ## Open Questions
 
 - 2026-09-26: Files already past the `frontend-architecture` review signals,

@@ -32,6 +32,8 @@ vi.mock("@/features/skills/hooks", async () => {
     useDeleteSkill: fakeMutation((id: string) => h.del(id)),
     useImportPreview: fakeMutation(() => undefined),
     useImportSkill: fakeMutation(() => undefined),
+    useImportUrlPreview: fakeMutation(() => undefined),
+    useImportUrlSkill: fakeMutation(() => undefined),
   };
 });
 
@@ -141,6 +143,33 @@ describe("SkillsListView", () => {
     expect(await screen.findByRole("switch")).toBeInTheDocument();
     expect(screen.queryByRole("dialog")).not.toBeInTheDocument();
     expect(h.push).not.toHaveBeenCalled();
+  });
+
+  it("a URL-imported skill needs the same first-enable acknowledgement (HW02 D21)", async () => {
+    const user = userEvent.setup();
+    h.skills = [skill({ id: "s5", name: "from-url", source: "imported_url", enabled: false, acknowledged_at: null })];
+    renderList();
+    expect(within(card("from-url")).getByText("Imported")).toBeInTheDocument();
+    await user.click(within(card("from-url")).getByRole("switch"));
+    const dialog = screen.getByRole("dialog");
+    expect(within(dialog).getByText("“from-url” was imported. Read its text in the Preview tab before you enable it.")).toBeInTheDocument();
+    expect(h.update).not.toHaveBeenCalled();
+    await user.click(within(dialog).getByRole("checkbox"));
+    await user.click(within(dialog).getByRole("button", { name: "Enable skill" }));
+    expect(h.update).toHaveBeenCalledWith({ id: "s5", patch: { enabled: true, acknowledge_injection: true } });
+  });
+
+  it("Add Skill ▾ → Import from URL opens the import modal in URL mode", async () => {
+    const user = userEvent.setup();
+    h.skills = [skill({ id: "s1" })];
+    renderList();
+    await user.click(screen.getByRole("button", { name: "Add Skill" }));
+    await user.click(screen.getByRole("button", { name: "Import from URL" }));
+    const dialog = screen.getByRole("dialog");
+    expect(within(dialog).getByText("Import from URL")).toBeInTheDocument();
+    expect(within(dialog).getByRole("textbox", { name: "Skill URL" })).toBeInTheDocument();
+    expect(within(dialog).getByRole("button", { name: "Fetch preview" })).toBeDisabled(); // nothing typed yet
+    expect(within(dialog).queryByLabelText("Skill file (.md or .zip)")).not.toBeInTheDocument();
   });
 
   it("an acknowledged imported skill is enabled without the dialog", async () => {

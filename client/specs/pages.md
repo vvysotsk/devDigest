@@ -1,6 +1,6 @@
 # client — pages
 
-Last verified: 2026-10-01 (HW02 Stage 2c: /conventions)
+Last verified: 2026-10-01 (HW02 3a: import from URL)
 
 ## Scope
 
@@ -196,10 +196,12 @@ for the PR page (`FindingsPanel/FindingsPanel.tsx`, `RunHistory/RunHistory.tsx`,
   clickable card, so its clicks never open the skill.
 - Enabled switch (card and Config tab, `SkillEnabledToggle`) writes at once:
   `PUT /skills/:id { enabled }` (no version bump). The FIRST enable of an
-  imported skill (`source = imported_file` and `acknowledged_at = null`) opens
-  a dialog "I have read this text; it will be injected into the agent's prompt
-  as instructions"; confirming sends `{ enabled: true, acknowledge_injection:
-  true }`. An unsaved Config draft survives the toggle and its refetch.
+  imported skill (`source` `imported_file` or `imported_url`, and
+  `acknowledged_at = null`; `needsInjectionAck`, `src/app/skills/helpers.ts:5`)
+  opens a dialog "I have read this text; it will be injected into the agent's
+  prompt as instructions"; confirming sends `{ enabled: true,
+  acknowledge_injection: true }`. An unsaved Config draft survives the toggle
+  and its refetch.
 - "Add Skill ▾": **Create** → `CreateSkillModal` → `POST /skills` (manual)
   → navigates to the new skill; **Import file** → `ImportSkillModal`: a
   "Choose file" kit button (over a visually hidden, labelled file input)
@@ -212,7 +214,18 @@ for the PR page (`FindingsPanel/FindingsPanel.tsx`, `RunHistory/RunHistory.tsx`,
   point) =
   `POST /skills/import` with the file + only the fields that differ from the
   draft (never a body); saved disabled. `SkillErrorCode`s map to
-  `skills.errors.*` messages (`src/features/skills/lib/skill-errors.ts`).
+  `skills.errors.*` messages (`src/features/skills/lib/skill-errors.ts`);
+  **Import from URL** (HW02 D21) → the same `ImportSkillModal` with
+  `source="url"` (`…/ImportSkillModal/ImportSkillModal.tsx:28`): a "Skill
+  URL" input (Enter or "Fetch preview"; a value that does not start with
+  `https://` is refused before any request) → `POST /skills/import-url/preview`
+  (`useImportUrlPreview`, `src/features/skills/hooks.ts:110`) → the same
+  draft fields, raw text, file table, warnings and trust notice → "Save
+  skill" = `POST /skills/import-url` with `{ url, sha256 }` from the preview
+  plus the changed overrides (never a body; `:110`); saved disabled, source
+  `imported_url`; the toast reads "Imported … Disabled until you vet +
+  enable it." The URL codes (`import_url_*`, `import_url_changed`) map to
+  `skills.errors.*` too.
 - `?tab=config`: local draft of name / description / type / body; "Save
   skill" sends only the changed fields (`PUT /skills/:id`) and shows
   "Saved (vN)"; the body editor shows `<name>.md`, line numbers, an "unsaved"
@@ -364,7 +377,9 @@ for the PR page (`FindingsPanel/FindingsPanel.tsx`, `RunHistory/RunHistory.tsx`,
 | Agent card and editor render | `src/app/agents/_components/AgentCard/AgentCard.test.tsx:34`, `src/app/agents/[id]/_components/AgentEditor/AgentEditor.test.tsx:29` |
 | Agent card Delete: confirm modal, Cancel / X close it, Delete deletes, the card's click is never reached | `src/app/agents/_components/AgentCard/AgentCard.test.tsx:49` |
 | Skill cards (version, agent count), switch, imported first-enable acknowledgement, card click → `?tab=preview`, card Delete confirm (cancel / X / delete → back to `/skills`), create flow | `src/app/skills/_components/SkillsListView/SkillsListView.test.tsx` |
-| Import preview (raw text, warnings, file statuses), save with overrides and no body, error-code messages, size pre-check | `src/app/skills/_components/SkillsListView/_components/ImportSkillModal/ImportSkillModal.test.tsx` |
+| Import preview (raw text, warnings, file statuses), save with overrides and no body, error-code messages, size pre-check; URL mode: Fetch preview → the shared details, save `{ url, sha256, overrides }` and no body, success toast + navigation, `http://` refused before any request, a server code's message | `src/app/skills/_components/SkillsListView/_components/ImportSkillModal/ImportSkillModal.test.tsx` |
+| Add Skill ▾ → Import from URL opens the modal in URL mode; a `imported_url` skill gets the first-enable acknowledgement | `src/app/skills/_components/SkillsListView/SkillsListView.test.tsx:148`, `:162` |
+| `needsInjectionAck` for both imported sources, false once acknowledged or for other sources | `src/app/skills/helpers.test.ts` |
 | Config changed-field PUT + "Saved (v2)", unsaved chip + token estimate, delete confirm, Config acknowledgement, Enabled toggle keeps the unsaved draft, Preview raw/rendered, Versioning tab label, "metadata change", Diff lines, Restore → new version (disabled for the current body) | `src/app/skills/[id]/_components/SkillEditor/SkillEditor.test.tsx` |
 | `lineDiff` (same / add / del, moved lines, the cell-limit fallback) and `versionRows` | `src/app/skills/[id]/_components/SkillEditor/_components/VersionsTab/helpers.test.ts` |
 | Every `SkillErrorCode` has a message | `src/features/skills/lib/skill-errors.test.ts` |

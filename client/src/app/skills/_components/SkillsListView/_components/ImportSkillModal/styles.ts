@@ -16,4 +16,5 @@ export const s = {
     overflow: "hidden",
   } satisfies CSSProperties,
   fileName: { fontSize: 13, color: "var(--text-secondary)" } satisfies CSSProperties,
+  urlInput: { flex: 1, minWidth: 0 } satisfies CSSProperties,
 } as const;

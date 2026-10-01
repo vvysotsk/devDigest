@@ -13,7 +13,7 @@ import { ToastProvider } from "@/lib/toast";
 import { ApiError } from "@/lib/api";
 import { skill } from "@/test/fixtures";
 
-const h = vi.hoisted(() => ({ push: vi.fn(), preview: vi.fn(), save: vi.fn() }));
+const h = vi.hoisted(() => ({ push: vi.fn(), preview: vi.fn(), save: vi.fn(), previewUrl: vi.fn(), saveUrl: vi.fn() }));
 
 vi.mock("next/navigation", () => ({ useRouter: () => ({ push: h.push, replace: vi.fn() }) }));
 vi.mock("@/features/skills/hooks", async () => {
@@ -21,6 +21,8 @@ vi.mock("@/features/skills/hooks", async () => {
   return {
     useImportPreview: fakeMutation((v: unknown) => h.preview(v)),
     useImportSkill: fakeMutation((v: unknown) => h.save(v)),
+    useImportUrlPreview: fakeMutation((v: unknown) => h.previewUrl(v)),
+    useImportUrlSkill: fakeMutation((v: unknown) => h.saveUrl(v)),
   };
 });
 
@@ -56,16 +58,19 @@ const PREVIEW: SkillImportPreview = {
   ],
 };
 
-function renderModal(onClose = vi.fn()) {
+function renderModal(onClose = vi.fn(), source: "file" | "url" = "file") {
   render(
     <NextIntlClientProvider locale="en" messages={{ skills: messages }}>
       <ToastProvider>
-        <ImportSkillModal onClose={onClose} />
+        <ImportSkillModal source={source} onClose={onClose} />
       </ToastProvider>
     </NextIntlClientProvider>,
   );
   return onClose;
 }
+
+const URL = "https://raw.githubusercontent.com/acme/skills/main/api-deprecation-policy/SKILL.md";
+const SHA = "a".repeat(64);
 
 const zip = () => new File(["PK-fake-zip"], "api-deprecation-policy.zip", { type: "application/zip" });
 
@@ -140,6 +145,61 @@ describe("ImportSkillModal", () => {
     expect(await screen.findByText("Reading file…")).toBeInTheDocument();
     expect(screen.getByRole("button", { name: "Save skill" })).toBeDisabled(); // preview still loading
     expect(h.save).not.toHaveBeenCalled();
+  });
+
+  it("URL mode: fetches the preview, shows the shared details and saves { url, sha256, overrides } — never a body (HW02 D21)", async () => {
+    const user = userEvent.setup();
+    h.previewUrl.mockResolvedValue({ ...PREVIEW, filename: "SKILL.md", sha256: SHA });
+    h.saveUrl.mockResolvedValue(skill({ id: "imp-2", name: "api-deprecation-policy", source: "imported_url" }));
+    const onClose = renderModal(vi.fn(), "url");
+    const dialog = screen.getByRole("dialog");
+    expect(within(dialog).getByText("Import from URL")).toBeInTheDocument();
+    expect(within(dialog).getByRole("button", { name: "Save skill" })).toBeDisabled();
+
+    await user.type(within(dialog).getByRole("textbox", { name: "Skill URL" }), URL);
+    await user.click(within(dialog).getByRole("button", { name: "Fetch preview" }));
+    expect(h.previewUrl).toHaveBeenCalledWith({ url: URL });
+    expect(h.preview).not.toHaveBeenCalled();
+
+    const raw = await screen.findByRole("region", { name: /Raw SKILL\.md/ });
+    expect(raw.querySelector("pre")?.textContent).toBe(RAW);
+    expect(screen.getByRole("region", { name: "Warnings" })).toBeInTheDocument();
+    expect(screen.getByRole("note")).toHaveTextContent("injected into the agent's prompt as instructions");
+
+    const save = within(dialog).getByRole("button", { name: "Save skill" });
+    expect(save).toBeDisabled(); // no description yet
+    await user.type(within(dialog).getByRole("textbox", { name: "Description" }), "Use when an endpoint changes");
+    await user.click(save);
+
+    expect(h.saveUrl).toHaveBeenCalledTimes(1);
+    const sent = h.saveUrl.mock.calls[0]![0];
+    expect(sent).toEqual({ url: URL, sha256: SHA, description: "Use when an endpoint changes" });
+    expect(sent).not.toHaveProperty("body");
+    expect(h.save).not.toHaveBeenCalled();
+    await vi.waitFor(() => expect(h.push).toHaveBeenCalledWith("/skills/imp-2?tab=config"));
+    expect(onClose).toHaveBeenCalled();
+    expect(screen.getByText('Imported "api-deprecation-policy". Disabled until you vet + enable it.')).toBeInTheDocument();
+  });
+
+  it("URL mode: an http:// URL is refused before any request; a server code maps to its message", async () => {
+    const user = userEvent.setup();
+    renderModal(vi.fn(), "url");
+    const dialog = screen.getByRole("dialog");
+    const box = within(dialog).getByRole("textbox", { name: "Skill URL" });
+
+    await user.type(box, "http://example.com/SKILL.md{Enter}");
+    expect(within(dialog).getByRole("alert")).toHaveTextContent("Enter an https:// URL.");
+    expect(h.previewUrl).not.toHaveBeenCalled();
+
+    h.previewUrl.mockRejectedValue(new ApiError("resolves to 10.0.0.5", 422, "import_url_blocked"));
+    await user.clear(box);
+    await user.type(box, "https://evil.example/SKILL.md");
+    await user.click(within(dialog).getByRole("button", { name: "Fetch preview" }));
+    expect(await within(dialog).findByRole("alert")).toHaveTextContent(
+      "This address cannot be fetched (private, loopback or blocked host).",
+    );
+    expect(within(dialog).getByRole("button", { name: "Save skill" })).toBeDisabled();
+    expect(h.saveUrl).not.toHaveBeenCalled();
   });
 
   it("rejects an oversized file before any request", async () => {
