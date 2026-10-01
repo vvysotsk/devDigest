@@ -4,13 +4,16 @@
  * snapshot), the link plan (Security 6 linked / 3 enabled) and PRs #482–#486
  * with patches for the experiment PRs — that a re-seed keeps a user's edited
  * link list, and that a changed HW02 calibration fixture (#485 / #486) reaches
- * an existing DB on a re-seed while nothing else is touched (HW02 D13).
+ * an existing DB on a re-seed while nothing else is touched (HW02 D13). HW02
+ * D20: one finished conventions scan with four pending candidates, inserted
+ * once; a user's decision on a candidate survives a re-seed.
  */
 import { describe, it, expect, beforeAll, afterAll } from 'vitest';
 import { and, eq, inArray } from 'drizzle-orm';
 import { startPg, dockerAvailable, type PgFixture } from './helpers/pg.js';
 import { seed, upsertExperimentPr } from '../src/db/seed.js';
 import { SEED_EXPERIMENT_PRS, type SeedPr } from '../src/db/seed-prs.js';
+import { SEED_CONVENTIONS, SEED_CONVENTION_SCAN } from '../src/db/seed-conventions.js';
 import * as t from '../src/db/schema.js';
 import type { PgTable } from 'drizzle-orm/pg-core';
 
@@ -41,13 +44,15 @@ d('seed (Testcontainers pg)', () => {
       prCommits: await n(t.prCommits),
       reviews: await n(t.reviews),
       findings: await n(t.findings),
+      scans: await n(t.conventionScans),
+      conventions: await n(t.conventions),
     };
   }
 
   it('seeds the L02 data once and a second run changes nothing', async () => {
     await seed(db);
     const first = await counts();
-    expect(first).toMatchObject({ agents: 4, skills: 10, skillVersions: 10, agentSkills: 12, pulls: 5 });
+    expect(first).toMatchObject({ agents: 4, skills: 10, skillVersions: 10, agentSkills: 12, pulls: 5, scans: 1, conventions: 4 });
 
     await seed(db);
     expect(await counts()).toEqual(first);
@@ -98,6 +103,39 @@ d('seed (Testcontainers pg)', () => {
       .from(t.agentSkills)
       .where(and(eq(t.agentSkills.agentId, security!.id), eq(t.agentSkills.skillId, rubric!.id)));
     expect(after!.enabled).toBe(false);
+  });
+
+  it('seeds one finished conventions scan with four pending candidates; a user decision survives a re-seed (HW02 D20)', async () => {
+    await seed(db);
+    const scans = await db.select().from(t.conventionScans);
+    expect(scans).toHaveLength(1);
+    expect(scans[0]).toMatchObject({
+      status: 'done',
+      headSha: SEED_CONVENTION_SCAN.headSha,
+      sampleCount: SEED_CONVENTION_SCAN.sampleCount,
+      candidatesDropped: SEED_CONVENTION_SCAN.candidatesDropped,
+      provider: 'openrouter',
+      model: 'seed',
+      error: null,
+    });
+    expect(scans[0]!.finishedAt).toBeInstanceOf(Date);
+    const [repo] = await db.select({ id: t.repos.id }).from(t.repos).where(eq(t.repos.fullName, 'acme/payments-api'));
+    expect(scans[0]!.repoId).toBe(repo!.id);
+
+    const candidates = await db.select().from(t.conventions).where(eq(t.conventions.scanId, scans[0]!.id));
+    expect(candidates.map((c) => c.rule).sort()).toEqual(SEED_CONVENTIONS.map((c) => c.rule).sort());
+    expect(candidates.every((c) => c.status === 'pending')).toBe(true);
+
+    // The user accepts one candidate; a re-seed must not restore it or add a second scan.
+    const target = candidates.find((c) => c.rule === SEED_CONVENTIONS[0]!.rule)!;
+    await db.update(t.conventions).set({ status: 'accepted' }).where(eq(t.conventions.id, target.id));
+    await seed(db);
+    expect(await db.select().from(t.conventionScans)).toHaveLength(1);
+    const [after] = await db.select({ status: t.conventions.status }).from(t.conventions).where(eq(t.conventions.id, target.id));
+    expect(after!.status).toBe('accepted');
+    expect(await db.select().from(t.conventions)).toHaveLength(SEED_CONVENTIONS.length);
+    // Leave the fixture as the other cases expect it.
+    await db.update(t.conventions).set({ status: 'pending' }).where(eq(t.conventions.id, target.id));
   });
 
   it('a calibration edit (new head sha) of #485/#486 reaches the DB on a re-seed; nothing else changes (D13)', async () => {

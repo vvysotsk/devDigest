@@ -108,3 +108,4 @@ All of these show the page after the failure.
 | `06-onboarding` | `/onboarding` → add-repository form renders (no submit) |
 | `07-settings` | `/settings/api-keys` + `/settings/models` → section titles render |
 | `08-skills` | `/skills` → open a seeded skill (Config tab); `/agents` → new agents + skill chips → Security's Skills tab "3 of 6 enabled" (L02) |
+| `09-conventions` | sidebar → `/conventions` with the seeded scan → Accept / Reject / Edit a card → reload keeps them → Create skill (agent picker) → `/skills` lists `repo-conventions`; the only writing flow, runs last, needs a fresh seed (HW02 D20) |

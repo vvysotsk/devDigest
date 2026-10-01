@@ -11,6 +11,7 @@ import {
 } from './seed-prompts.js';
 import { SEED_AGENT_SKILL_LINKS, SEED_SKILLS } from './seed-skills.js';
 import { SEED_EXPERIMENT_PRS, type SeedPr } from './seed-prs.js';
+import { SEED_CONVENTIONS, SEED_CONVENTION_SCAN } from './seed-conventions.js';
 
 /** Default provider/model for the built-in reviewer agents. */
 const DEFAULT_PROVIDER = 'openrouter' as const;
@@ -31,8 +32,12 @@ const DEFAULT_MODEL = 'deepseek/deepseek-v4-flash';
  * API Contract Reviewer is not seeded: the user creates it in the UI (HW02
  * D9, D10).
  *
- * Course lessons populate the other tables (conventions, memory, eval, …)
- * once their features are built — they start empty here.
+ * HW02 D20 adds one finished conventions scan with four pending candidates on
+ * the demo repo (inserted once per repo, never rewritten, so a user's accept /
+ * reject / edit survives a re-seed) for the browser flow `e2e/specs/09-conventions`.
+ *
+ * Course lessons populate the other tables (memory, eval, …) once their
+ * features are built — they start empty here.
  */
 
 export const DEFAULT_WORKSPACE_NAME = 'default';
@@ -277,6 +282,34 @@ export async function seed(db: Db): Promise<{ workspaceId: string; userId: strin
     await db.insert(t.agentSkills).values(
       links.map((l, order) => ({ agentId: agent.id, skillId: skillIds.get(l.skill)!, order, enabled: l.enabled })),
     );
+  }
+
+  // ---- one finished conventions scan + candidates, only while the repo has no scan (HW02 D20) ----
+  const [scanExists] = await db
+    .select({ id: t.conventionScans.id })
+    .from(t.conventionScans)
+    .where(eq(t.conventionScans.repoId, repoId))
+    .limit(1);
+  if (!scanExists) {
+    await db.transaction(async (tx) => {
+      const [scan] = await tx
+        .insert(t.conventionScans)
+        .values({
+          workspaceId,
+          repoId,
+          status: 'done',
+          headSha: SEED_CONVENTION_SCAN.headSha,
+          sampleCount: SEED_CONVENTION_SCAN.sampleCount,
+          candidatesDropped: SEED_CONVENTION_SCAN.candidatesDropped,
+          provider: SEED_CONVENTION_SCAN.provider,
+          model: SEED_CONVENTION_SCAN.model,
+          finishedAt: new Date(),
+        })
+        .returning({ id: t.conventionScans.id });
+      await tx.insert(t.conventions).values(
+        SEED_CONVENTIONS.map((c) => ({ workspaceId, repoId, scanId: scan!.id, ...c })),
+      );
+    });
   }
 
   return { workspaceId, userId };

@@ -18,7 +18,7 @@ fixtures: every expectation comes from the server seed
 |---|---|
 | `run.ts` | The runner: loads `specs/*.flow.json` in lexical order, executes each step with `execFile(agent-browser, args)` and logs its elapsed time, stops a flow at its first failure, records URL / page errors / accessibility snapshot / screenshot on failure, closes the browser, exits 1 if any flow failed. |
 | `lib/assert.ts` | `Flow` / `Step` types, `{BASE}` substitution (`resolveArgs`), the `stdoutIncludes` check, the PASS/FAIL summary. |
-| `specs/NN-<slug>.flow.json` | One browser flow each (01–08); `specs/flows-contract.md` is the curated contract for them. |
+| `specs/NN-<slug>.flow.json` | One browser flow each (01–09); `specs/flows-contract.md` is the curated contract for them. 01–08 are read-only; 09 writes (see Boundaries). |
 | `agent-browser.json` | CLI config: headless, HTTPS errors not ignored. |
 | `package.json` | `npm test` → `tsx run.ts`; `npm run e2e:hermetic` → `../scripts/e2e.sh`; `npm run typecheck`. npm + `package-lock.json`, not pnpm. |
 | `tsconfig.json` | ES2022 / Bundler resolution over `run.ts` and `lib/**`. |
@@ -85,16 +85,23 @@ fixtures: every expectation comes from the server seed
   for its own target; `wait --url` and `wait --load networkidle` do not prove
   that the data behind a page has rendered. The rule and its evidence are in
   `specs/flows-contract.md` → "Flow authoring rules".
-- **Read-only**: flows never submit forms or start a review; the only
-  mutations are the server's own GitHub-less imports, which no-op without a
-  token. Flow 08 types an unsaved draft into the skill body editor and
-  never presses Save, so nothing is written.
+- **Read-only, except 09**: flows 01–08 never submit forms or start a
+  review; the only mutations are the server's own GitHub-less imports, which
+  no-op without a token. Flow 08 types an unsaved draft into the skill body
+  editor and never presses Save, so nothing is written. Flow 09 is the one
+  writing flow (HW02 D20): it accepts, rejects and edits the seeded
+  conventions candidates and creates the `repo-conventions` skill linked to
+  General Reviewer. It therefore needs a fresh seed (hermetic stack, CI),
+  runs last (filename order), and no other flow may assert on what it
+  changes (`specs/flows-contract.md` → "Flow authoring rules").
 - **Seed is the fixture.** Texts asserted by flows (`Pull Requests`,
   `Add rate limiting to public API endpoints`, `Security Reviewer`,
   `request changes`, `2 findings`, `Hardcoded Stripe secret key in commit`,
   the seeded file path *src/config.ts*, `Add a repository`, `Repository URL`, `API Keys`,
-  `Feature Models`) come from `../server/src/db/seed.ts` and the client's
-  i18n / kit labels; a copy change there breaks a flow here.
+  `Feature Models`, the seeded convention rules, `Detected from 14 sample
+  files`, `0 of 4 accepted`) come from `../server/src/db/seed.ts`,
+  `../server/src/db/seed-conventions.ts` and the client's i18n / kit labels;
+  a copy change there breaks a flow here.
 - **First-repo assumption.** Flows 02, 04 and 05 follow the home redirect to
   the first repo, so the DB must contain only the seeded repo — true in CI and
   in the hermetic stack, usually false against a dev DB.

@@ -214,12 +214,23 @@ no repository themselves (`src/modules/conventions/routes.ts:28-32`).
   the module imports nothing from `modules/skills` or `modules/settings`
   (`pnpm deps:check`: no new violation).
 
+## Seed data (`src/db/seed-conventions.ts`)
+
+Plain typed data written by `src/db/seed.ts:287-313`: one `done` scan on
+`acme/payments-api` (`head_sha` = PR #482's `a1b2c3d4e5f6`, `sample_count`
+14, `candidates_dropped` 1, provider `openrouter`, model `seed`) with four
+`pending` candidates (`SEED_CONVENTIONS`, `:41`), inserted only while the
+repo has no scan, so a user's accept / reject / edit survives a re-seed. It
+exists for the browser flow `../../e2e/specs/09-conventions.flow.json`
+(HW02 D20); the extraction path itself is covered by the `.it` tests below.
+
 ## Tests
 
 | Guarantee | Test |
 |---|---|
 | The contracts parse valid fixtures and reject `confidence > 1`, an unknown category, `evidence_line 0`, an empty patch, a non-kebab skill name and empty `candidate_ids` | `test/contracts.test.ts` "Convention contracts (HW02 2a)" |
 | Both migrations apply on a fresh DB (14 journal entries); a scan defaults to `running` with zero counts; a candidate defaults to `pending`; `evidence_path` is NOT NULL; deleting a scan cascades to its candidates | `test/conventions-schema.it.test.ts` |
+| The seed stores exactly one `done` scan with the four pending fixture candidates on `acme/payments-api`; a second seed adds nothing (`scans: 1, conventions: 4` in the idempotency counts); an accepted candidate stays accepted after a re-seed | `test/seed.it.test.ts:52`, `:108` |
 | D15 config-file filter (positive / negative names), `N \| text` numbering with the 200-line cap, `findQuote` on the line / ±2 / whitespace / spanning quote / miss, `snippetAround` clamped, `normaliseRule`, `isSampledPath` (`./`, `\`, `..`, absolute, unsampled, empty), `verifyCandidates` (found line, code-read snippet, 3 drops), the `ConventionExtraction` schema, the `<untrusted>` wrapping + system sentence + cap, the D18 body format | `test/conventions-helpers.test.ts` |
 | `SimpleGitClient.listRootFiles`: root regular files only, dotfiles included, nothing nested, `[]` for a missing clone; `MockGitClient.listRootFiles` + `reads` recording | `test/git-adapter.test.ts`, `test/adapters.test.ts` |
 | 409 `repo_not_cloned` / `repo_not_indexed` with zero LLM calls; 404 unknown repo | `test/conventions.it.test.ts:195` |

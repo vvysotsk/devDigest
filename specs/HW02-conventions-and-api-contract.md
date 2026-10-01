@@ -93,13 +93,13 @@ in the working tree on 2026-09-29.
 | 43 | Four API skills with a directive description and a good / bad example | ❌ | 1a | files + Skills page |
 | 44 | Conventions in SKILLS LAB | ✅ 2026-10-01 (2c): `client/src/vendor/ui/nav.ts` SKILLS LAB item `conventions` → `/conventions` (`activeKeyFor` already mapped it: `client/src/components/app-shell/helpers.ts:31`) | 2c | client test |
 | 45 | Run Scan and ReScan buttons | ✅ 2026-10-01 (2c): `ConventionsView.tsx` — Run Scan while `scan === null`, ReScan once a scan exists; `ConventionsView.test.tsx` cases 1 and 3; the real-model run is manual (D20) | 2c | D19; client test; Run Scan manual (D20) |
-| 46 | Cards: rule, source file, confidence % | ✅ client 2026-10-01 (2c): `…/CandidateCard/CandidateCard.tsx` (rule, category, `path:line` → GitHub at `head_sha`, snippet, confidence %); `ConventionsView.test.tsx` case 3; e2e in 2d | 2c | client test; e2e |
-| 47 | Accept / Reject / Edit on each card | ✅ client 2026-10-01 (2c): `CandidateCard.tsx` three buttons; `ConventionsView.test.tsx` case 4, `CandidateCard.test.tsx`; e2e in 2d | 2c | client test; e2e |
-| 48 | Reject persists; never returns, never enters the skill | ⚠ server side done 2026-10-01 (2b): `server/src/modules/conventions/repository.ts:205` (`decisionsByRule`), `service.ts:126`; `server/test/conventions.it.test.ts:302` (re-scan keeps the rejection), `:345` (400 for a non-accepted id); UI + e2e reload in 2c / 2d | 2b–2c | `.it`; e2e reload |
+| 46 | Cards: rule, source file, confidence % | ✅ 2026-10-01: client (2c) `…/CandidateCard/CandidateCard.tsx` (rule, category, `path:line` → GitHub at `head_sha`, snippet, confidence %), `ConventionsView.test.tsx` case 3; e2e (2d) `e2e/specs/09-conventions.flow.json` asserts the seeded rule, `src/api/users.ts:23`, `91%` | 2c | client test; e2e |
+| 47 | Accept / Reject / Edit on each card | ✅ 2026-10-01: client (2c) `CandidateCard.tsx` three buttons, `ConventionsView.test.tsx` case 4, `CandidateCard.test.tsx`; e2e (2d) flow 09 clicks all three on the seeded cards | 2c | client test; e2e |
+| 48 | Reject persists; never returns, never enters the skill | ✅ 2026-10-01: server (2b + fix) carry-over by rule text OR evidence location (`server/src/modules/conventions/helpers.ts:102-116`; `server/test/conventions.it.test.ts:302`, `:360`), 400 for a non-accepted id (`:345`); client (2c) a rejected card leaves the cache (`client/src/lib/hooks/conventions.test.tsx`); e2e (2d) flow 09: after Reject and a `reload` the rule is absent (`R2_ABSENT`) and the skill is built from the accepted candidate only | 2b–2c | `.it`; e2e reload |
 | 49 | Inline edit | ✅ 2026-10-01 (2c): `CandidateCard.tsx` edit form in place (rule + category, Save / Cancel); `ConventionsView.test.tsx` case 4 | 2c | client test |
 | 50 | Create skill appears after ≥ 1 accept | ✅ 2026-10-01 (2c): `ConventionsView.tsx` renders Create skill only when `acceptedCount ≥ 1`; `ConventionsView.test.tsx` cases 1, 3, 6 | 2c | client test |
 | 51 | Modal says it is created from conventions; Name / Description; Cancel / Create | ✅ 2026-10-01 (2c): the modal's title and "Merged from N accepted conventions in <repo>" bar, Name / Description / Type, Cancel / Create skill; `CreateConventionSkillModal.test.tsx` | 2c | client test (DZ 2.png) |
-| 52 | The new skill is listed on `/skills` | ❌ | 2d | e2e |
+| 52 | The new skill is listed on `/skills` | ✅ 2026-10-01 (2d): flow 09 creates `repo-conventions` from the modal and lands on `/skills/:id?tab=preview` with the skill listed (`repo-conventions`, chip `Extracted`); `/agents` shows General Reviewer with `1 skill` | 2d | e2e |
 | 53 | Settings → Models: a conventions row, searchable dropdown, dynamic model | ✅ 2026-10-01 (2b): the extractor resolves `'conventions'` per run through `container.featureModels` (`server/src/platform/container.ts:162` → `resolveFeatureModel`; `server/src/modules/conventions/service.ts:110`); `server/test/conventions.it.test.ts:214` runs on the model chosen via `PUT /settings`. The 0e client fix (`SettingsModels.tsx`) saves the model's own provider | 0e + 2b | D8; the extractor resolves its model per run |
 
 ## Traceability — brief lines
@@ -595,6 +595,19 @@ in the working tree on 2026-09-29.
     `ContainerOverrides.llm` in the test, never through server config.
   - **Run Scan is verified manually and in the demo with the real model**,
     not by e2e.
+  - **2d note (2026-10-01).** The seed is `server/src/db/seed-conventions.ts`
+    (one `done` scan, `head_sha` of PR #482, 14 samples, 1 dropped, four
+    `pending` candidates from the design copy anchored on seeded paths),
+    written by `seed.ts` only while the repo has no scan, so user decisions
+    survive a re-seed; `test/seed.it.test.ts` pins it. The flow is
+    `e2e/specs/09-conventions.flow.json`: the first **writing** flow of the
+    suite (01–08 are read-only), so it runs last, needs a fresh seed
+    (hermetic / CI) and no other flow asserts on what it changes; it also
+    enters the page through the sidebar item (#44 in e2e). Per-card button
+    clicks go through `eval`s scoped to the card's `aria-label` (and the
+    modal's by `[role=dialog]`) because every card shares the names Accept /
+    Reject / Edit; distinct accessible names per button are a follow-up idea,
+    not part of this stage.
 
 ### Stage 3 — extras
 

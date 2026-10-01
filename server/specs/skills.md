@@ -185,7 +185,8 @@ is rewritten, row + files + commits in one transaction, when its fixture has a
 new `headSha`. That is how a calibration edit reaches a running DB
 (`../specs/HW02-conventions-and-api-contract.md` D13).
 Skill bodies and prompts stay generic — they never name the experiment PRs'
-defects (see `../specs/L02-skills.md` D8).
+defects (see `../specs/L02-skills.md` D8). The seeded conventions scan
+(`src/db/seed-conventions.ts`) is specified in `conventions.md` → "Seed data".
 
 ## Known limitations
 

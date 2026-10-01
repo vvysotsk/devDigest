@@ -24,6 +24,21 @@ Never rewrite existing entries — correct with a dated note.
 
 ## Codebase Patterns
 
+- 2026-10-01: `find text <t> click` does not click an element that has no
+  role — the kit `SearchableSelect` trigger is a `div` with an `onClick`
+  (`generic [clickable]` with the placeholder as a child `StaticText` in the
+  failure snapshot) — even though `wait --text <t>` for the same text passes
+  a step earlier (flow 09 failed at "open the agent picker", 8/9 on the first
+  hermetic run). Click such elements through `eval` scoped to the dialog
+  (and the same for buttons that share a name across cards), returning a
+  marker for `stdoutIncludes`. Read the failure snapshot before choosing the
+  click: the select's OPTION rows are real `<button>`s (`button "General
+  Reviewer"`), so a `div`-filtering eval found nothing on the second run and
+  the plain `find role button click --name` is the right step there
+  (evidence: `specs/09-conventions.flow.json:45`, `:47`;
+  `test-results/09-conventions-fail.snapshot.txt:147-156` on 2026-10-01;
+  `../client/src/vendor/ui/kit/SearchableSelect.tsx:83`, `:167-171`).
+
 ## Tool & Library Notes
 
 - 2026-09-24: `npm run e2e:hermetic` only WARNS when `agent-browser` is not
