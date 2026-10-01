@@ -1,9 +1,9 @@
 /** Every SkillErrorCode the server can return has a translated message. */
 import { describe, it, expect } from "vitest";
 import { SkillErrorCode } from "@devdigest/shared";
-import messages from "../../../messages/en/skills.json";
+import messages from "../../../../messages/en/skills.json";
 import { ApiError } from "@/lib/api";
-import { skillErrorKey } from "./helpers";
+import { skillErrorKey } from "./skill-errors";
 
 describe("skillErrorKey", () => {
   it.each(SkillErrorCode.options)("maps %s to an existing skills.errors message", (code) => {

@@ -105,6 +105,23 @@ Never rewrite existing entries — correct with a dated note.
   `src/app/repos/[repoId]/pulls/[number]/_components/FindingsTab/FindingsTab.tsx:131-134`
   (`runs={prRuns ?? []}`, `reviews={runs}`).
 
+- 2026-10-01: Logic inside a hook's `onSuccess` / `refetchInterval` is
+  invisible to the view tests, which `vi.mock` the whole hooks module. Export
+  the rule as a pure function from the hooks file (`applyCandidate`,
+  `conventionsPollInterval`) and test it there, plus a `renderHook` +
+  `QueryClientProvider` case for the branch that touches the cache on an
+  error (the 409 `scan_running` re-fetch) — otherwise "a rejected card
+  disappears" is only ever proven against the test's own fake (plan
+  correction by the user) (evidence: `src/lib/hooks/conventions.ts:23-44`,
+  `src/lib/hooks/conventions.test.tsx:57-74`).
+- 2026-10-01: A page that reads the active repo is tested like the shell:
+  `vi.mock("@/lib/repo-context", () => ({ useActiveRepo: () => h.repo }))`
+  with a hoisted `h.repo` the test reassigns per case (`repoId: null` for
+  the no-repo state); `RepoProvider` needs `usePathname` and `useRepos`, so
+  rendering the real provider would drag in `next/navigation` and the API
+  (evidence: `src/app/conventions/_components/ConventionsView/ConventionsView.test.tsx:41`,
+  `:80`, `:244`; `src/lib/repo-context.tsx:25-26`).
+
 ## Tool & Library Notes
 
 - 2026-09-27: To read the latest callback prop without re-running an effect,
@@ -219,6 +236,13 @@ Never rewrite existing entries — correct with a dated note.
   `src/app/skills/_components/SkillsListView/SkillsListView.test.tsx`;
   `vitest.config.ts` sets no `testTimeout`).
 
+- 2026-10-01: A state that renders the same action twice (a header button
+  and an `EmptyState` CTA with one label, e.g. "ReScan" after a failed or
+  empty scan) makes `getByRole("button", { name })` throw "Found multiple
+  elements". Query with `getAllByRole` and pick, or scope with `within`,
+  before reading the failure as a duplicate-render bug (evidence:
+  `src/app/conventions/_components/ConventionsView/ConventionsView.test.tsx:216-220`).
+
 ## Session Notes
 
 - 2026-09-28: L02 Stage 9 moved the `reviews` domain — entries above that
@@ -243,6 +267,12 @@ Never rewrite existing entries — correct with a dated note.
   verified by script); mirrored the `review-api.ts` response-comment fix from
   the server master copy (`src/vendor/shared/contracts/review-api.ts:40-44`).
 - 2026-09-24: L01 severity counters end-to-end (`severity-summary`, `findings-preview`, FindingsPanel pills+filter, PR-list FINDINGS column + popover with 1024-1185px narrow layout, timeline icons, trace-drawer previews); spec `specs/L01-severity-counts.md`.
+
+- 2026-10-01: HW02 Stage 2c — `/conventions` (route-private view, cards,
+  create-skill modal), `lib/hooks/conventions.ts` with exported cache rules,
+  the skill form pieces promoted to `features/skills/` as pure moves and
+  `relativeTime` to `lib/date-format.ts`; `messages/en/conventions.json`
+  rewritten around the real keys.
 
 ## Open Questions
 

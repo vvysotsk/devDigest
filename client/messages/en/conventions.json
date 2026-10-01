@@ -5,22 +5,78 @@
     "headingPrefix": "Conventions in ",
     "repoFallback": "repo",
     "subtitle": "Scan the cloned repo to surface house-rules — each backed by evidence you can turn into a Skill.",
+    "detected": "Detected from {count, plural, one {# sample file} other {# sample files}} · last scan {ago}",
+    "lastScanAgo": "{ago} ago",
+    "lastScanNow": "just now",
     "scanning": "Scanning…",
-    "rescan": "Re-scan",
-    "runExtraction": "Run extraction",
-    "extractionFailed": "Extraction failed",
+    "runScan": "Run Scan",
+    "rescan": "ReScan",
+    "extractionFailed": "Extraction failed: {error}",
     "loadError": "Could not load conventions.",
+    "noRepo": {
+      "title": "No repository yet",
+      "body": "Add a repository and let it index; its conventions are extracted from the clone."
+    },
     "empty": {
       "title": "No conventions extracted yet",
       "body": "Scan the repo to surface house-rules — naming, error handling, structure — each backed by evidence you can turn into a Skill.",
-      "cta": "Run extraction"
+      "cta": "Run Scan"
     },
-    "candidateCount": "{count, plural, one {# candidate} other {# candidates}} · grounded against sampled files"
+    "emptyScan": {
+      "title": "No conventions found",
+      "body": "The scan finished without a verifiable candidate. ReScan to try again.",
+      "cta": "ReScan"
+    }
+  },
+  "toolbar": {
+    "accepted": "{accepted} of {total} accepted",
+    "createSkill": "Create skill"
   },
   "card": {
-    "confidence": "Confidence",
+    "accept": "Accept",
     "accepted": "Accepted",
-    "accepting": "Accepting…",
-    "acceptAsSkill": "Accept as Skill"
+    "reject": "Reject",
+    "edit": "Edit",
+    "save": "Save",
+    "cancel": "Cancel",
+    "confidence": "Confidence",
+    "ruleLabel": "Rule",
+    "categoryLabel": "Category"
+  },
+  "category": {
+    "naming": "naming",
+    "structure": "structure",
+    "async": "async",
+    "error-handling": "error handling",
+    "types": "types",
+    "imports": "imports",
+    "testing": "testing",
+    "other": "other"
+  },
+  "modal": {
+    "title": "Create skill from conventions",
+    "mergedFrom": "Merged from {count, plural, one {# accepted convention} other {# accepted conventions}} in {repo}. Everything below is editable before you save.",
+    "enabled": "Enabled",
+    "enabledHint": "Whether this block is added to agents' prompts.",
+    "agent": "Agent",
+    "agentPlaceholder": "Choose an agent…",
+    "agentHint": "The saved skill is linked to this agent.",
+    "noAgents": "No agents yet — create one on the Agents page first.",
+    "body": "Skill body",
+    "savedAsNew": "Saved as v1 · added to Skills Lab",
+    "savedAsVersion": "{name} already exists — saved as v{version}",
+    "cancel": "Cancel",
+    "create": "Create skill",
+    "creating": "Creating…",
+    "saved": "Skill {name} saved and linked to {agent}",
+    "loadError": "Could not build the skill draft."
+  },
+  "errors": {
+    "scan_running": "A scan is already running for this repo — the page follows it.",
+    "repo_not_cloned": "The repo has no clone yet. Clone it from the Pull Requests page first.",
+    "repo_not_indexed": "The repo is not indexed yet. Wait for indexing to finish, then scan again.",
+    "candidate_not_accepted": "Only accepted candidates can go into the skill. Reload the page and try again.",
+    "skill_name_taken": "A skill with this name already exists and was not extracted — choose another name.",
+    "not_found": "Not found. The page may be out of date — reload it."
   }
 }

@@ -1,4 +1,4 @@
-import type { SkillMeta } from "../../../SkillMetaFields";
+import type { SkillMeta } from "@/features/skills/components/skill-meta-fields";
 
 /** Modal width (px). */
 export const MODAL_WIDTH = 640;

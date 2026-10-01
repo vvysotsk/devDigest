@@ -5,8 +5,9 @@ import { useRouter } from "next/navigation";
 import { useTranslations } from "next-intl";
 import { Button, FormField, Modal, Textarea } from "@devdigest/ui";
 import { useCreateSkill } from "@/features/skills/hooks";
-import { SkillMetaFields, type SkillMeta } from "../../../SkillMetaFields";
-import { isSkillMetaValid, skillErrorMessage } from "../../../../helpers";
+import { SkillMetaFields, type SkillMeta } from "@/features/skills/components/skill-meta-fields";
+import { isSkillMetaValid } from "@/features/skills/lib/skill-form";
+import { skillErrorMessage } from "@/features/skills/lib/skill-errors";
 import { EMPTY_META, MODAL_WIDTH } from "./constants";
 import { s } from "./styles";
 

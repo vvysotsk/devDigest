@@ -7,11 +7,12 @@ import { Badge, Button, FormField } from "@devdigest/ui";
 import type { Skill } from "@devdigest/shared";
 import { useUpdateSkill } from "@/features/skills/hooks";
 import { useToast } from "@/lib/toast";
-import { isSkillMetaValid, skillErrorMessage } from "@/app/skills/helpers";
-import { SkillMetaFields, type SkillMeta } from "@/app/skills/_components/SkillMetaFields";
+import { isSkillMetaValid } from "@/features/skills/lib/skill-form";
+import { skillErrorMessage } from "@/features/skills/lib/skill-errors";
+import { SkillMetaFields, type SkillMeta } from "@/features/skills/components/skill-meta-fields";
 import { SkillEnabledToggle } from "@/app/skills/_components/SkillEnabledToggle";
 import { DeleteSkillConfirm } from "@/app/skills/_components/DeleteSkillConfirm";
-import { SkillBodyEditor } from "./_components/SkillBodyEditor";
+import { SkillBodyEditor } from "@/features/skills/components/skill-body-editor";
 import { skillPatch } from "./helpers";
 import { s } from "./styles";
 

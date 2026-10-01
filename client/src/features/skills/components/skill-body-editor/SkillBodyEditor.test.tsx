@@ -8,7 +8,7 @@ import { describe, it, expect, afterEach } from "vitest";
 import { render, screen, cleanup } from "@testing-library/react";
 import userEvent from "@testing-library/user-event";
 import { NextIntlClientProvider } from "next-intl";
-import messages from "../../../../../../../../../../messages/en/skills.json";
+import messages from "../../../../../messages/en/skills.json";
 import { LINE_HEIGHT, MIN_ROWS, PAD_Y } from "./constants";
 import { SkillBodyEditor } from "./SkillBodyEditor";
 

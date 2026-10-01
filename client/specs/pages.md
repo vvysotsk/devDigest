@@ -1,6 +1,6 @@
 # client — pages
 
-Last verified: 2026-09-28 (L02 Stage 9: features/ paths)
+Last verified: 2026-10-01 (HW02 Stage 2c: /conventions)
 
 ## Scope
 
@@ -212,7 +212,7 @@ for the PR page (`FindingsPanel/FindingsPanel.tsx`, `RunHistory/RunHistory.tsx`,
   point) =
   `POST /skills/import` with the file + only the fields that differ from the
   draft (never a body); saved disabled. `SkillErrorCode`s map to
-  `skills.errors.*` messages (`src/app/skills/helpers.ts`).
+  `skills.errors.*` messages (`src/features/skills/lib/skill-errors.ts`).
 - `?tab=config`: local draft of name / description / type / body; "Save
   skill" sends only the changed fields (`PUT /skills/:id`) and shows
   "Saved (vN)"; the body editor shows `<name>.md`, line numbers, an "unsaved"
@@ -224,7 +224,7 @@ for the PR page (`FindingsPanel/FindingsPanel.tsx`, `RunHistory/RunHistory.tsx`,
   never scrolls internally and every line stays level with its gutter
   number; only the frame scrolls (at most 520 px high, both axes) and the
   gutter stays pinned on horizontal scroll
-  (`src/app/skills/[id]/_components/SkillEditor/_components/ConfigTab/_components/SkillBodyEditor/SkillBodyEditor.tsx`,
+  (`src/features/skills/components/skill-body-editor/SkillBodyEditor.tsx`,
   checked by its `SkillBodyEditor.test.tsx` and e2e flow `08-skills`).
 - `?tab=preview`: rendered Markdown, "Raw" toggle.
 - `?tab=versions` (tab label "Versioning"): `GET /skills/:id/versions`
@@ -242,6 +242,53 @@ for the PR page (`FindingsPanel/FindingsPanel.tsx`, `RunHistory/RunHistory.tsx`,
   keep the plain "Skills (dynamic)" block
   (`src/app/repos/[repoId]/pulls/[number]/_components/RunTraceDrawer/_components/TraceBody/TraceBody.tsx:82-86`,
   `RunTraceDrawer/helpers.ts:26`).
+
+### `/conventions` — Conventions (HW02 D19)
+
+- Works on the active repo (`useActiveRepo`, `src/lib/repo-context.tsx:58`):
+  `useConventions(repoId)` → `GET /repos/:id/conventions`
+  (`src/lib/hooks/conventions.ts`), polled every 4 s while
+  `scan.status === "running"` (`conventionsPollInterval`); with no repo the
+  page shows "No repository yet" and no scan button
+  (`src/app/conventions/_components/ConventionsView/ConventionsView.tsx`).
+- Header: "Conventions in `<repo name>`"; the subtitle is the intro copy
+  before any scan, "Scanning…" while one runs, "Detected from N sample
+  files · last scan <ago>" after one, and a `role="alert"` "Extraction
+  failed: <error>" for a failed scan. Right: **Run Scan** while there is no
+  scan, **ReScan** once one exists (two labels, #45); both call
+  `useExtractConventions` → `POST /repos/:id/conventions/extract`; the
+  returned `running` scan is written to the cache so polling starts at once;
+  a 409 `scan_running` re-fetches the state (the page follows a scan started
+  elsewhere) and, like every `ConventionErrorCode` (`repo_not_cloned`,
+  `repo_not_indexed`, …), shows its `conventions.errors.*` message inline
+  (`src/app/conventions/helpers.ts`).
+- Cards (one `role="listitem"` per non-rejected candidate, #46): the rule,
+  a category badge, the evidence `path:line` as a link to
+  `githubBlobUrl(full_name, scan.head_sha, path, line)` opening in a new tab
+  (K5), the snippet, a confidence bar with the rounded percent; buttons
+  **Accept** (→ `accepted`; reads "Accepted" and a second click returns to
+  `pending`), **Reject** (→ `rejected`: the card leaves the list, #48) and
+  **Edit** (rule + category in place, Save / Cancel, #49), each a
+  `usePatchConvention` → `PATCH /conventions/:id`; the hook replaces the
+  candidate in the cache and drops a rejected one (`applyCandidate`)
+  (`…/ConventionsView/_components/CandidateCard/CandidateCard.tsx`).
+- Toolbar "N of M accepted"; **Create skill** renders only with ≥ 1 accepted
+  candidate (#50) and opens `CreateConventionSkillModal`
+  (`…/_components/CreateConventionSkillModal/CreateConventionSkillModal.tsx`):
+  `useConventionSkillDraft` → `GET /repos/:id/conventions/skill-draft`
+  (fresh on every open) fills name / description / type (`SkillMetaFields`),
+  the body (`SkillBodyEditor`, `<name>.md`, "unsaved" + token estimate while
+  edited), Enabled (default on) and an **Agent** `SearchableSelect` over
+  `useAgents` (required); the note reads "Saved as v1 · added to Skills Lab"
+  or "`<name>` already exists — saved as v{N+1}" when the draft's `existing`
+  is set (D18). **Create skill** → `useCreateConventionSkill` →
+  `POST /repos/:id/conventions/skill` with the accepted candidate ids;
+  success toasts "Skill … saved and linked to <agent>", closes and opens
+  `/skills/:id?tab=preview` (#52); `skill_name_taken` /
+  `candidate_not_accepted` show inline; **Cancel** saves nothing (U7).
+- States: skeleton rows while loading or scanning; `ErrorState` + Retry on a
+  load error; "No conventions extracted yet" + Run Scan before the first
+  scan; "No conventions found" + ReScan after a scan without candidates.
 
 ### `/settings/:section`
 
@@ -272,7 +319,7 @@ for the PR page (`FindingsPanel/FindingsPanel.tsx`, `RunHistory/RunHistory.tsx`,
   `src/components/app-shell/hooks/useGlobalShortcuts.ts:26-48`,
   `src/components/app-shell/constants.ts:4`).
 - Sidebar groups (`src/vendor/ui/nav.ts`): WORKSPACE (pulls) and SKILLS LAB
-  (Skills `g s`, Agents).
+  (Skills `g s`, Agents `g a`, Conventions).
 - Active repo = URL `:repoId` > `localStorage("dd-repo")` > first repo; a
   `:repoId` that matches no loaded repo renders `RepoNotFound` instead of an
   error (`src/lib/repo-context.tsx:46-49`, `:69-72`).
@@ -314,13 +361,19 @@ for the PR page (`FindingsPanel/FindingsPanel.tsx`, `RunHistory/RunHistory.tsx`,
 | Verdict banner label + score + counts | `VerdictBanner/VerdictBanner.test.tsx:18` |
 | `formatCost` dash vs `$0.00` vs scaled decimals; token compaction | `src/features/reviews/lib/cost-format.test.ts:9-24`, `src/features/reviews/components/run-cost-badge/RunCostBadge.test.tsx:13-42` |
 | `countBySeverity` ignores unknown values; pills / icons render only present severities | `src/features/reviews/lib/severity.test.ts:11-43`, `src/features/reviews/components/severity-summary/SeveritySummary.test.tsx:12-37` |
-| Agent card and editor render | `src/app/agents/_components/AgentCard/AgentCard.test.tsx:34`, `src/app/agents/[id]/_components/AgentEditor/AgentEditor.test.tsx:42` |
+| Agent card and editor render | `src/app/agents/_components/AgentCard/AgentCard.test.tsx:34`, `src/app/agents/[id]/_components/AgentEditor/AgentEditor.test.tsx:29` |
 | Agent card Delete: confirm modal, Cancel / X close it, Delete deletes, the card's click is never reached | `src/app/agents/_components/AgentCard/AgentCard.test.tsx:49` |
 | Skill cards (version, agent count), switch, imported first-enable acknowledgement, card click → `?tab=preview`, card Delete confirm (cancel / X / delete → back to `/skills`), create flow | `src/app/skills/_components/SkillsListView/SkillsListView.test.tsx` |
 | Import preview (raw text, warnings, file statuses), save with overrides and no body, error-code messages, size pre-check | `src/app/skills/_components/SkillsListView/_components/ImportSkillModal/ImportSkillModal.test.tsx` |
 | Config changed-field PUT + "Saved (v2)", unsaved chip + token estimate, delete confirm, Config acknowledgement, Enabled toggle keeps the unsaved draft, Preview raw/rendered, Versioning tab label, "metadata change", Diff lines, Restore → new version (disabled for the current body) | `src/app/skills/[id]/_components/SkillEditor/SkillEditor.test.tsx` |
 | `lineDiff` (same / add / del, moved lines, the cell-limit fallback) and `versionRows` | `src/app/skills/[id]/_components/SkillEditor/_components/VersionsTab/helpers.test.ts` |
-| Every `SkillErrorCode` has a message | `src/app/skills/helpers.test.ts` |
+| Every `SkillErrorCode` has a message | `src/features/skills/lib/skill-errors.test.ts` |
+| `relativeTime` buckets (now / m / h / d, dash for unknown) | `src/lib/date-format.test.ts` |
+| Every `ConventionErrorCode` (+ `not_found`) has a message; `formatConfidence`, `acceptedCount`, `evidenceLabel` | `src/app/conventions/helpers.test.ts` |
+| `applyCandidate` replaces by id and drops a rejected candidate (#48), unknown id unchanged; polling only while running; a 409 `scan_running` re-fetches the state, other errors do not; a success seeds the running scan | `src/lib/hooks/conventions.test.tsx` |
+| Run Scan vs ReScan (#45), Scanning… state, cards with category / GitHub link at the scan's sha / snippet / confidence (#46), Accept ↔ Accepted toggle, Reject removes the card (#48), Edit saves rule + category in place (#49), Create skill only after an accept (#50) and it opens the modal (#51), failed-scan alert, inline 409 message, load error, no-repo state | `src/app/conventions/_components/ConventionsView/ConventionsView.test.tsx` |
+| Card: Accept / Accepted → pending, empty rule disables Save, trimmed rule + category patch, pending disables the buttons, plain evidence without a repo name | `…/CandidateCard/CandidateCard.test.tsx` |
+| Modal: draft fills the form, Create waits for an agent, edited payload (`enabled`, `agent_id`, `candidate_ids`), success toast + `/skills/:id?tab=preview`, "already exists — saved as vN+1", 409 message, Cancel saves nothing, skeleton while loading (#41, #51) | `…/CreateConventionSkillModal/CreateConventionSkillModal.test.tsx` |
 | Agent Skills tab: draft-only switch on / off / ↑↓ / Detach, one PUT on Save, Discard, "N of M enabled", only enabled skills drag, take a drop or show ↑/↓, draft reset on agent switch, empty state | `src/app/agents/[id]/_components/AgentEditor/_components/SkillsTab/SkillsTab.test.tsx` |
 | "N skills" chip from `skill_count`, hidden at 0 | `src/app/agents/_components/AgentsListView/AgentsListView.test.tsx`, `src/app/agents/_components/AgentCard/AgentCard.test.tsx` |
 | Trace Skills label with count + tokens, one row per skill, plain block without `skill_blocks` | `RunTraceDrawer/_components/TraceBody/TraceBody.test.tsx` |

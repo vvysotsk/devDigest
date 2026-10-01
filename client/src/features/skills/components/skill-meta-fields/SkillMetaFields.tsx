@@ -4,7 +4,7 @@ import React from "react";
 import { useTranslations } from "next-intl";
 import { FormField, SelectInput, TextInput } from "@devdigest/ui";
 import { SkillType, type SkillDraft } from "@devdigest/shared";
-import { isValidSkillName } from "../../helpers";
+import { isValidSkillName } from "../../lib/skill-form";
 import { s } from "./styles";
 
 /** A skill's metadata as edited in a form (create modal, import draft, Config tab). */

@@ -88,17 +88,17 @@ in the working tree on 2026-09-29.
 | 38 | `POST /repos/:id/conventions/extract` runs the analysis; results persist | ⚠ server side done 2026-10-01 (2b): `server/src/modules/conventions/routes.ts:34`, `service.ts:81`; `server/test/conventions.it.test.ts:273` (new app on the same DB → GET returns the scan); UI in 2c | 2a–2b | D14; `.it`: extract → wait → new app → GET returns it |
 | 39 | Sampling in code only: eslint / tsconfig / prettier configs + top-12 `repoIntel.getConventionSamples()` | ✅ 2026-10-01 (2b): `server/src/modules/conventions/service.ts:167` (`readSamples`), `helpers.ts:30` (`isRootConfigFile`); `server/test/conventions-helpers.test.ts:26`, `conventions.it.test.ts:195` (409s with zero LLM calls), `:214` (numbered samples in the one call) | 2b | D15; unit + `.it` (no LLM call before sampling ends) |
 | 40 | LLM answer `{category, rule, evidence: file+line, confidence}` | ✅ 2026-10-01 (2b): `ConventionExtraction` (`server/src/modules/conventions/types.ts:27`); `server/test/conventions-helpers.test.ts:180`, `conventions.it.test.ts:214` | 2b | D16; zod schema; `.it` with `MockLLMProvider` |
-| 41 | Create modal edits the body and metadata | ❌ | 2c | client test |
+| 41 | Create modal edits the body and metadata | ✅ 2026-10-01 (2c): `client/src/app/conventions/_components/ConventionsView/_components/CreateConventionSkillModal/CreateConventionSkillModal.tsx` (name / description / type / Enabled / agent / body); its test "edits name, body and Enabled…" | 2c | client test |
 | 42 | Approved → ONE skill `repo-conventions`, linked to an agent | ⚠ server side done 2026-10-01 (2b): `server/src/modules/conventions/service.ts:231` (`saveSkill`); `server/test/conventions.it.test.ts:345` (201, then 200 v2, one link, one skill); modal in 2c | 2b–2c | D18; `.it` |
 | 43 | Four API skills with a directive description and a good / bad example | ❌ | 1a | files + Skills page |
-| 44 | Conventions in SKILLS LAB | ❌ (`activeKeyFor` already maps `/conventions`: `client/src/components/app-shell/helpers.ts:31`) | 2c | client test |
-| 45 | Run Scan and ReScan buttons | ❌ | 2c | D19; client test; Run Scan manual (D20) |
-| 46 | Cards: rule, source file, confidence % | ❌ | 2c | client test; e2e |
-| 47 | Accept / Reject / Edit on each card | ❌ | 2c | client test; e2e |
+| 44 | Conventions in SKILLS LAB | ✅ 2026-10-01 (2c): `client/src/vendor/ui/nav.ts` SKILLS LAB item `conventions` → `/conventions` (`activeKeyFor` already mapped it: `client/src/components/app-shell/helpers.ts:31`) | 2c | client test |
+| 45 | Run Scan and ReScan buttons | ✅ 2026-10-01 (2c): `ConventionsView.tsx` — Run Scan while `scan === null`, ReScan once a scan exists; `ConventionsView.test.tsx` cases 1 and 3; the real-model run is manual (D20) | 2c | D19; client test; Run Scan manual (D20) |
+| 46 | Cards: rule, source file, confidence % | ✅ client 2026-10-01 (2c): `…/CandidateCard/CandidateCard.tsx` (rule, category, `path:line` → GitHub at `head_sha`, snippet, confidence %); `ConventionsView.test.tsx` case 3; e2e in 2d | 2c | client test; e2e |
+| 47 | Accept / Reject / Edit on each card | ✅ client 2026-10-01 (2c): `CandidateCard.tsx` three buttons; `ConventionsView.test.tsx` case 4, `CandidateCard.test.tsx`; e2e in 2d | 2c | client test; e2e |
 | 48 | Reject persists; never returns, never enters the skill | ⚠ server side done 2026-10-01 (2b): `server/src/modules/conventions/repository.ts:205` (`decisionsByRule`), `service.ts:126`; `server/test/conventions.it.test.ts:302` (re-scan keeps the rejection), `:345` (400 for a non-accepted id); UI + e2e reload in 2c / 2d | 2b–2c | `.it`; e2e reload |
-| 49 | Inline edit | ❌ | 2c | client test |
-| 50 | Create skill appears after ≥ 1 accept | ❌ | 2c | client test |
-| 51 | Modal says it is created from conventions; Name / Description; Cancel / Create | ❌ | 2c | client test (DZ 2.png) |
+| 49 | Inline edit | ✅ 2026-10-01 (2c): `CandidateCard.tsx` edit form in place (rule + category, Save / Cancel); `ConventionsView.test.tsx` case 4 | 2c | client test |
+| 50 | Create skill appears after ≥ 1 accept | ✅ 2026-10-01 (2c): `ConventionsView.tsx` renders Create skill only when `acceptedCount ≥ 1`; `ConventionsView.test.tsx` cases 1, 3, 6 | 2c | client test |
+| 51 | Modal says it is created from conventions; Name / Description; Cancel / Create | ✅ 2026-10-01 (2c): the modal's title and "Merged from N accepted conventions in <repo>" bar, Name / Description / Type, Cancel / Create skill; `CreateConventionSkillModal.test.tsx` | 2c | client test (DZ 2.png) |
 | 52 | The new skill is listed on `/skills` | ❌ | 2d | e2e |
 | 53 | Settings → Models: a conventions row, searchable dropdown, dynamic model | ✅ 2026-10-01 (2b): the extractor resolves `'conventions'` per run through `container.featureModels` (`server/src/platform/container.ts:162` → `resolveFeatureModel`; `server/src/modules/conventions/service.ts:110`); `server/test/conventions.it.test.ts:214` runs on the model chosen via `PUT /settings`. The 0e client fix (`SettingsModels.tsx`) saves the model's own provider | 0e + 2b | D8; the extractor resolves its model per run |
 
@@ -538,6 +538,31 @@ in the working tree on 2026-09-29.
     (`frontend-architecture`).
   - i18n goes in `client/messages/en/conventions.json`, which already
     exists.
+  - **2c note (2026-10-01) — what was built and what moved.** The page is
+    `client/src/app/conventions/` (route-private view, cards and modal; hooks
+    in `client/src/lib/hooks/conventions.ts`). Accept on an accepted card
+    returns it to `pending` (an undo; Reject stays the only way to drop a
+    card). After Create the modal opens the new skill at
+    `/skills/:id?tab=preview`, the same move as the manual create flow, so
+    #52 is visible at once. Besides `SkillBodyEditor`, the modal needs the
+    other skill form pieces, and route folders may not import each other
+    (frontend-architecture R2); on the second consumer they were promoted
+    to `features/skills/` as pure `git mv` moves (no behaviour, markup or
+    API change; consumers updated their imports only; tests moved with
+    their subjects):
+    `client/src/app/skills/[id]/_components/SkillEditor/_components/ConfigTab/_components/SkillBodyEditor/`
+    → `client/src/features/skills/components/skill-body-editor/`;
+    `client/src/app/skills/_components/SkillMetaFields/` →
+    `client/src/features/skills/components/skill-meta-fields/`;
+    `client/src/app/skills/helpers.ts` → `isValidSkillName` /
+    `isSkillMetaValid` to `client/src/features/skills/lib/skill-form.ts`,
+    `skillErrorKey` / `skillErrorMessage` to
+    `client/src/features/skills/lib/skill-errors.ts` (test
+    `client/src/app/skills/helpers.test.ts` →
+    `client/src/features/skills/lib/skill-errors.test.ts`), `estimateTokens`
+    to `client/src/features/skills/lib/token-estimate.ts`; and
+    `relativeTime` from `client/src/app/repos/[repoId]/pulls/helpers.ts` to
+    `client/src/lib/date-format.ts` (second consumer: "last scan …").
 - **D20 e2e with a seeded scan** (the user's choice)
   - The seed stores one scan with candidates for `acme/payments-api`. The
     flow covers: cards → Accept / Reject / Edit → reload (#48) → Create skill
@@ -1004,7 +1029,10 @@ run filed a branch-only WARNING (7fae85c1); 1 run did not mention it
   screen is the side-panel preview of #10 and the skill page with the Config /
   Preview / Versioning tabs of #25.
 - **DZ 1.png** shows only Re-scan, and cards without Edit or a category. We
-  add Run Scan (#45), Edit (#47, #49) and a category chip (#40).
+  add Run Scan (#45), Edit (#47, #49) and a category chip (#40). Its
+  "Deselect all" button is not built: D19 lists Run Scan, ReScan, the cards'
+  three buttons and Create skill, and no acceptance criterion asks for a bulk
+  deselect (2c, 2026-10-01).
 - **DZ 2.png** has no agent picker. We add one (#42).
 - The API Contract Reviewer has a role-only prompt (D10): contract know-how
   lives in the four skills by design, and the prompt was frozen with this spec

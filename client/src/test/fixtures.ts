@@ -4,7 +4,15 @@
  * imported by tests only. A test that needs other defaults passes overrides;
  * it never copies the whole shape.
  */
-import type { Agent, FindingRecord, PrMeta, ReviewRecord, Skill } from "@devdigest/shared";
+import type {
+  Agent,
+  ConventionCandidate,
+  ConventionScan,
+  FindingRecord,
+  PrMeta,
+  ReviewRecord,
+  Skill,
+} from "@devdigest/shared";
 
 export function skill(o: Partial<Skill> = {}): Skill {
   return {
@@ -104,6 +112,40 @@ export function review(o: Partial<ReviewRecord> & { id: string; run_id: string |
     grounding: null,
     created_at: "2026-06-13T08:52:51.000Z",
     findings: [],
+    ...o,
+  };
+}
+
+export function conventionScan(o: Partial<ConventionScan> = {}): ConventionScan {
+  return {
+    id: "scan-1",
+    repo_id: "repo-1",
+    status: "done",
+    head_sha: "f00dcafe1234",
+    sample_count: 14,
+    candidates_dropped: 1,
+    provider: "openai",
+    model: "gpt-5.4",
+    error: null,
+    started_at: "2026-10-01T09:00:00.000Z",
+    finished_at: "2026-10-01T09:01:00.000Z",
+    ...o,
+  };
+}
+
+export function conventionCandidate(o: Partial<ConventionCandidate> = {}): ConventionCandidate {
+  return {
+    id: "cand-1",
+    scan_id: "scan-1",
+    category: "naming",
+    rule: "Hooks are named useXxx",
+    evidence_path: "src/lib/hooks/agents.ts",
+    evidence_line: 3,
+    evidence_snippet: 'export function useAgents() {\n  return useQuery({ queryKey: ["agents"] });\n}',
+    confidence: 0.9,
+    status: "pending",
+    created_at: "2026-10-01T09:01:00.000Z",
+    updated_at: "2026-10-01T09:01:00.000Z",
     ...o,
   };
 }

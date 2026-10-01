@@ -3,7 +3,7 @@
 import React from "react";
 import { useTranslations } from "next-intl";
 import { Button, Checkbox, Modal } from "@devdigest/ui";
-import { skillErrorMessage } from "../../../../helpers";
+import { skillErrorMessage } from "@/features/skills/lib/skill-errors";
 import { s } from "./styles";
 
 /**

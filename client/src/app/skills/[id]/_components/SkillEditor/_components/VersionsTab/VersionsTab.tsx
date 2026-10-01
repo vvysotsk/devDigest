@@ -6,7 +6,7 @@ import { Badge, Button, ErrorState, Skeleton } from "@devdigest/ui";
 import type { Skill } from "@devdigest/shared";
 import { useSkillVersions, useUpdateSkill } from "@/features/skills/hooks";
 import { useToast } from "@/lib/toast";
-import { skillErrorMessage } from "@/app/skills/helpers";
+import { skillErrorMessage } from "@/features/skills/lib/skill-errors";
 import { lineDiff, versionRows } from "./helpers";
 import { s } from "./styles";
 

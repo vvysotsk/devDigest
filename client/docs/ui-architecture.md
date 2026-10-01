@@ -1,6 +1,6 @@
 # client — ui-architecture
 
-Last verified: 2026-09-28 (L02 Stage 9: features/reviews, features/skills)
+Last verified: 2026-10-01 (HW02 Stage 2c: /conventions, features/skills form pieces)
 
 ## Purpose
 
@@ -17,12 +17,12 @@ browser.
 | Path | Role |
 |---|---|
 | `src/app/layout.tsx` | Root layout: `next-intl` provider with all namespaces, theme no-flash script, `Providers`. |
-| `src/app/**/page.tsx` | Routes (`/`, `/onboarding`, `/repos/[repoId]/pulls`, `/repos/[repoId]/pulls/[number]`, `/agents`, `/agents/[id]`, `/skills`, `/skills/[id]`, `/settings/[section]`). Thin: a page mounts one view or composes `_components/`. |
+| `src/app/**/page.tsx` | Routes (`/`, `/onboarding`, `/repos/[repoId]/pulls`, `/repos/[repoId]/pulls/[number]`, `/agents`, `/agents/[id]`, `/skills`, `/skills/[id]`, `/conventions`, `/settings/[section]`). Thin: a page mounts one view or composes `_components/`. |
 | `src/app/**/_components/<Name>/` | Route-private components: `<Name>.tsx` + `constants.ts`, `helpers.ts`, `styles.ts`, `index.ts`, tests beside the source. |
 | `src/components/<kebab>/` | Shared components that belong to no domain feature (`app-shell`, `diff-viewer`, `page-shell`, `repo-not-found`, `mermaid-diagram`, `showcase`). They never import `features/`. |
-| `src/features/<domain>/` | Domain features (frontend-architecture R4, 2.0.0): a grown domain's shared UI (`components/<kebab>/`), data hooks (`hooks.ts`) and pure functions (`lib/<topic>.ts`), no barrel at the root. `features/reviews/`: `components/{severity-summary,findings-preview,run-cost-badge}`, `hooks.ts`, `lib/{severity,finding-format,cost-format}.ts`; `features/skills/`: `components/{skill-type-badge,skill-source-chip}`, `hooks.ts`. Features import no other feature and no `app/`; `app/` composes them. |
+| `src/features/<domain>/` | Domain features (frontend-architecture R4, 2.0.0): a grown domain's shared UI (`components/<kebab>/`), data hooks (`hooks.ts`) and pure functions (`lib/<topic>.ts`), no barrel at the root. `features/reviews/`: `components/{severity-summary,findings-preview,run-cost-badge}`, `hooks.ts`, `lib/{severity,finding-format,cost-format}.ts`; `features/skills/`: `components/{skill-type-badge,skill-source-chip,skill-meta-fields,skill-body-editor}`, `hooks.ts`, `lib/{skill-form,skill-errors,token-estimate}.ts` (the skill form pieces shared by `/skills`, `/skills/:id` and `/conventions`). Features import no other feature and no `app/`; `app/` composes them. |
 | `src/lib/api.ts` | `apiFetch` + `api.get/post/put/patch/del`; base URL from `NEXT_PUBLIC_API_BASE`; every failure becomes `ApiError { status, code, details }`. |
-| `src/lib/hooks/<domain>.ts` | TanStack Query hooks of domains that are not features (`core`, `agents`, `trace`, `repo-intel`); a feature keeps its hooks in `src/features/<domain>/hooks.ts` (`reviews`, `skills`). Imported from the domain file (`@/lib/hooks/core`); there is no `hooks/index.ts` barrel (see `.claude/skills/frontend-architecture`, R1). |
+| `src/lib/hooks/<domain>.ts` | TanStack Query hooks of domains that are not features (`core`, `agents`, `trace`, `repo-intel`, `conventions`); a feature keeps its hooks in `src/features/<domain>/hooks.ts` (`reviews`, `skills`). Imported from the domain file (`@/lib/hooks/core`); there is no `hooks/index.ts` barrel (see `.claude/skills/frontend-architecture`, R1). |
 | `src/lib/providers.tsx` | `QueryClient` (retry 1, staleTime 30 s, no refetch on focus, global error toasts) → `ThemeProvider` → `ToastProvider` → `RepoProvider`. |
 | `src/lib/repo-context.tsx` | Active repo: URL `:repoId` > `localStorage("dd-repo")` > first repo; `useRepoNotFound`. |
 | `src/lib/theme.tsx`, `src/lib/toast.tsx` | `data-theme` on `<html>` + `localStorage("dd-theme")`; toast context plus the module-level `notify` bridge used outside React. |
@@ -53,8 +53,9 @@ Next build, while type-only imports and vitest are unaffected.
 3. The page filters by status (default `needs_review`), text and sort in
    memory (`page.tsx:49-58`) and renders one `PRRow` per PR
    (`src/app/repos/[repoId]/pulls/_components/PRRow/PRRow.tsx`).
-4. `PRRow` derives display-only fields (S/M/L bucket, relative time) with
-   `pulls/helpers.ts` and delegates the FINDINGS column to `FindingsCell`,
+4. `PRRow` derives display-only fields (the S/M/L bucket with
+   `pulls/helpers.ts`, the relative time with `src/lib/date-format.ts`) and
+   delegates the FINDINGS column to `FindingsCell`,
    which reads `pr.latest_batch` and fetches the batch's findings lazily
    through `usePrReviews(pr.id, { enabled: wanted })` only after hover intent
    (`PRRow/FindingsCell.tsx:24-32`, `:51-52`).
@@ -102,6 +103,32 @@ Next build, while type-only imports and vitest are unaffected.
    invalidates `["agents"]`, `["agent", id]`, `["skills"]` ("N skills" chips,
    `agent_count`). "Discard" drops the draft.
 
+## Data flow — a conventions scan (Conventions page)
+
+1. `/conventions` reads the active repo from `useActiveRepo()` and
+   `useConventions(repoId)` → `GET /repos/:id/conventions`
+   (`src/lib/hooks/conventions.ts`); `refetchInterval` is
+   `conventionsPollInterval(data)`: 4 s while the latest scan is `running`,
+   off otherwise.
+2. Run Scan / ReScan → `useExtractConventions` → `POST …/extract`; the 202
+   `running` scan is written into `["conventions", repoId]` so polling starts
+   before the next fetch. A 409 `scan_running` invalidates the same key (the
+   page follows a scan started in another tab or before a reload).
+3. Each card's Accept / Reject / Edit → `usePatchConvention` →
+   `PATCH /conventions/:id`; the hook writes the result through
+   `applyCandidate` (replace by id; a rejected candidate is dropped), so no
+   refetch is needed for the list to change.
+4. Create skill → `CreateConventionSkillModal` loads
+   `useConventionSkillDraft` (`staleTime: 0`, `gcTime: 0`) and
+   `useAgents`; the form reuses `features/skills` (`SkillMetaFields`,
+   `SkillBodyEditor`, `isSkillMetaValid`, `estimateTokens`); save →
+   `useCreateConventionSkill` → `POST …/skill`, which invalidates
+   `["skills"]`, `["agents"]`, `["agent"]`, `["agent-skills"]`, then the
+   modal navigates to `/skills/:id?tab=preview`.
+The pure cache rules (`applyCandidate`, `conventionsPollInterval`) are
+exported from the hooks file and unit-tested there, because the view tests
+mock the hooks module.
+
 ## Boundaries & dependencies
 
 - **Layer direction** (frontend-architecture R2): `vendor/` → `lib/` →
@@ -136,7 +163,9 @@ Next build, while type-only imports and vitest are unaffected.
   for query failures and `RepoNotFound` for a stale `:repoId`.
 - **Tests never hit the API.** Hooks are mocked with `vi.mock` per test file
   (see `PRRow/PRRow.test.tsx`); `src/test/smoke.test.tsx` renders the kit
-  gallery in both themes.
+  gallery in both themes. A page test that needs the active repo mocks
+  `@/lib/repo-context` (`useActiveRepo`) the way it mocks the shell
+  (`src/app/conventions/_components/ConventionsView/ConventionsView.test.tsx`).
 
 ## Extension points
 
@@ -150,7 +179,7 @@ Next build, while type-only imports and vitest are unaffected.
 - **New shared component:** `src/components/<kebab-case>/<Name>.tsx` +
   `index.ts`, tests beside it; build contract objects with the shared
   factories in `src/test/fixtures.ts` (`finding`, `pr`, `review`, `skill`,
-  `agent`) and pass
+  `agent`, `conventionScan`, `conventionCandidate`) and pass
   overrides; component-specific fixtures go in a non-test file beside the
   test.
 - **New strings:** add to the namespace JSON under `messages/en/`; camelCase
@@ -209,6 +238,27 @@ when" condition appears.
   `useAgentSkills` / `useSetAgentSkills`, used from `app/agents`, which may
   compose features). Route-private skills UI stays in `app/skills/` and
   `app/agents/…/SkillsTab/`. Behaviour unchanged.
+
+- 2026-10-01 — HW02 Stage 2c: `/conventions` is a second consumer of the
+  skill form pieces, and route folders may not import each other (R2), so
+  they were promoted to `features/skills/` as pure moves (`git mv`,
+  behaviour and markup unchanged, consumers updated imports only — D19 of
+  `../../specs/HW02-conventions-and-api-contract.md` names the
+  `SkillBodyEditor` move): `app/skills/[id]/…/ConfigTab/_components/SkillBodyEditor/`
+  → `features/skills/components/skill-body-editor/`;
+  `app/skills/_components/SkillMetaFields/` →
+  `features/skills/components/skill-meta-fields/`; from
+  `app/skills/helpers.ts`: `isValidSkillName` / `isSkillMetaValid` →
+  `features/skills/lib/skill-form.ts`, `skillErrorKey` /
+  `skillErrorMessage` → `features/skills/lib/skill-errors.ts` (its test
+  `app/skills/helpers.test.ts` → `features/skills/lib/skill-errors.test.ts`),
+  `estimateTokens` → `features/skills/lib/token-estimate.ts`;
+  `needsInjectionAck` and `filterSkills` stay route-private. The same rule
+  moved `relativeTime` from `app/repos/[repoId]/pulls/helpers.ts` to
+  `src/lib/date-format.ts` (second consumer: the conventions "last scan").
+  The conventions page itself stays route-private (`app/conventions/`) with
+  its hooks in `src/lib/hooks/conventions.ts`: one route, so the
+  `features/<domain>/` trigger does not fire.
 
 ## Open questions
 

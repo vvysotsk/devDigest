@@ -5,7 +5,7 @@ import { useTranslations } from "next-intl";
 import { Button, Modal } from "@devdigest/ui";
 import type { Skill } from "@devdigest/shared";
 import { useDeleteSkill } from "@/features/skills/hooks";
-import { skillErrorMessage } from "@/app/skills/helpers";
+import { skillErrorMessage } from "@/features/skills/lib/skill-errors";
 import { s } from "./styles";
 
 /**

@@ -3,7 +3,7 @@
 import React from "react";
 import { useTranslations } from "next-intl";
 import { Badge, Icon } from "@devdigest/ui";
-import { estimateTokens } from "@/app/skills/helpers";
+import { estimateTokens } from "../../lib/token-estimate";
 import { LINE_HEIGHT, MIN_ROWS, PAD_Y } from "./constants";
 import { s } from "./styles";
 
