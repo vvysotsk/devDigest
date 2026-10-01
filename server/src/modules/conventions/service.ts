@@ -21,8 +21,9 @@ import {
   DEFAULT_SKILL_NAME,
   SAMPLE_COUNT,
   buildExtractionMessages,
+  carryDecision,
   isRootConfigFile,
-  normaliseRule,
+  priorRules,
   renderSkillBody,
   renderSkillDescription,
   splitLines,
@@ -107,26 +108,26 @@ export class ConventionsService {
       const samples = await this.readSamples(target.ref, target.samplePaths);
       sampleCount = samples.length;
 
-      // 2. The one structured call, on the feature's model (D8, D16).
+      // 2. Earlier decisions (D17): listed to the model as data, and applied below.
+      const decisions = await this.repos.conventions.earlierDecisions(target.repoId);
+
+      // 3. The one structured call, on the feature's model (D8, D16).
       chosen = await this.deps.featureModels.resolve(target.workspaceId, 'conventions');
       const llm = await this.deps.llm(chosen.provider);
       const answer = await llm.completeStructured({
         model: chosen.model,
         schema: ConventionExtraction,
         schemaName: 'ConventionExtraction',
-        messages: buildExtractionMessages(samples),
+        messages: buildExtractionMessages(samples, priorRules(decisions)),
         maxRetries: 1,
       });
 
-      // 3. Evidence check against the sampled contents (D16) and decision carry-over (D17).
+      // 4. Evidence check against the sampled contents (D16) and decision carry-over
+      //    by rule text OR evidence location + category (D17, #48).
       const { kept, dropped } = verifyCandidates(answer.data.candidates, samples);
-      const decisions = await this.repos.conventions.decisionsByRule(target.repoId);
-      const rows: NewCandidateValues[] = kept.map((c) => ({
-        ...c,
-        status: decisions.get(normaliseRule(c.rule)) ?? 'pending',
-      }));
+      const rows: NewCandidateValues[] = kept.map((c) => ({ ...c, status: carryDecision(c, decisions) }));
 
-      // 4. Persist the candidates and close the scan atomically.
+      // 5. Persist the candidates and close the scan atomically.
       await this.deps.db.transaction(async (tx) => {
         await this.repos.conventions.insertCandidates(tx, target.workspaceId, target.repoId, scan.id, rows);
         await this.repos.conventions.finishScan(tx, scan.id, {

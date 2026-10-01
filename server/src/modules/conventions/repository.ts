@@ -2,8 +2,7 @@ import { and, asc, desc, eq, inArray, sql } from 'drizzle-orm';
 import type { ConventionCandidate, ConventionPatch, ConventionScan } from '@devdigest/shared';
 import type { Db, DbOrTx } from '../../db/client.js';
 import * as t from '../../db/schema.js';
-import { normaliseRule } from './helpers.js';
-import type { NewCandidateValues, ScanOutcome } from './types.js';
+import type { EarlierDecision, NewCandidateValues, ScanOutcome } from './types.js';
 
 type ScanRow = typeof t.conventionScans.$inferSelect;
 type CandidateRow = typeof t.conventions.$inferSelect;
@@ -199,19 +198,26 @@ export class ConventionsRepository {
   }
 
   /**
-   * D17: the repo's earlier decisions keyed by normalised rule text. The most
-   * recently decided row wins when the same rule was decided more than once.
+   * D17: the repo's earlier accepted / rejected candidates with their rule,
+   * category and evidence location, oldest decision first — the service lets
+   * the latest matching one win (`carryDecision`) and lists them to the model.
    */
-  async decisionsByRule(repoId: string): Promise<Map<string, 'accepted' | 'rejected'>> {
+  async earlierDecisions(repoId: string): Promise<EarlierDecision[]> {
     const rows = await this.db
-      .select({ rule: t.conventions.rule, status: t.conventions.status, updatedAt: t.conventions.updatedAt })
+      .select({
+        rule: t.conventions.rule,
+        category: t.conventions.category,
+        evidencePath: t.conventions.evidencePath,
+        evidenceLine: t.conventions.evidenceLine,
+        status: t.conventions.status,
+      })
       .from(t.conventions)
       .where(and(eq(t.conventions.repoId, repoId), inArray(t.conventions.status, ['accepted', 'rejected'])))
       .orderBy(asc(t.conventions.updatedAt), asc(t.conventions.id));
-    const out = new Map<string, 'accepted' | 'rejected'>();
-    for (const r of rows) {
-      if (r.status === 'accepted' || r.status === 'rejected') out.set(normaliseRule(r.rule), r.status);
-    }
-    return out;
+    return rows.flatMap((r) =>
+      r.status === 'accepted' || r.status === 'rejected'
+        ? [{ rule: r.rule, category: r.category, evidencePath: r.evidencePath, evidenceLine: r.evidenceLine, status: r.status }]
+        : [],
+    );
   }
 }

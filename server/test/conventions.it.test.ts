@@ -83,6 +83,21 @@ const FIXTURE: ConventionExtraction = {
   ],
 };
 
+/**
+ * The same conventions as FIXTURE, reworded the way the live model does on a
+ * re-scan, at the same evidence (A claims line 5 → found at 3 by the ±2 search;
+ * stored line 3 → distance 0; B at the same line 4). The dropped three stay.
+ */
+const RULE_A2 = 'Custom hooks start with the use prefix';
+const RULE_B2 = 'Repositories throw NotFoundError when a row is missing';
+const FIXTURE_REPHRASED: ConventionExtraction = {
+  candidates: [
+    { category: 'naming', rule: RULE_A2, evidence: { file: 'src/lib/hooks/agents.ts', line: 5, quote: 'export function useAgents()' }, confidence: 0.85 },
+    { category: 'error-handling', rule: RULE_B2, evidence: { file: 'src/modules/repos/service.ts', line: 4, quote: "throw new NotFoundError('Repo not found')" }, confidence: 0.8 },
+    ...FIXTURE.candidates.slice(2),
+  ],
+};
+
 async function waitForScan(db: Db, scanId: string, timeoutMs = 10_000) {
   const start = Date.now();
   for (;;) {
@@ -340,6 +355,44 @@ d('conventions extractor (Testcontainers pg)', () => {
       .where(and(eq(t.conventions.scanId, second.id), eq(t.conventions.status, 'rejected')));
     expect(stored).toEqual([{ rule: RULE_A, status: 'rejected' }]);
     await app.close();
+  });
+
+  it('#48/D17 live-model shape: a re-scan with rephrased rules keeps the decisions by evidence location and lists them to the model', async () => {
+    const app = await makeAppWithMocks();
+    const repoId = await createRepo();
+    await extractAndWait(app, repoId);
+    const first = await state(app, repoId);
+    const a = first.candidates.find((c) => c.rule === RULE_A)!;
+    const b = first.candidates.find((c) => c.rule === RULE_B)!;
+    expect((await patch(app, a.id, { status: 'accepted' })).statusCode).toBe(200);
+    expect((await patch(app, b.id, { status: 'rejected' })).statusCode).toBe(200);
+    await app.close();
+
+    // Scan 2 answers with different wording at the same evidence.
+    const app2 = await makeAppWithMocks(FIXTURE_REPHRASED);
+    const second = await extractAndWait(app2, repoId);
+    const rescanned = await state(app2, repoId);
+    expect(rescanned.scan).toMatchObject({ id: second.id, status: 'done', candidates_dropped: 3 });
+    expect(rescanned.candidates.map((c) => [c.rule, c.status, c.evidence_line])).toEqual([[RULE_A2, 'accepted', 3]]);
+    const storedB = await db
+      .select({ rule: t.conventions.rule, status: t.conventions.status })
+      .from(t.conventions)
+      .where(and(eq(t.conventions.scanId, second.id), eq(t.conventions.status, 'rejected')));
+    expect(storedB).toEqual([{ rule: RULE_B2, status: 'rejected' }]);
+
+    // The model was told about both decisions, as data, before the first file block.
+    expect(app2.llm.calls).toHaveLength(1);
+    const req = app2.llm.calls[0]!.req as { messages: { role: string; content: string }[] };
+    const user = req.messages.find((m) => m.role === 'user')!.content;
+    const block = user.indexOf('<prior-decisions>');
+    expect(block).toBeGreaterThan(-1);
+    expect(block).toBeLessThan(user.indexOf('<untrusted source='));
+    expect(user).toContain(`accepted (reuse this exact wording if the convention still holds):
+- ${RULE_A}`);
+    expect(user).toContain(`rejected (never propose again, in any wording):
+- ${RULE_B}`);
+    expect(req.messages.find((m) => m.role === 'system')!.content).toContain('The <prior-decisions> block lists');
+    await app2.close();
   });
 
   it('#42/D18: skill-draft from the accepted candidates; save creates repo-conventions (201), versions it (200) and links it once', async () => {

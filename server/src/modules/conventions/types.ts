@@ -64,6 +64,24 @@ export interface NewCandidateValues extends VerifiedCandidate {
   status: ConventionStatus;
 }
 
+/**
+ * One earlier accepted / rejected candidate of the repo (D17 carry-over).
+ * The repository returns them oldest first, so the last match wins.
+ */
+export interface EarlierDecision {
+  rule: string;
+  category: ExtractedCandidate['category'];
+  evidencePath: string;
+  evidenceLine: number;
+  status: 'accepted' | 'rejected';
+}
+
+/** The earlier decisions as the prompt lists them (rule texts only, newest first, capped). */
+export interface PriorRules {
+  accepted: string[];
+  rejected: string[];
+}
+
 /** What `finishScan` writes when the background work ends. */
 export interface ScanOutcome {
   status: 'done' | 'failed';

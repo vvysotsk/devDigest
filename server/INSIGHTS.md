@@ -103,6 +103,25 @@ Never rewrite existing entries — correct with a dated note.
   "expected 1 to be 3" (evidence: `src/modules/conventions/helpers.ts:60-74`;
   `test/conventions-helpers.test.ts:82-92`).
 
+- 2026-10-01: A mock LLM that returns the same fixture on every call cannot
+  test a "match the model's new answer against its earlier answers" rule:
+  every text key matched, the `.it` re-scan case was green, and the first
+  live re-scan on `supermacro/neverthrow` (deepseek-v4-flash) lost every
+  decision because the model rephrases every rule each time. Key such rules
+  on something the model does not author freely (here the verified evidence
+  path + line ±2 + category, with the text as a second chance), and add a
+  rephrased fixture to the `.it` suite — a second app with a different
+  `structuredBySchema` answer on the same DB (evidence:
+  `src/modules/conventions/helpers.ts:102-116`;
+  `test/conventions.it.test.ts:360`; the live scans of 2026-10-01).
+- 2026-10-01: Text the model wrote earlier is still untrusted when it comes
+  back into a prompt, even after a user accepted or rejected it: a rejected
+  rule can echo an injection from the repo. Re-inject such text only inside a
+  delimited data block with its closing tag neutralised (and `</untrusted>`
+  too), never as plain instructions (user correction during the fix plan)
+  (evidence: `src/modules/conventions/helpers.ts:141-158`, `:241-242`;
+  `test/conventions-helpers.test.ts:317`).
+
 ## Codebase Patterns
 
 - 2026-09-27: `test/reviews-golden.it.test.ts` pins a mocked run's trace
@@ -438,6 +457,10 @@ Never rewrite existing entries — correct with a dated note.
   added to the port (server + client mirror of the one member);
   `container.featureModels` is the first caller of `resolveFeatureModel`.
   `pnpm deps:check` 0 new violations before and after (1 known).
+
+- 2026-10-01 (fix): conventions carry-over keyed on evidence location +
+  category as well as rule text; earlier decisions sent to the model in a
+  `<prior-decisions>` data block; rephrased-fixture `.it` case.
 
 ## Open Questions
 

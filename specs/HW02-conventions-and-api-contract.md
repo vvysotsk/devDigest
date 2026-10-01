@@ -498,6 +498,29 @@ in the working tree on 2026-09-29.
   - A re-scan carries earlier decisions over by normalised rule text: a rule
     that was rejected before is stored as `rejected` again, and an accepted
     one as `accepted`. A rejection therefore never comes back (#48).
+  - **Fix note (2026-10-01).** A live run on `supermacro/neverthrow`
+    (openrouter/deepseek-v4-flash, done in 26 s, 6 candidates, 0 dropped)
+    showed that the model rephrases every rule on each scan ("Implement
+    PromiseLike for async types…" → "Async operations are wrapped in a
+    ResultAsync class that implements PromiseLike…"), so a text key alone
+    never matched: accepted rules came back `pending` and a rejected one
+    (the IIFE type-tests rule) came back. The evidence was stable
+    (`src/result-async.ts:22`, `tests/typecheck-tests.ts:36` both times).
+    The carry-over key is now: normalised rule text OR the same
+    `evidence_path` with `evidence_line` within ±2 AND the same category
+    (the category is required: on `src/result.ts` a `structure` rule at line
+    14 and an `other` rule at line 13 are different conventions); the latest
+    matching decision wins. The earlier accepted and rejected rule texts
+    (at most 50 each) also go to the model inside a `<prior-decisions>` data
+    block placed before the untrusted file blocks — accepted: "reuse this
+    exact wording if the convention still holds"; rejected: "never propose
+    again, in any wording" — with both closing tags neutralised inside rule
+    texts, because the rule texts were written by the model from untrusted
+    repo content. Known limit: an Edit (#49) that changes a candidate's
+    category breaks the location match for that rule until the model keeps
+    the text. The mock LLM returns identical text, which is why the `.it`
+    suite had passed; `server/test/conventions.it.test.ts` now has a
+    rephrased-fixture re-scan case.
   - `GET` returns the latest scan and its non-rejected candidates.
 - **D18 Creating the skill (#42, #41, #51, R6)**
   - `GET …/skill-draft` builds the default body from the **accepted**
