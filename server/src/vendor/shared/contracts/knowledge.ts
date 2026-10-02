@@ -316,6 +316,7 @@ export const SkillImportFile = z.object({
 export type SkillImportFile = z.infer<typeof SkillImportFile>;
 
 export const SkillImportWarningKind = z.enum([
+  'no_frontmatter', // no `---` block on line 1 (a BOM is the only allowed prefix) — probably not a SKILL.md; listed first
   'html_comment', // <!-- … --> — invisible when rendered, still reaches the prompt
   'invisible_char', // zero-width / bidi control characters
   'long_line', // a line longer than 500 characters

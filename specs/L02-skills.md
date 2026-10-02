@@ -273,9 +273,12 @@ list is in `server/specs/skills.md` and the schemas themselves.
   (save — overrides only, no body / source / enabled);
   `SkillImportPreview {filename, draft: SkillDraft, raw_source, frontmatter,
   files: [{path, status: imported | reference | skipped, reason, size}],
-  warnings: [{kind, line | null, detail}]}`; warning kinds: `html_comment`,
-  `invisible_char`, `long_line`, `name_exists`, `name_normalized`,
-  `type_defaulted`, `description_missing`. `SkillDraft` is unvalidated (the
+  warnings: [{kind, line | null, detail}]}`; warning kinds: `no_frontmatter`
+  (added 2026-10-02: no `---` block on line 1 — a BOM is the only allowed
+  prefix — so the file is probably not a SKILL.md; listed first, never
+  blocks the import), `html_comment`, `invisible_char`, `long_line`,
+  `name_exists`, `name_normalized`, `type_defaulted`, `description_missing`.
+  `SkillDraft` is unvalidated (the
   user fixes name / description / type, sent back as `SkillImportSave`
   overrides); `raw_source` = SKILL.md exactly as found, frontmatter included;
   `warnings[].line` counts `raw_source` lines.

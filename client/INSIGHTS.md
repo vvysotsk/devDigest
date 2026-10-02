@@ -286,6 +286,10 @@ Never rewrite existing entries — correct with a dated note.
   `pnpm test` after the change timed out 3 tests at the 5 s default under
   load and passed on re-run (38 files / 178 tests).
 
+- 2026-10-02 (import warning): `import.warningKind.no_frontmatter` title only
+  — the message is the server `detail`, `ImportPreviewDetails` unchanged;
+  mirrored `knowledge.ts` enum value.
+
 ## Open Questions
 
 - 2026-09-26: Files already past the `frontend-architecture` review signals,

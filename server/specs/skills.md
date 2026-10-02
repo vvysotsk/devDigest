@@ -1,6 +1,6 @@
 # server — skills
 
-Last verified: 2026-10-02 (HW02 3a fix: web-page guard + GitHub blob → raw)
+Last verified: 2026-10-02 (HW02 3a fix + `no_frontmatter` import warning)
 
 ## Scope
 
@@ -190,20 +190,30 @@ them (`POST /skills/import/preview`, `POST /skills/import`) come in Stage 3b.
   none or several (`details.candidates`) → `import_no_skill_md`
   (`pipeline.ts:219`). Decoded as strict UTF-8 (else `import_bad_archive`);
   a BOM stays in `raw_source` and is warned.
-- **Frontmatter** (`frontmatter.ts:12`): `---` fenced YAML via `yaml`
-  (`uniqueKeys`, `maxAliasCount: 100`); none/empty → `{}`; invalid, not a
-  mapping or never closed → `import_bad_frontmatter`. Body = the text after
-  the closing fence, leading blank lines and trailing whitespace trimmed.
-- **Draft:** name from frontmatter normalised to kebab-case (`name.ts:9`,
-  warning `name_normalized`), fallback folder / file name; `name_exists` when
-  it is in the workspace's names; `type` must match exactly, else `custom` +
-  `type_defaulted`; missing description → `''` + `description_missing`.
+- **Frontmatter** (`frontmatter.ts:15`): `---` fenced YAML via `yaml`
+  (`uniqueKeys`, `maxAliasCount: 100`). The block must OPEN ON LINE 1 — a
+  BOM is the only allowed prefix; blank lines before `---` mean "no
+  frontmatter" and the `---` lines stay in the body (strict, as GitHub and
+  skill tooling read SKILL.md). The result carries `present` (`:19`, `:57`):
+  no block → `present: false`, `{}`; an empty `---\n---` block →
+  `present: true`, `{}`; invalid, not a mapping or never closed →
+  `import_bad_frontmatter`. Body = the text after the closing fence, leading
+  blank lines and trailing whitespace trimmed.
+- **Draft:** `present: false` → warning `no_frontmatter` (`line: null`,
+  "This file has no frontmatter — it does not look like a SKILL.md…",
+  `pipeline.ts:110`) FIRST in the list; it never blocks the import or
+  changes the save rules. Name from frontmatter normalised to kebab-case
+  (`name.ts:9`, warning `name_normalized`), fallback folder / file name;
+  `name_exists` when it is in the workspace's names; `type` must match
+  exactly, else `custom` + `type_defaulted`; missing description → `''` +
+  `description_missing`.
 - **Files:** every non-directory entry: `imported` (SKILL.md), `reference`
   (`references/**/*.md`, "not imported (v1)"), `skipped` (everything else,
   "skipped — never executed or stored").
 - **Warnings** (`warnings.ts:13`) on `raw_source` lines: `html_comment`,
   `invisible_char`, `long_line` (> 500) — warned, never stripped. Order:
-  name/type/description warnings (`line: null`) first, then by line.
+  `no_frontmatter`, then name/type/description warnings (all `line: null`),
+  then the content warnings by line.
 - **Save** (`resolveImportSave`): overrides win for name / description / type
   only; the body is always the parsed body. Final name not a `SkillName` →
   `import_invalid_name`; no description → `import_description_missing`;
@@ -295,4 +305,5 @@ the adapter. Per call:
 | seed idempotent (second run adds nothing); 4 agents, 10 skills + v1 snapshots, 12 links, PRs #482–#486 with `@@` patches; a refreshable PR is rewritten only on a new head sha, never an L02 PR, and counts are unchanged afterwards; Security 6 linked / 3 enabled in design order; a re-seed keeps a user's unticked link | `test/seed.it.test.ts` |
 | experiment PR fixtures: additions / deletions and hunk headers match each patch; only #485 / #486 refresh on seed | `test/seed-prs.test.ts` |
 | pure rules: `bumpsVersion`, `needsAck`, `linksChanged`, `missingIds`, DTO mapping, unique-violation detection | `test/skills-helpers.test.ts` |
-| import: `.md` and folder zip; quoted / colon / `>` / `\|` / nested frontmatter; `..`, absolute, drive, backslash, symlink paths; > 200 entries; declared and inflated size + CRC; references and skipped files; no or several SKILL.md; bad frontmatter; unsupported file; base64 limit and malformed base64; every warning kind; `resolveImportSave` overrides, `import_description_missing`, `import_invalid_name`, `import_invalid_field` (description, empty body, long body), body never overridable | `test/skill-import.test.ts` |
+| import: `.md` and folder zip; quoted / colon / `>` / `\|` / nested frontmatter; `..`, absolute, drive, backslash, symlink paths; > 200 entries; declared and inflated size + CRC; references and skipped files; no or several SKILL.md; bad frontmatter; unsupported file; base64 limit and malformed base64; every warning kind incl. `no_frontmatter` first for a README-like `.md` and a zip's SKILL.md, not for an empty block or a BOM-prefixed block, fired for blank lines before `---` (strict opener); `resolveImportSave` overrides, `import_description_missing`, `import_invalid_name`, `import_invalid_field` (description, empty body, long body), body never overridable | `test/skill-import.test.ts` |
+| import route: a README-like `.md` preview lists `no_frontmatter` first, then the per-field warnings; nothing stored | `test/skill-import.it.test.ts` ("preview warns no_frontmatter…") |

@@ -93,6 +93,23 @@ d('/skills/import', () => {
     await app.close();
   });
 
+  it('preview warns no_frontmatter first for a README-like .md and stores nothing', async () => {
+    const app = await makeApp();
+    const before = await skillCount();
+    const res = await app.inject({
+      method: 'POST',
+      url: '/skills/import/preview',
+      payload: { filename: 'README.md', content_base64: mdBase64('# Readme\n\nNotes about the repo.\n') },
+    });
+    expect(res.statusCode).toBe(200);
+    const preview = SkillImportPreview.strict().parse(res.json());
+    expect(preview.warnings[0]).toMatchObject({ kind: 'no_frontmatter', line: null });
+    expect(preview.warnings.map((w) => w.kind)).toEqual(['no_frontmatter', 'type_defaulted', 'description_missing']);
+    expect(preview.draft).toMatchObject({ name: 'readme', description: '', type: 'custom' });
+    expect(await skillCount()).toBe(before);
+    await app.close();
+  });
+
   it('the whole trust path: save → disabled imported_file with the parsed body → 409 → ack → enabled', async () => {
     const app = await makeApp();
     const file = { filename: 'api-deprecation-policy.zip', content_base64: fixtureZipBase64() };

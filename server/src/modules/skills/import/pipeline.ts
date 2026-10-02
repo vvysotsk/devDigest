@@ -105,6 +105,17 @@ export function buildImportPreview(
 
   const warnings: SkillImportWarning[] = [];
 
+  // First in the list: the file is probably not a SKILL.md at all (a README, notes…).
+  // The per-field warnings below still follow; the import is not blocked.
+  if (!split.present) {
+    warnings.push({
+      kind: 'no_frontmatter',
+      line: null,
+      detail:
+        'This file has no frontmatter — it does not look like a SKILL.md (a README or notes?). Skills start with --- name / description ---.',
+    });
+  }
+
   const fmName = scalarString(fm.name);
   const name = toKebabName(fmName ?? fallbackName);
   if (fmName !== undefined && name !== fmName) {

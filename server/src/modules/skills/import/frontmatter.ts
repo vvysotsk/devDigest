@@ -1,7 +1,10 @@
 /**
- * SKILL.md frontmatter: a `---` fenced YAML block at the very top (an optional
- * BOM before it is tolerated). Parsed with `yaml` (YAML 1.2 core schema: no
- * custom tags are constructed, alias expansion is capped).
+ * SKILL.md frontmatter: a `---` fenced YAML block that opens on line 1 (an
+ * optional BOM is the only tolerated prefix \u2014 blank lines before `---` mean
+ * "no frontmatter", as GitHub and skill tooling read it). Parsed with `yaml`
+ * (YAML 1.2 core schema: no custom tags are constructed, alias expansion is
+ * capped). `present` tells a missing block from an empty `---\n---` one \u2014
+ * both yield `frontmatter: {}`.
  */
 import { parseDocument } from 'yaml';
 import { fail, type ImportResult } from './types.js';
@@ -11,9 +14,9 @@ const CLOSE = /^---[ \t]*$/;
 
 export function splitFrontmatter(
   source: string,
-): ImportResult<{ frontmatter: Record<string, unknown>; body: string }> {
+): ImportResult<{ present: boolean; frontmatter: Record<string, unknown>; body: string }> {
   const open = OPEN.exec(source);
-  if (!open) return { ok: true, frontmatter: {}, body: trimBody(source.replace(/^\uFEFF/, '')) };
+  if (!open) return { ok: true, present: false, frontmatter: {}, body: trimBody(source.replace(/^\uFEFF/, '')) };
 
   const rest = source.slice(open[0].length);
   const lines = rest.split('\n');
@@ -51,6 +54,7 @@ export function splitFrontmatter(
   }
   return {
     ok: true,
+    present: true,
     frontmatter: value as Record<string, unknown>,
     body: trimBody(rest.slice(Math.min(rest.length, closeAt + closeLen))),
   };

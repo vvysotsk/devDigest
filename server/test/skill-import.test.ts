@@ -78,11 +78,12 @@ describe('skill import — .md upload', () => {
     expect(p.filename).toBe('SKILL.md');
   });
 
-  it('treats a file without frontmatter as an empty mapping and falls back to the file name', () => {
+  it('treats a file without frontmatter as an empty mapping, falls back to the file name and warns no_frontmatter first', () => {
     const p = preview(buildImportPreview(md('Just a body.\n', 'Team Rules.md'), NONE));
     expect(p.frontmatter).toEqual({});
     expect(p.draft).toEqual({ name: 'team-rules', description: '', type: 'custom', body: 'Just a body.' });
-    expect(kinds(p)).toEqual(['type_defaulted', 'description_missing']);
+    expect(kinds(p)).toEqual(['no_frontmatter', 'type_defaulted', 'description_missing']);
+    expect(p.warnings[0]).toEqual({ kind: 'no_frontmatter', line: null, detail: expect.stringContaining('SKILL.md') });
   });
 
   it('rejects an unsupported extension', () => {
@@ -316,7 +317,31 @@ describe('skill import — draft warnings', () => {
   it('warns description_missing and leaves the draft description empty', () => {
     const p = preview(buildImportPreview(md('---\nname: a\ntype: security\n---\nb'), NONE));
     expect(p.draft.description).toBe('');
-    expect(kinds(p)).toEqual(['description_missing']);
+    expect(kinds(p)).toEqual(['description_missing']); // frontmatter present → no `no_frontmatter`
+  });
+
+  it('warns no_frontmatter first for a README-like file, in a zip too; never for a present (even empty) block', () => {
+    const readme = preview(buildImportPreview(md('# Team rules\n\nSome notes about how we review.\n', 'README.md'), NONE));
+    expect(kinds(readme)).toEqual(['no_frontmatter', 'type_defaulted', 'description_missing']);
+    expect(readme.draft.name).toBe('readme');
+    expect(readme.draft.body).toBe('# Team rules\n\nSome notes about how we review.');
+
+    // An empty block is still a block: only the per-field warnings.
+    expect(kinds(preview(buildImportPreview(md('---\n---\nb'), NONE)))).toEqual(['type_defaulted', 'description_missing']);
+
+    // The parser is strict: the block must open on line 1. Blank lines before `---`
+    // (with or without a BOM) mean no frontmatter — the `---` lines stay in the body.
+    const blank = preview(buildImportPreview(md('\n\n---\nname: a\ndescription: d\ntype: rubric\n---\nb'), NONE));
+    expect(kinds(blank)).toEqual(['no_frontmatter', 'type_defaulted', 'description_missing']);
+    expect(blank.frontmatter).toEqual({});
+    expect(blank.draft.body.startsWith('---\nname: a')).toBe(true);
+    const bomBlank = preview(buildImportPreview(md(String.fromCharCode(0xfeff) + '\n---\nname: a\ndescription: d\n---\nb'), NONE));
+    expect(kinds(bomBlank)).toEqual(['no_frontmatter', 'type_defaulted', 'description_missing', 'invisible_char']);
+
+    const zip = zipSync({ 'notes/SKILL.md': strToU8('# Notes\n\nNo frontmatter here.\n') });
+    const z = preview(buildImportPreview({ filename: 'notes.zip', bytes: zip }, NONE));
+    expect(kinds(z)[0]).toBe('no_frontmatter');
+    expect(z.draft.name).toBe('notes'); // folder fallback
   });
 
   it('warns on HTML comments, invisible characters and long lines with raw_source line numbers — never strips', () => {
@@ -350,12 +375,13 @@ describe('skill import — draft warnings', () => {
     expect(p.raw_source).toBe(src);
   });
 
-  it('keeps a leading BOM in raw_source (warned) and still parses the frontmatter', () => {
+  it('keeps a leading BOM in raw_source (warned) and still parses the frontmatter — no no_frontmatter', () => {
     const src = String.fromCharCode(0xfeff) + '---\nname: a\ndescription: d\ntype: rubric\n---\nb';
     const p = preview(buildImportPreview(md(src), NONE));
     expect(p.raw_source).toBe(src);
     expect(p.draft).toEqual({ name: 'a', description: 'd', type: 'rubric', body: 'b' });
     expect(p.warnings.map((w) => [w.kind, w.line])).toEqual([['invisible_char', 1]]);
+    expect(kinds(p)).not.toContain('no_frontmatter'); // a BOM is the one allowed prefix
   });
 
   it('parses a | literal block scalar and CRLF line endings', () => {

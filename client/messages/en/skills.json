@@ -197,6 +197,7 @@
     "noWarnings": "No warnings.",
     "warningLine": "line {line}",
     "warningKind": {
+      "no_frontmatter": "No frontmatter",
       "html_comment": "HTML comment",
       "invisible_char": "Invisible character",
       "long_line": "Long line",

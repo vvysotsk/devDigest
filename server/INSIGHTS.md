@@ -282,6 +282,16 @@ Never rewrite existing entries — correct with a dated note.
   `src/modules/skills/import/url.ts:98-108`;
   `test/skill-import-url.test.ts:50-61`).
 
+- 2026-10-02: `splitFrontmatter` used to return `frontmatter: {}` for BOTH
+  "no `---` block" and an empty `---\n---` block, so a caller could not tell
+  a README from a skill that merely lacks fields; it now returns `present`
+  — branch on that, never on `Object.keys(frontmatter).length`. The opener
+  is deliberately strict (line 1, BOM the only prefix — user decision: that
+  is how GitHub and skill tooling read SKILL.md); blank lines before `---`
+  are "no frontmatter" and the `no_frontmatter` warning says so rather than
+  the parser guessing (evidence: `src/modules/skills/import/frontmatter.ts:19`,
+  `:57`; `src/modules/skills/import/pipeline.ts:110`).
+
 ## Tool & Library Notes
 
 - 2026-09-30: OpenRouter deepseek/deepseek-v4-flash single-pass reviews have
@@ -516,6 +526,10 @@ Never rewrite existing entries — correct with a dated note.
   in `fetchForImport` on preview and save, `rewriteGitHubBlobUrl` inside
   `checkImportUrl`, `fetched_url` on `SkillImportUrlPreview`; full `.it`
   suite 18 files / 103 tests, 0 skipped; `pnpm run deps:check` 0 new (1 known).
+
+- 2026-10-02 (import warning): `no_frontmatter` first in `buildImportPreview`
+  for every import path (file, zip's SKILL.md, URL); `splitFrontmatter.present`;
+  `SkillImportWarningKind` gained the value (mirrored); README-like `.it` case.
 
 ## Open Questions
 
