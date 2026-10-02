@@ -56,6 +56,7 @@
     "hint": "Fetched server-side, stored as untrusted, and left disabled until vetted.",
     "placeholder": "https://example.com/skills/security.md",
     "fetching": "Fetching…",
+    "fetchedFrom": "Fetched from {url}",
     "import": "Import from URL",
     "success": "Imported \"{name}\". Disabled until you vet + enable it."
   },
@@ -230,6 +231,7 @@
     "import_url_timeout": "Fetching the URL took too long.",
     "import_url_network": "The URL could not be fetched.",
     "import_url_changed": "The file changed since the preview — fetch the preview again.",
+    "import_url_html": "This is a web page, not a raw file — open the file on GitHub/GitLab and use its Raw link.",
     "readFailed": "The file could not be read."
   },
   "preview": {

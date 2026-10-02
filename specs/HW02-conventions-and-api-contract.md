@@ -627,9 +627,22 @@ in the working tree on 2026-09-29.
     the checks run on the parsed hostname, so `2130706433`, `0x7f.0.0.1` and
     `[::1]` are refused), `import_url_redirect` 422 (non-https or > 3 hops),
     `import_url_bad_status` 502, `import_url_timeout` 504,
-    `import_url_network` 502, `import_url_changed` 409. The URL path must
-    end in `.md` / `.zip` (else 415 `import_unsupported_file`): a raw-file
-    URL works, a GitHub "blob" page does not. The port is `UrlFetcher` in
+    `import_url_network` 502, `import_url_changed` 409, `import_url_html`
+    415. The URL path must end in `.md` / `.zip` (else 415
+    `import_unsupported_file`). **Fix note (2026-10-02).** The path rule is
+    not a content check — a GitHub "blob" URL ends in `.md` and serves
+    HTML, and 3a parsed that page as SKILL.md. Now: exactly
+    `https://github.com/<owner>/<repo>/blob/<rest>` is rewritten to
+    `https://raw.githubusercontent.com/<owner>/<repo>/<rest>` before the
+    other checks (query and hash dropped; no other host or pattern), and
+    every fetched response is refused with 415 `import_url_html` when its
+    `Content-Type` is `text/html` / `application/xhtml+xml` or its first
+    non-whitespace bytes (after an optional BOM) start with `<!doctype
+    html` / `<html` — on preview and on save, before the sha256 compare.
+    `SkillImportUrlPreview` also carries `fetched_url` (the URL the bytes
+    came from); the modal shows "Fetched from …" when it differs from the
+    typed URL. A GitLab / Bitbucket blob page is refused with that code —
+    use the host's Raw link. The port is `UrlFetcher` in
     `server/src/modules/skills/types.ts` (one consumer), the adapter
     `server/src/adapters/http/url-fetcher.ts`: DNS checked per hop, manual
     https-only redirects, ONE `AbortSignal.timeout(10 s)` for the whole

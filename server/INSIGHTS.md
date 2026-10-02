@@ -122,6 +122,23 @@ Never rewrite existing entries — correct with a dated note.
   (evidence: `src/modules/conventions/helpers.ts:141-158`, `:241-242`;
   `test/conventions-helpers.test.ts:317`).
 
+- 2026-10-02: An extension rule on a URL (`.md` / `.zip`) is not a content
+  check: a GitHub blob URL ends in `.md` and serves the HTML page, which the
+  import pipeline then parsed as SKILL.md (no frontmatter, `type_defaulted`,
+  `raw_source` = `<!DOCTYPE html>…`). Carry the response `Content-Type`
+  through the port with the bytes and sniff the first non-whitespace bytes
+  (`<!doctype html` / `<html`) in the service BEFORE parsing; rewrite only
+  the exact `github.com/<owner>/<repo>/blob/…` pattern to its raw URL
+  (evidence: `src/modules/skills/import/url.ts:178`,
+  `src/modules/skills/service.ts:189`; manual check of 3a with
+  `https://github.com/anthropics/skills/blob/main/skills/frontend-design/SKILL.md`).
+- 2026-10-02: A spec sentence "X is refused by design" needs a test that
+  feeds the REAL X, not an input that happens to trip some rule: 3a's only
+  blob-URL test used `blob/main/SKILL.md.html`, which the extension rule
+  refuses for an unrelated reason, and the spec claimed blob pages were
+  refused (evidence: `test/skill-import-url.test.ts:71` — the case now
+  asserts the blob → raw rewrite; `specs/skills.md` "Known limitations").
+
 ## Codebase Patterns
 
 - 2026-09-27: `test/reviews-golden.it.test.ts` pins a mocked run's trace
@@ -353,6 +370,17 @@ Never rewrite existing entries — correct with a dated note.
     `src/adapters/depgraph/index.ts:82`,
     `src/modules/repo-intel/pipeline/repo-map.ts:64`).
 
+- 2026-10-02: `new Response('text')` (undici) always sets
+  `content-type: text/plain;charset=UTF-8`; a fake-fetch case for "the
+  server sends no Content-Type" must `res.headers.delete('content-type')`
+  before returning the Response, or the null branch is never exercised
+  (evidence: `test/skill-import-url.test.ts:267`).
+- 2026-10-02: `pnpm deps:check` once failed with
+  `ERR_PNPM_RECURSIVE_EXEC_FIRST_FAIL × Command "deps:check" not found`
+  while `pnpm run deps:check` ran the same script fine; when the shorthand
+  fails, use the `run` form before debugging the script (evidence:
+  `package.json:11`).
+
 ## Recurring Errors & Fixes
 
 - 2026-09-27: A `.it.test.ts` file can report green while running NOTHING:
@@ -482,6 +510,12 @@ Never rewrite existing entries — correct with a dated note.
   `FetchUrlFetcher` adapter (SSRF rules, manual redirects, one deadline,
   streamed cap), `import/url.ts` pure checks, two routes with `sha256`
   preview/save integrity, `needsAck` for `imported_url`.
+
+- 2026-10-02 (3a fix): URL import — `contentType` on the `UrlFetchResult`
+  ok variant, `isHtmlResponse` / `htmlPageFailure` (415 `import_url_html`)
+  in `fetchForImport` on preview and save, `rewriteGitHubBlobUrl` inside
+  `checkImportUrl`, `fetched_url` on `SkillImportUrlPreview`; full `.it`
+  suite 18 files / 103 tests, 0 skipped; `pnpm run deps:check` 0 new (1 known).
 
 ## Open Questions
 

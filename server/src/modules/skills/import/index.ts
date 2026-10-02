@@ -17,8 +17,11 @@ export {
   checkImportUrl,
   fetchFailureMessage,
   hostBlockReason,
+  htmlPageFailure,
+  isHtmlResponse,
   isIpLiteral,
   isPrivateAddress,
   mapFetchFailure,
+  rewriteGitHubBlobUrl,
   sha256Hex,
 } from './url.js';

@@ -38,12 +38,22 @@ function fixtureZip(): Uint8Array {
 
 const MD = '---\nname: url-rule\ndescription: Use when a route changes.\n---\n<!-- hidden -->\nFlag every removed route.\n';
 const MD_V2 = MD.replace('Flag every removed route.', 'Flag every removed route, loudly.');
-const ok = (url: string, bytes: Uint8Array): UrlFetchResult => ({ ok: true, bytes, finalUrl: url });
+const HTML = '<!DOCTYPE html>\n<html lang="en"><head><title>skills/SKILL.md at main</title></head><body>SKILL.md</body></html>\n';
+const ok = (url: string, bytes: Uint8Array, contentType: string | null = 'text/markdown; charset=utf-8'): UrlFetchResult => ({
+  ok: true,
+  bytes,
+  finalUrl: url,
+  contentType,
+});
 
 const URLS = {
   md: 'https://raw.githubusercontent.com/acme/skills/main/url-rule/SKILL.md',
+  // The blob page of URLS.md: NOT registered in the mock — the service must fetch URLS.md instead.
+  blob: 'https://github.com/acme/skills/blob/main/url-rule/SKILL.md',
   zip: 'https://example.com/dl/api-deprecation-policy.zip',
   changing: 'https://example.com/skills/changing.md',
+  html: 'https://example.com/skills/page.md',
+  sniffed: 'https://example.com/skills/sniffed.md',
   blocked: 'https://blocked.example/SKILL.md',
   slow: 'https://slow.example/SKILL.md',
   big: 'https://big.example/SKILL.md',
@@ -55,8 +65,10 @@ const URLS = {
  * through the port and stores nothing; the save re-fetches, refuses a changed
  * file (409 `import_url_changed`), ignores a client body / source / enabled
  * and stores `imported_url`, disabled, unacknowledged; the first enable needs
- * the acknowledgement; every port refusal maps to its code and status; a
- * `.zip` URL runs the unchanged zip pipeline. R3 shapes on every route.
+ * the acknowledgement; every port refusal maps to its code and status; a web
+ * page is refused (415 `import_url_html`) by Content-Type or by sniffing, on
+ * preview and save; a GitHub blob link is fetched as its raw URL; a `.zip`
+ * URL runs the unchanged zip pipeline. R3 shapes on every route.
  */
 d('/skills/import-url', () => {
   let pg: PgFixture;
@@ -76,6 +88,8 @@ d('/skills/import-url', () => {
       [URLS.md]: ok(URLS.md, strToU8(MD)),
       [URLS.zip]: ok(URLS.zip, fixtureZip()),
       [URLS.changing]: [ok(URLS.changing, strToU8(MD)), ok(URLS.changing, strToU8(MD_V2))],
+      [URLS.html]: ok(URLS.html, strToU8(HTML), 'text/html; charset=utf-8'),
+      [URLS.sniffed]: ok(URLS.sniffed, strToU8(HTML), null),
       [URLS.blocked]: { ok: false, code: 'blocked_address', detail: 'resolves to 10.0.0.5' },
       [URLS.slow]: { ok: false, code: 'timeout' },
       [URLS.big]: { ok: false, code: 'too_large', detail: 'content-length 600000' },
@@ -103,7 +117,7 @@ d('/skills/import-url', () => {
     const res = await app.inject({ method: 'POST', url: '/skills/import-url/preview', payload: { url: URLS.md } });
     expect(res.statusCode).toBe(200);
     const preview = SkillImportUrlPreview.strict().parse(res.json());
-    expect(preview).toMatchObject({ filename: 'SKILL.md', sha256: sha256Hex(strToU8(MD)) });
+    expect(preview).toMatchObject({ filename: 'SKILL.md', sha256: sha256Hex(strToU8(MD)), fetched_url: URLS.md });
     expect(preview.draft).toMatchObject({ name: 'url-rule', description: 'Use when a route changes.' });
     expect(preview.raw_source).toBe(MD);
     expect(preview.warnings.some((w) => w.kind === 'html_comment')).toBe(true);
@@ -186,6 +200,45 @@ d('/skills/import-url', () => {
     expect(await codeOf('https://10.0.0.1/SKILL.md')).toEqual([422, 'import_url_blocked']);
     expect(await codeOf('https://example.com/page.html')).toEqual([415, 'import_unsupported_file']);
     expect(fetcher.calls).toHaveLength(callsBefore); // the pure checks never reach the port
+    await app.close();
+  });
+
+  it('a web page is refused with 415 import_url_html — by Content-Type or by sniffing, on preview and on save — and nothing is inserted', async () => {
+    const app = await makeApp();
+    const before = await skillCount();
+    const typed = await app.inject({ method: 'POST', url: '/skills/import-url/preview', payload: { url: URLS.html } });
+    expect([typed.statusCode, typed.json().error.code]).toEqual([415, 'import_url_html']);
+    expect(typed.json().error.details).toEqual({ url: URLS.html, content_type: 'text/html; charset=utf-8' });
+    const sniffed = await app.inject({ method: 'POST', url: '/skills/import-url/preview', payload: { url: URLS.sniffed } });
+    expect([sniffed.statusCode, sniffed.json().error.code]).toEqual([415, 'import_url_html']);
+    expect(sniffed.json().error.details).toEqual({ url: URLS.sniffed, content_type: null });
+    // The guard runs on the save too, before the sha256 compare: a matching hash does not let a page through.
+    const saved = await app.inject({
+      method: 'POST',
+      url: '/skills/import-url',
+      payload: { url: URLS.html, sha256: sha256Hex(strToU8(HTML)), name: 'page-rule', description: 'x' },
+    });
+    expect([saved.statusCode, saved.json().error.code]).toEqual([415, 'import_url_html']);
+    expect(fetcher.calls.map((c) => c.url)).toEqual([URLS.html, URLS.sniffed, URLS.html]);
+    expect(await skillCount()).toBe(before);
+    await app.close();
+  });
+
+  it('a GitHub blob link is fetched as its raw URL on preview and save; the preview says so in fetched_url', async () => {
+    const app = await makeApp();
+    const res = await app.inject({ method: 'POST', url: '/skills/import-url/preview', payload: { url: URLS.blob } });
+    expect(res.statusCode).toBe(200);
+    const preview = SkillImportUrlPreview.strict().parse(res.json());
+    expect(preview).toMatchObject({ filename: 'SKILL.md', fetched_url: URLS.md, sha256: sha256Hex(strToU8(MD)) });
+    expect(preview.draft.name).toBe('url-rule');
+    const saved = await app.inject({
+      method: 'POST',
+      url: '/skills/import-url',
+      payload: { url: URLS.blob, sha256: preview.sha256, name: 'blob-rule' },
+    });
+    expect(saved.statusCode).toBe(201);
+    expect(Skill.strict().parse(saved.json())).toMatchObject({ name: 'blob-rule', source: 'imported_url', enabled: false });
+    expect(fetcher.calls.map((c) => c.url)).toEqual([URLS.md, URLS.md]); // never github.com
     await app.close();
   });
 

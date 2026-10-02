@@ -23,6 +23,8 @@ import {
   checkImportUrl,
   decodeImportBase64,
   fetchFailureMessage,
+  htmlPageFailure,
+  isHtmlResponse,
   mapFetchFailure,
   resolveImportSave,
   sha256Hex,
@@ -127,10 +129,14 @@ export class SkillsService {
     return built.preview;
   }
 
-  /** `POST /skills/import-url/preview` (HW02 D21) — fetch the URL and parse it; stores nothing. */
+  /**
+   * `POST /skills/import-url/preview` (HW02 D21) — fetch the URL and parse it;
+   * stores nothing. `fetched_url` is where the bytes actually came from (a
+   * GitHub blob link rewritten to raw, redirects followed).
+   */
   async previewImportUrl(workspaceId: string, req: SkillImportUrlRequest): Promise<SkillImportUrlPreview> {
-    const { preview, sha256 } = await this.fetchForImport(workspaceId, req.url);
-    return { ...preview, sha256 };
+    const { preview, sha256, fetchedUrl } = await this.fetchForImport(workspaceId, req.url);
+    return { ...preview, sha256, fetched_url: fetchedUrl };
   }
 
   /**
@@ -155,11 +161,18 @@ export class SkillsService {
   }
 
   /**
-   * The URL half of the import pipeline (D21): the pure URL check, the fetch
-   * through the port (its refusals become `import_url_*` errors), then the
-   * same `buildImportPreview` as a file upload — the zip limits apply unchanged.
+   * The URL half of the import pipeline (D21): the pure URL check (which also
+   * rewrites a GitHub blob link to its raw URL), the fetch through the port
+   * (its refusals become `import_url_*` errors), the web-page guard on the
+   * response (415 `import_url_html` — a URL that ends in `.md` can still
+   * serve HTML), then the same `buildImportPreview` as a file upload — the
+   * zip limits apply unchanged. Used by the preview AND the save, so the
+   * guard runs before the save's sha256 compare.
    */
-  private async fetchForImport(workspaceId: string, rawUrl: string): Promise<{ preview: SkillImportPreview; sha256: string }> {
+  private async fetchForImport(
+    workspaceId: string,
+    rawUrl: string,
+  ): Promise<{ preview: SkillImportPreview; sha256: string; fetchedUrl: string }> {
     const checked = checkImportUrl(rawUrl);
     if (!checked.ok) throw new SkillImportError(checked);
     const fetched = await this.deps.urlFetcher.fetch(checked.url, {
@@ -173,8 +186,11 @@ export class SkillsService {
         details: fetched.detail === undefined ? { url: checked.url } : { url: checked.url, detail: fetched.detail },
       });
     }
+    if (isHtmlResponse(fetched.contentType, fetched.bytes)) {
+      throw new SkillImportError(htmlPageFailure(fetched.finalUrl, fetched.contentType));
+    }
     const preview = await this.parseBytes(workspaceId, checked.filename, fetched.bytes);
-    return { preview, sha256: sha256Hex(fetched.bytes) };
+    return { preview, sha256: sha256Hex(fetched.bytes), fetchedUrl: fetched.finalUrl };
   }
 
   /**

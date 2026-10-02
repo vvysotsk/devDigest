@@ -17,4 +17,5 @@ export const s = {
   } satisfies CSSProperties,
   fileName: { fontSize: 13, color: "var(--text-secondary)" } satisfies CSSProperties,
   urlInput: { flex: 1, minWidth: 0 } satisfies CSSProperties,
+  fetchedFrom: { fontSize: 12, color: "var(--text-muted)", marginTop: 6, wordBreak: "break-all" } satisfies CSSProperties,
 } as const;

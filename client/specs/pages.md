@@ -1,6 +1,6 @@
 # client — pages
 
-Last verified: 2026-10-01 (HW02 3a: import from URL)
+Last verified: 2026-10-02 (HW02 3a fix: "Fetched from" line, web-page error)
 
 ## Scope
 
@@ -220,11 +220,15 @@ for the PR page (`FindingsPanel/FindingsPanel.tsx`, `RunHistory/RunHistory.tsx`,
   URL" input (Enter or "Fetch preview"; a value that does not start with
   `https://` is refused before any request) → `POST /skills/import-url/preview`
   (`useImportUrlPreview`, `src/features/skills/hooks.ts:110`) → the same
-  draft fields, raw text, file table, warnings and trust notice → "Save
-  skill" = `POST /skills/import-url` with `{ url, sha256 }` from the preview
-  plus the changed overrides (never a body; `:110`); saved disabled, source
+  draft fields, raw text, file table, warnings and trust notice; when the
+  preview's `fetched_url` differs from the typed URL (a GitHub blob link the
+  server rewrote to raw) a mono "Fetched from <url>" line appears under the
+  URL field (`ImportSkillModal.tsx`, `url.fetchedFrom`) → "Save skill" =
+  `POST /skills/import-url` with the TYPED `{ url, sha256 }` from the
+  preview plus the changed overrides (never a body); saved disabled, source
   `imported_url`; the toast reads "Imported … Disabled until you vet +
-  enable it." The URL codes (`import_url_*`, `import_url_changed`) map to
+  enable it." The URL codes (`import_url_*`, `import_url_changed`,
+  `import_url_html` — "This is a web page, not a raw file…") map to
   `skills.errors.*` too.
 - `?tab=config`: local draft of name / description / type / body; "Save
   skill" sends only the changed fields (`PUT /skills/:id`) and shows
@@ -377,7 +381,7 @@ for the PR page (`FindingsPanel/FindingsPanel.tsx`, `RunHistory/RunHistory.tsx`,
 | Agent card and editor render | `src/app/agents/_components/AgentCard/AgentCard.test.tsx:34`, `src/app/agents/[id]/_components/AgentEditor/AgentEditor.test.tsx:29` |
 | Agent card Delete: confirm modal, Cancel / X close it, Delete deletes, the card's click is never reached | `src/app/agents/_components/AgentCard/AgentCard.test.tsx:49` |
 | Skill cards (version, agent count), switch, imported first-enable acknowledgement, card click → `?tab=preview`, card Delete confirm (cancel / X / delete → back to `/skills`), create flow | `src/app/skills/_components/SkillsListView/SkillsListView.test.tsx` |
-| Import preview (raw text, warnings, file statuses), save with overrides and no body, error-code messages, size pre-check; URL mode: Fetch preview → the shared details, save `{ url, sha256, overrides }` and no body, success toast + navigation, `http://` refused before any request, a server code's message | `src/app/skills/_components/SkillsListView/_components/ImportSkillModal/ImportSkillModal.test.tsx` |
+| Import preview (raw text, warnings, file statuses), save with overrides and no body, error-code messages, size pre-check; URL mode: Fetch preview → the shared details, save `{ url, sha256, overrides }` and no body, success toast + navigation, `http://` refused before any request, a server code's message; no "Fetched from" line when `fetched_url` equals the typed URL, the line with the raw URL for a GitHub blob link (the typed URL is what is sent), `import_url_html` → its message and the line reset | `src/app/skills/_components/SkillsListView/_components/ImportSkillModal/ImportSkillModal.test.tsx` |
 | Add Skill ▾ → Import from URL opens the modal in URL mode; a `imported_url` skill gets the first-enable acknowledgement | `src/app/skills/_components/SkillsListView/SkillsListView.test.tsx:148`, `:162` |
 | `needsInjectionAck` for both imported sources, false once acknowledged or for other sources | `src/app/skills/helpers.test.ts` |
 | Config changed-field PUT + "Saved (v2)", unsaved chip + token estimate, delete confirm, Config acknowledgement, Enabled toggle keeps the unsaved draft, Preview raw/rendered, Versioning tab label, "metadata change", Diff lines, Restore → new version (disabled for the current body) | `src/app/skills/[id]/_components/SkillEditor/SkillEditor.test.tsx` |

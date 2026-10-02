@@ -149,7 +149,7 @@ describe("ImportSkillModal", () => {
 
   it("URL mode: fetches the preview, shows the shared details and saves { url, sha256, overrides } — never a body (HW02 D21)", async () => {
     const user = userEvent.setup();
-    h.previewUrl.mockResolvedValue({ ...PREVIEW, filename: "SKILL.md", sha256: SHA });
+    h.previewUrl.mockResolvedValue({ ...PREVIEW, filename: "SKILL.md", sha256: SHA, fetched_url: URL });
     h.saveUrl.mockResolvedValue(skill({ id: "imp-2", name: "api-deprecation-policy", source: "imported_url" }));
     const onClose = renderModal(vi.fn(), "url");
     const dialog = screen.getByRole("dialog");
@@ -163,6 +163,7 @@ describe("ImportSkillModal", () => {
 
     const raw = await screen.findByRole("region", { name: /Raw SKILL\.md/ });
     expect(raw.querySelector("pre")?.textContent).toBe(RAW);
+    expect(screen.queryByText(/Fetched from/)).toBeNull(); // the server fetched the URL as typed
     expect(screen.getByRole("region", { name: "Warnings" })).toBeInTheDocument();
     expect(screen.getByRole("note")).toHaveTextContent("injected into the agent's prompt as instructions");
 
@@ -198,6 +199,30 @@ describe("ImportSkillModal", () => {
     expect(await within(dialog).findByRole("alert")).toHaveTextContent(
       "This address cannot be fetched (private, loopback or blocked host).",
     );
+    expect(within(dialog).getByRole("button", { name: "Save skill" })).toBeDisabled();
+    expect(h.saveUrl).not.toHaveBeenCalled();
+  });
+
+  it("URL mode: a GitHub blob link shows where the bytes came from; a web page maps to its message", async () => {
+    const user = userEvent.setup();
+    const BLOB = "https://github.com/acme/skills/blob/main/api-deprecation-policy/SKILL.md";
+    h.previewUrl.mockResolvedValue({ ...PREVIEW, filename: "SKILL.md", sha256: SHA, fetched_url: URL });
+    renderModal(vi.fn(), "url");
+    const dialog = screen.getByRole("dialog");
+    const box = within(dialog).getByRole("textbox", { name: "Skill URL" });
+
+    await user.type(box, `${BLOB}{Enter}`);
+    expect(h.previewUrl).toHaveBeenCalledWith({ url: BLOB }); // the server does the rewrite
+    expect(await within(dialog).findByText(`Fetched from ${URL}`)).toBeInTheDocument();
+    expect(await screen.findByRole("region", { name: /Raw SKILL\.md/ })).toBeInTheDocument();
+
+    h.previewUrl.mockRejectedValue(new ApiError("web page", 415, "import_url_html"));
+    await user.clear(box);
+    await user.type(box, "https://gitlab.com/acme/skills/-/blob/main/SKILL.md{Enter}");
+    expect(await within(dialog).findByRole("alert")).toHaveTextContent(
+      "This is a web page, not a raw file — open the file on GitHub/GitLab and use its Raw link.",
+    );
+    expect(within(dialog).queryByText(/Fetched from/)).toBeNull(); // the previous preview was reset
     expect(within(dialog).getByRole("button", { name: "Save skill" })).toBeDisabled();
     expect(h.saveUrl).not.toHaveBeenCalled();
   });

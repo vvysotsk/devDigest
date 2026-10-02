@@ -279,6 +279,13 @@ Never rewrite existing entries — correct with a dated note.
   pair), the Add Skill menu's "Import from URL", `needsInjectionAck` for
   `imported_url`, `errors.import_url_*` messages.
 
+- 2026-10-02 (3a fix): `ImportSkillModal` shows "Fetched from <fetched_url>"
+  under the URL field only when the server fetched a different URL than
+  typed (GitHub blob → raw); `errors.import_url_html`; the mirrored
+  `knowledge.ts` gained the code and `fetched_url`. The first full
+  `pnpm test` after the change timed out 3 tests at the 5 s default under
+  load and passed on re-run (38 files / 178 tests).
+
 ## Open Questions
 
 - 2026-09-26: Files already past the `frontend-architecture` review signals,

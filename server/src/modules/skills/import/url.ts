@@ -9,7 +9,7 @@ import { createHash } from 'node:crypto';
 import type { SkillErrorCode } from '@devdigest/shared';
 import type { UrlFetchFailure } from '../types.js';
 import { lastSegment } from './name.js';
-import { fail, type ImportResult } from './types.js';
+import { fail, type ImportFailure, type ImportResult } from './types.js';
 
 /** One deadline for the whole fetch: every redirect hop plus the body read. */
 export const IMPORT_URL_TIMEOUT_MS = 10_000;
@@ -104,11 +104,29 @@ export function hostBlockReason(hostname: string): string | null {
   return null;
 }
 
+const GITHUB_BLOB_PATH = /^\/([^/]+)\/([^/]+)\/blob\/(.+)$/;
+
+/**
+ * `https://github.com/<owner>/<repo>/blob/<rest>` → the raw file it shows,
+ * `https://raw.githubusercontent.com/<owner>/<repo>/<rest>`; null for any
+ * other URL (other hosts, `tree/`, `raw/`, nothing after `blob/`). `<rest>`
+ * is copied as is (a ref with slashes needs no ref / path split); the blob
+ * page's query (`?plain=1`) and hash (`#L10`) are view options and are dropped.
+ */
+export function rewriteGitHubBlobUrl(u: URL): URL | null {
+  if (u.protocol !== 'https:' || u.hostname !== 'github.com') return null;
+  const m = GITHUB_BLOB_PATH.exec(u.pathname);
+  if (!m) return null;
+  const [, owner, repo, rest] = m as unknown as [string, string, string, string];
+  return new URL(`https://raw.githubusercontent.com/${owner}/${repo}/${rest}`);
+}
+
 /**
  * The URL a user typed → the URL to fetch and the filename the pipeline
- * parses by (D21): https only, no credentials, no blocked host, hash dropped,
- * and the last path segment must end in `.md` or `.zip` (a raw-file URL; an
- * HTML page is not a skill).
+ * parses by (D21): https only, a GitHub blob link rewritten to its raw URL
+ * first, then no credentials, no blocked host, hash dropped, and the last
+ * path segment must end in `.md` or `.zip`. Whether the bytes are a web page
+ * is decided after the fetch (`isHtmlResponse`), not here.
  */
 export function checkImportUrl(raw: string): ImportResult<{ url: string; filename: string }> {
   let u: URL;
@@ -118,6 +136,7 @@ export function checkImportUrl(raw: string): ImportResult<{ url: string; filenam
     return fail('import_url_not_https', 'Enter an https:// URL.', { url: raw });
   }
   if (u.protocol !== 'https:') return fail('import_url_not_https', 'Only https:// URLs can be imported.', { url: raw });
+  u = rewriteGitHubBlobUrl(u) ?? u;
   if (u.username !== '' || u.password !== '') {
     return fail('import_url_blocked', 'URLs with credentials are not fetched.', { url: raw });
   }
@@ -139,6 +158,42 @@ export function checkImportUrl(raw: string): ImportResult<{ url: string; filenam
 /** Hex SHA-256 of the fetched bytes — the preview returns it, the save compares it (TOCTOU). */
 export function sha256Hex(bytes: Uint8Array): string {
   return createHash('sha256').update(bytes).digest('hex');
+}
+
+const HTML_MEDIA_TYPES = new Set(['text/html', 'application/xhtml+xml']);
+const UTF8_BOM = [0xef, 0xbb, 0xbf];
+const ASCII_WHITESPACE = new Set([0x09, 0x0a, 0x0b, 0x0c, 0x0d, 0x20]);
+/** `<!doctype html` is 14 bytes; a few more cover `<html` with any casing. */
+const SNIFF_BYTES = 16;
+
+/**
+ * True when a fetched response is a web page rather than a raw file: the
+ * `Content-Type` media type is `text/html` / `application/xhtml+xml` (params
+ * ignored), or — for servers that send no or a wrong type — the first bytes
+ * after an optional UTF-8 BOM and ASCII whitespace start with `<!doctype
+ * html` or `<html` (case-insensitive). A markdown file with inline HTML
+ * further down is NOT a page. An extension check on the URL cannot tell
+ * these apart: GitHub blob URLs end in `.md` but serve HTML.
+ */
+export function isHtmlResponse(contentType: string | null, bytes: Uint8Array): boolean {
+  if (contentType !== null) {
+    const media = (contentType.split(';')[0] ?? '').trim().toLowerCase();
+    if (HTML_MEDIA_TYPES.has(media)) return true;
+  }
+  let i = 0;
+  if (UTF8_BOM.every((b, k) => bytes[k] === b)) i = UTF8_BOM.length;
+  while (i < bytes.length && ASCII_WHITESPACE.has(bytes[i]!)) i++;
+  const head = String.fromCharCode(...bytes.subarray(i, i + SNIFF_BYTES)).toLowerCase();
+  return head.startsWith('<!doctype html') || head.startsWith('<html');
+}
+
+/** The `import_url_html` failure (415) for a response `isHtmlResponse` refused. */
+export function htmlPageFailure(url: string, contentType: string | null): ImportFailure {
+  return fail(
+    'import_url_html',
+    'This is a web page, not a raw file — open the file on GitHub/GitLab and use its Raw link.',
+    { url, content_type: contentType },
+  );
 }
 
 const FAILURE_CODE: Record<UrlFetchFailure, SkillErrorCode> = {

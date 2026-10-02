@@ -16,7 +16,10 @@ export interface FetchUrlFetcherOptions {
 const ACCEPT = 'text/markdown, text/plain, application/zip, application/octet-stream;q=0.9, */*;q=0.1';
 const USER_AGENT = 'devdigest-skill-import';
 
-const failure = (code: UrlFetchFailure, detail?: string): UrlFetchResult =>
+type FetchFailure = Extract<UrlFetchResult, { ok: false }>;
+type BodyResult = { ok: true; bytes: Uint8Array } | FetchFailure;
+
+const failure = (code: UrlFetchFailure, detail?: string): FetchFailure =>
   detail === undefined ? { ok: false, code } : { ok: false, code, detail };
 
 const isAbort = (e: unknown) =>
@@ -29,7 +32,9 @@ const isAbort = (e: unknown) =>
  * (any private → refused) BEFORE the request; redirects are followed by hand
  * (`redirect: 'manual'`), each hop re-checked, https only, at most
  * `maxRedirects`; one `AbortSignal.timeout` covers every hop and the body
- * read; the body is streamed and cut at `maxBytes`. Known limit: fetch opens
+ * read; the body is streamed and cut at `maxBytes`; the final hop's raw
+ * `Content-Type` travels with the bytes (judged by the service, not here).
+ * Known limit: fetch opens
  * its own connection after our lookup (no IP pinning), so a DNS-rebinding
  * host could still reach a private address inside that window.
  */
@@ -98,17 +103,17 @@ export class FetchUrlFetcher implements UrlFetcher {
 
       const body = await this.readBody(res, limits.maxBytes);
       if (!body.ok) return body;
-      return { ok: true, bytes: body.bytes, finalUrl: current };
+      return { ok: true, bytes: body.bytes, finalUrl: current, contentType: res.headers.get('content-type') };
     }
     return failure('redirect', `more than ${this.maxRedirects} redirects`);
   }
 
   /** Stream the body with a running byte count; cut it at `maxBytes` + 1. */
-  private async readBody(res: Response, maxBytes: number): Promise<UrlFetchResult> {
+  private async readBody(res: Response, maxBytes: number): Promise<BodyResult> {
     try {
       if (!res.body) {
         const bytes = new Uint8Array(await res.arrayBuffer());
-        return bytes.length > maxBytes ? failure('too_large', `${bytes.length} bytes`) : { ok: true, bytes, finalUrl: res.url };
+        return bytes.length > maxBytes ? failure('too_large', `${bytes.length} bytes`) : { ok: true, bytes };
       }
       const reader = res.body.getReader();
       const chunks: Uint8Array[] = [];
@@ -129,7 +134,7 @@ export class FetchUrlFetcher implements UrlFetcher {
         bytes.set(c, offset);
         offset += c.length;
       }
-      return { ok: true, bytes, finalUrl: res.url };
+      return { ok: true, bytes };
     } catch (e) {
       return isAbort(e) ? failure('timeout') : failure('network', (e as Error).message);
     }

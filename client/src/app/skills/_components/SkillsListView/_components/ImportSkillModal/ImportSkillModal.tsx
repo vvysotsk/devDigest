@@ -24,6 +24,8 @@ export type ImportSource = "file" | "url";
  * the raw text, warnings and file table, edits the draft metadata, and "Save
  * skill" re-sends the SOURCE plus overrides — never a body. A URL save also
  * carries the preview's `sha256`, so a file that changed in between is refused.
+ * When the server fetched a different URL than typed (a GitHub blob link
+ * rewritten to raw), the preview's `fetched_url` is shown under the field.
  */
 export function ImportSkillModal({ source = "file", onClose }: { source?: ImportSource; onClose: () => void }) {
   const t = useTranslations("skills");
@@ -158,6 +160,11 @@ export function ImportSkillModal({ source = "file", onClose }: { source?: Import
                 {t("import.fetchPreview")}
               </Button>
             </div>
+            {previewUrl.data && urlReq && previewUrl.data.fetched_url !== urlReq.url && (
+              <p className="mono" style={s.fetchedFrom}>
+                {t("url.fetchedFrom", { url: previewUrl.data.fetched_url })}
+              </p>
+            )}
           </FormField>
         ) : (
           <FormField label={t("import.fileLabel")}>

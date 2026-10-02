@@ -11,11 +11,15 @@ import {
   checkImportUrl,
   fetchFailureMessage,
   hostBlockReason,
+  htmlPageFailure,
+  isHtmlResponse,
   isIpLiteral,
   isPrivateAddress,
   mapFetchFailure,
+  rewriteGitHubBlobUrl,
   sha256Hex,
 } from '../src/modules/skills/import/index.js';
+import { SkillImportError } from '../src/modules/skills/errors.js';
 import { FetchUrlFetcher } from '../src/adapters/http/url-fetcher.js';
 import { MockUrlFetcher } from '../src/adapters/mocks.js';
 import type { UrlFetchFailure } from '../src/modules/skills/types.js';
@@ -62,8 +66,90 @@ describe('checkImportUrl (D21)', () => {
 
   it('requires a .md or .zip path', () => {
     expect(failure(checkImportUrl('https://example.com/skills/')).code).toBe('import_unsupported_file');
-    expect(failure(checkImportUrl('https://github.com/acme/skills/blob/main/SKILL.md.html')).code).toBe('import_unsupported_file');
     expect(failure(checkImportUrl('https://example.com')).code).toBe('import_unsupported_file');
+    // A blob link is rewritten first, so the refusal names the raw URL it would have fetched.
+    expect(failure(checkImportUrl('https://github.com/acme/skills/blob/main/SKILL.md.html'))).toMatchObject({
+      code: 'import_unsupported_file',
+      details: { url: 'https://raw.githubusercontent.com/acme/skills/main/SKILL.md.html' },
+    });
+  });
+
+  it('rewrites a GitHub blob link to its raw URL (query and hash dropped), and only that pattern', () => {
+    const RAW = 'https://raw.githubusercontent.com/acme/skills/main/skills/SKILL.md';
+    expect(checkImportUrl('https://github.com/acme/skills/blob/main/skills/SKILL.md')).toEqual({ ok: true, url: RAW, filename: 'SKILL.md' });
+    expect(checkImportUrl('https://github.com/acme/skills/blob/main/skills/SKILL.md?plain=1#L3')).toEqual({ ok: true, url: RAW, filename: 'SKILL.md' });
+    // A ref with slashes: <rest> is copied as is, no ref / path split.
+    expect(checkImportUrl('https://github.com/acme/skills/blob/feature/x/SKILL.md')).toMatchObject({
+      ok: true,
+      url: 'https://raw.githubusercontent.com/acme/skills/feature/x/SKILL.md',
+    });
+    expect(checkImportUrl('https://github.com/acme/skills/blob/main/dist/skill.zip')).toMatchObject({
+      ok: true,
+      url: 'https://raw.githubusercontent.com/acme/skills/main/dist/skill.zip',
+      filename: 'skill.zip',
+    });
+    // Not rewritten: tree/ pages, a directory blob, other hosts — the usual rules then apply.
+    expect(failure(checkImportUrl('https://github.com/acme/skills/tree/main/skills'))).toMatchObject({
+      code: 'import_unsupported_file',
+      details: { url: 'https://github.com/acme/skills/tree/main/skills' },
+    });
+    expect(failure(checkImportUrl('https://github.com/acme/skills/blob/main/skills/')).code).toBe('import_unsupported_file');
+    expect(checkImportUrl('https://www.github.com/acme/skills/blob/main/SKILL.md')).toMatchObject({ ok: true, url: 'https://www.github.com/acme/skills/blob/main/SKILL.md' });
+    expect(checkImportUrl('https://gitlab.com/acme/skills/blob/main/SKILL.md')).toMatchObject({ ok: true, url: 'https://gitlab.com/acme/skills/blob/main/SKILL.md' });
+    // A non-blob URL keeps its query (unchanged behaviour).
+    expect(checkImportUrl('https://example.com/x.md?v=2')).toMatchObject({ ok: true, url: 'https://example.com/x.md?v=2' });
+
+    expect(rewriteGitHubBlobUrl(new URL('https://github.com/acme/skills/tree/main/x.md'))).toBeNull();
+    expect(rewriteGitHubBlobUrl(new URL('https://github.com/acme/skills/blob/'))).toBeNull();
+    expect(rewriteGitHubBlobUrl(new URL('https://github.com/acme/skills/raw/main/x.md'))).toBeNull();
+    expect(rewriteGitHubBlobUrl(new URL('http://github.com/acme/skills/blob/main/x.md'))).toBeNull();
+    expect(rewriteGitHubBlobUrl(new URL('https://github.com/acme/blob/main/x.md'))).toBeNull(); // "blob" as the repo name, no /blob/ segment after it
+  });
+});
+
+describe('isHtmlResponse / htmlPageFailure (web pages are not skill files)', () => {
+  const bytes = (s: string, bom = false) => {
+    const body = new TextEncoder().encode(s);
+    if (!bom) return body;
+    const out = new Uint8Array(body.length + 3);
+    out.set([0xef, 0xbb, 0xbf], 0);
+    out.set(body, 3);
+    return out;
+  };
+  const MD = '---\nname: x\n---\n# Title\n\nSome text, then inline HTML: <div>later</div>\n<html>not at the start</html>\n';
+
+  it('refuses by Content-Type (params ignored, case-insensitive) whatever the bytes', () => {
+    expect(isHtmlResponse('text/html', bytes('# looks like markdown'))).toBe(true);
+    expect(isHtmlResponse('text/html; charset=utf-8', bytes(MD))).toBe(true);
+    expect(isHtmlResponse('Text/HTML;charset=UTF-8', bytes(MD))).toBe(true);
+    expect(isHtmlResponse('application/xhtml+xml', bytes(MD))).toBe(true);
+  });
+
+  it('refuses by sniffing the first non-whitespace bytes when the type is missing or wrong', () => {
+    expect(isHtmlResponse('text/plain', bytes('<!DOCTYPE html><html lang="en">'))).toBe(true);
+    expect(isHtmlResponse('text/markdown', bytes('<!doctype html>'))).toBe(true);
+    expect(isHtmlResponse(null, bytes('<html lang="en"><head>'))).toBe(true);
+    expect(isHtmlResponse(null, bytes('<HTML>'))).toBe(true);
+    expect(isHtmlResponse(null, bytes('\n  \t\r\n<!DocType HTML PUBLIC "-//W3C//DTD HTML 4.01//EN">', true))).toBe(true);
+  });
+
+  it('accepts a markdown file (also with inline HTML later), a zip, an empty body and a BOM-prefixed file', () => {
+    expect(isHtmlResponse('text/markdown', bytes(MD))).toBe(false);
+    expect(isHtmlResponse('text/plain; charset=utf-8', bytes(MD))).toBe(false);
+    expect(isHtmlResponse(null, bytes(MD))).toBe(false);
+    expect(isHtmlResponse(null, bytes(MD, true))).toBe(false);
+    expect(isHtmlResponse('application/octet-stream', bytes('PK\x03\x04binary'))).toBe(false);
+    expect(isHtmlResponse(null, new Uint8Array(0))).toBe(false);
+    expect(isHtmlResponse(null, bytes('<h1>html fragment, not a page</h1>'))).toBe(false);
+  });
+
+  it('htmlPageFailure is import_url_html → 415 with the fetched URL and the type in details', () => {
+    const f = htmlPageFailure('https://example.com/page.md', 'text/html; charset=utf-8');
+    expect(f).toMatchObject({ ok: false, code: 'import_url_html', details: { url: 'https://example.com/page.md', content_type: 'text/html; charset=utf-8' } });
+    expect(f.message).toMatch(/web page/);
+    expect(SkillErrorCode.safeParse(f.code).success).toBe(true);
+    expect(new SkillImportError(f).statusCode).toBe(415);
+    expect(htmlPageFailure('https://example.com/page.md', null)).toMatchObject({ details: { content_type: null } });
   });
 });
 
@@ -172,14 +258,25 @@ const slow =
     });
 
 describe('FetchUrlFetcher (D21 adapter, no network)', () => {
-  it('fetches a public https URL: bytes, finalUrl, manual redirects, the accept header', async () => {
-    const { impl, calls } = fakeFetch({ 'https://example.com/SKILL.md': () => text('# skill') });
+  it('fetches a public https URL: bytes, finalUrl, the raw content-type, manual redirects, the accept header', async () => {
+    const { impl, calls } = fakeFetch({
+      'https://example.com/SKILL.md': () => text('# skill'), // a string Response defaults to text/plain;charset=UTF-8
+      'https://example.com/page.md': () => text('<!doctype html>', { headers: { 'content-type': 'text/html; charset=utf-8' } }),
+      'https://example.com/untyped.md': () => {
+        const res = text('# skill');
+        res.headers.delete('content-type');
+        return res;
+      },
+    });
     const f = new FetchUrlFetcher({ fetchImpl: impl, lookup: publicLookup });
     const res = await f.fetch('https://example.com/SKILL.md', LIMITS);
-    expect(res).toMatchObject({ ok: true, finalUrl: 'https://example.com/SKILL.md' });
+    expect(res).toMatchObject({ ok: true, finalUrl: 'https://example.com/SKILL.md', contentType: expect.stringMatching(/^text\/plain/) });
     expect(new TextDecoder().decode((res as { bytes: Uint8Array }).bytes)).toBe('# skill');
     expect(calls[0]!.init.redirect).toBe('manual');
     expect((calls[0]!.init.headers as Record<string, string>).accept).toContain('text/markdown');
+    // The adapter only carries the header; judging it is the service's job.
+    expect(await f.fetch('https://example.com/page.md', LIMITS)).toMatchObject({ ok: true, contentType: 'text/html; charset=utf-8' });
+    expect(await f.fetch('https://example.com/untyped.md', LIMITS)).toMatchObject({ ok: true, contentType: null });
   });
 
   it('refuses a private DNS answer before any request, and a blocked literal host', async () => {
@@ -258,10 +355,10 @@ describe('MockUrlFetcher', () => {
     const bytes1 = new TextEncoder().encode('one');
     const bytes2 = new TextEncoder().encode('two');
     const m = new MockUrlFetcher({
-      'https://x/one.md': { ok: true, bytes: bytes1, finalUrl: 'https://x/one.md' },
+      'https://x/one.md': { ok: true, bytes: bytes1, finalUrl: 'https://x/one.md', contentType: null },
       'https://x/changing.md': [
-        { ok: true, bytes: bytes1, finalUrl: 'https://x/changing.md' },
-        { ok: true, bytes: bytes2, finalUrl: 'https://x/changing.md' },
+        { ok: true, bytes: bytes1, finalUrl: 'https://x/changing.md', contentType: 'text/markdown' },
+        { ok: true, bytes: bytes2, finalUrl: 'https://x/changing.md', contentType: 'text/markdown' },
       ],
     });
     expect(await m.fetch('https://x/one.md', LIMITS)).toMatchObject({ ok: true, bytes: bytes1 });

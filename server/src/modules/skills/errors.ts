@@ -53,6 +53,7 @@ const IMPORT_STATUS: Partial<Record<SkillErrorCode, number>> = {
   import_url_network: 502,
   import_url_timeout: 504,
   import_url_changed: 409,
+  import_url_html: 415,
 };
 
 /** A failure of the import pipeline or the URL fetch as a `SkillError` (413 / 415 / 409 / 502 / 504, else 422). */

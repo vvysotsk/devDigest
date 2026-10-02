@@ -236,6 +236,9 @@ export const SkillErrorCode = z.enum([
   'import_url_timeout', // 504 — the whole fetch (every hop + the body) exceeded the deadline
   'import_url_network', // 502 — DNS or connection failure
   'import_url_changed', // 409 — save: the re-fetched file differs from the previewed one (sha256)
+  // 415 — the response is a web page (Content-Type text/html / application/xhtml+xml, or the bytes
+  // start with <!doctype html / <html): a URL ending in .md can still serve HTML — use the raw file URL
+  'import_url_html',
 ]);
 export type SkillErrorCode = z.infer<typeof SkillErrorCode>;
 
@@ -264,8 +267,9 @@ export type SkillImportSave = z.infer<typeof SkillImportSave>;
 
 /**
  * `POST /skills/import-url/preview` body (HW02 D21). Only the length is checked
- * here; the server enforces https, the blocked hosts / addresses and the
- * `.md` / `.zip` path with the `import_url_*` codes.
+ * here; the server rewrites a `github.com/…/blob/…` link to its raw URL, then
+ * enforces https, the blocked hosts / addresses, the `.md` / `.zip` path and
+ * the web-page guard with the `import_url_*` codes.
  */
 export const SkillImportUrlRequest = z.object({
   url: z.string().trim().min(1).max(2048),
@@ -343,8 +347,15 @@ export const SkillImportPreview = z.object({
 });
 export type SkillImportPreview = z.infer<typeof SkillImportPreview>;
 
-/** `POST /skills/import-url/preview` response: the preview plus the fetched bytes' sha256 (HW02 D21). */
-export const SkillImportUrlPreview = SkillImportPreview.extend({ sha256: Sha256Hex });
+/**
+ * `POST /skills/import-url/preview` response (HW02 D21): the preview plus the
+ * fetched bytes' sha256 and the URL the bytes came from (a GitHub blob link
+ * rewritten to raw, redirects followed) — the save re-sends the typed `url`.
+ */
+export const SkillImportUrlPreview = SkillImportPreview.extend({
+  sha256: Sha256Hex,
+  fetched_url: z.string().url(),
+});
 export type SkillImportUrlPreview = z.infer<typeof SkillImportUrlPreview>;
 
 export const CommunitySkill = z.object({

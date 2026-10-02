@@ -89,8 +89,13 @@ export type UrlFetchFailure =
   | 'bad_status'
   | 'network';
 
+/**
+ * The bytes plus the URL of the hop that returned them and its raw
+ * `Content-Type` header (null when absent) — the service, not the adapter,
+ * decides whether that content is a skill file or a web page.
+ */
 export type UrlFetchResult =
-  | { ok: true; bytes: Uint8Array; finalUrl: string }
+  | { ok: true; bytes: Uint8Array; finalUrl: string; contentType: string | null }
   | { ok: false; code: UrlFetchFailure; detail?: string };
 
 /**
