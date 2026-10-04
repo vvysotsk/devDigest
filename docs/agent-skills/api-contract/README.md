@@ -7,23 +7,27 @@ The agent itself is created in the UI with the prompt in
 
 | Skill | Type | In the UI |
 |---|---|---|
-| [`breaking-change`](breaking-change/SKILL.md) | rubric | created (Skills → Add → Create) |
-| [`response-schema`](response-schema/SKILL.md) | custom | created |
-| [`semver-discipline`](semver-discipline/SKILL.md) | rubric | created |
+| [`breaking-change`](breaking-change/SKILL.md) | rubric | imported as `.zip` |
+| [`response-schema`](response-schema/SKILL.md) | custom | imported as `.zip` |
+| [`semver-discipline`](semver-discipline/SKILL.md) | rubric | imported as `.zip` |
 | [`deprecation-policy`](deprecation-policy/SKILL.md) | convention | imported as `.zip` (#16) |
+
+All four were imported as `.zip` on 2026-09-30 (the spec's D11 deviation: the
+plan was one import plus three created in the UI; the traces show
+`imported_file, v1` on all four). #16 is satisfied either way.
 
 Each `SKILL.md` has the import frontmatter (`name`, `description` as a
 "Use when …" directive, `type`) and ends with a Good / Bad example from an
 unrelated domain (orders, products).
 
-Pack the imported one from `server/`:
+Pack a skill from `server/`:
 
 ```
-pnpm skill:pack ../docs/agent-skills/api-contract/deprecation-policy <out>/deprecation-policy.zip
+pnpm skill:pack ../docs/agent-skills/api-contract/<name> <out>/<name>.zip
 ```
 
-To create one in the UI, copy its description into Description and everything
-after the closing `---` into the body.
+To create one in the UI instead, copy its description into Description and
+everything after the closing `---` into the body.
 
 Integrity: no file here, and neither prompt, may name an experiment defect.
 Run the grep in the spec's D11 after every edit; it must print nothing.

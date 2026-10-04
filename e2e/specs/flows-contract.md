@@ -58,7 +58,7 @@ Paths are relative to `e2e/`.
   (`../server/src/db/seed.ts:264-280`): Security Reviewer 6 linked / 3
   enabled, Test Quality Reviewer 4 / 4, Performance 2 / 2.
 - One finished conventions scan on the repo with four **pending** candidates
-  (`../server/src/db/seed-conventions.ts:32-41` written by
+  (`../server/src/db/seed-conventions.ts:32-74` written by
   `../server/src/db/seed.ts:287-313`, only while the repo has no scan — so a
   user's accept / reject / edit survives a re-seed): rules "Always use
   async/await instead of .then() chains" (`src/api/users.ts:23`, 91 %), "All
