@@ -127,8 +127,8 @@ in the working tree on 2026-09-29.
 | K7 | 1 | #18 |
 | X1a | 3 | D21 — built 2026-10-01 (3a): `server/src/modules/skills/import/url.ts`, `server/src/adapters/http/url-fetcher.ts`, routes `POST /skills/import-url(/preview)`, the client modal's URL mode |
 | X1b | — | **out of scope** (the agreed Stage 3 has two items only) |
-| X2 | 3 | D22 |
-| X3 | 3 | a "product ideas" note only, no code |
+| X2 | 3 | D22 — **not run** (3b, 2026-10-04): the work repository could not be connected (token / access setup pending). The policy confirmation of 2026-10-01 is recorded; the runbook and the sanitisation rule are in "Stage 3b". No results. |
+| X3 | 3 | "Stage 3b" → "Product proposals (X3)": seven proposals, one already shipped; no code ("Out of scope") |
 | DZ | 2 | 1.png and 2.png; the differences are listed under Deviations |
 
 ## Decisions
@@ -659,6 +659,15 @@ in the working tree on 2026-09-29.
   that code to the LLM. Otherwise it runs on a personal repository. The
   results and a short "product ideas" note (X3: how to get more or better
   findings) go into this spec.
+  - **3b note (2026-10-04).** The policy check passed on 2026-10-01: the
+    company allows the scan with provider `openrouter`, model
+    `deepseek/deepseek-v4-flash` (the Conventions row in Settings → Models).
+    The scan itself was **not run**: the private work repository cannot be
+    connected yet (fine-grained token / organisation access not set up). So
+    there are no results, and no number about that repository appears in this
+    repo. "Stage 3b" below holds the runbook for running it later and the
+    sanitisation rule that decides what may ever be recorded here. The X3 note
+    is there too, as product proposals.
 
 ## API Contract Reviewer — system prompt (D10)
 
@@ -896,7 +905,7 @@ Rules: files are staged by name; no Co-Authored-By; no push.
 | 2c | `feat(client): conventions page and create-skill modal` (#41, #44–51; D19) | client |
 | 2d | `test(e2e): conventions flow` + the seeded scan (#46–48, #52; D20) | server (`seed.it`) + e2e |
 | 3a | `feat: import a skill from a URL` (X1a; D21) | server + client |
-| 3b | `docs(specs): conventions on a work repo and product ideas` (X2, X3; D22) | markdown |
+| 3b | `docs(specs): HW02 product ideas and the work-repo runbook` (X2 not run, X3; D22) | markdown |
 | Final | the user's steps plus the 53-criteria walk (below) | — |
 
 ### Stage 1c checklist (the user, in the UI)
@@ -1065,6 +1074,217 @@ run filed a branch-only WARNING (7fae85c1); 1 run did not mention it
   tokens (the log shows the same three skills resolving, then the failure at
   20:55:48). It counts for nothing.
 
+## Stage 3b — work repository (X2) and product proposals (X3)
+
+Docs only (2026-10-04). X2 is the brief's extra "прогнати Conventions
+Extractor на власному робочому репозиторії" (`HW02-brief.md:64`), not one of
+the 53 criteria; X3 is the extra "підвищити якість знахідок або ж їх
+кількість" (`:65`), answered here as proposals, with no code ("Out of scope").
+
+### X2 — status: not run
+
+- **Why.** The private work repository cannot be connected yet: the
+  fine-grained token and the organisation access are not set up. The D22
+  policy check itself passed on 2026-10-01 for provider `openrouter`, model
+  `deepseek/deepseek-v4-flash`.
+- **What is recorded.** Nothing about that repository: no scan, no counts, no
+  duration, no candidates, no quality judgement. The X2 traceability row and
+  the Deviations entry say "not run". They change only after a real scan that
+  follows the runbook and the sanitisation rule below.
+
+#### Runbook (for later)
+
+1. **Access.** Create a fine-grained personal access token: resource owner =
+   the organisation, repository access = only the work repository, permission
+   **Contents: Read** (Metadata: Read comes with it). If the organisation
+   enforces SSO or token approval, authorise the token for that organisation
+   first. Save it in Settings → API keys (GitHub token): it is stored in
+   `~/.devdigest/secrets.json` behind `SecretsProvider`, never in env and
+   never in this repo.
+2. **Add the repository.** Repos → Add repository with the https URL. The
+   clone job authenticates with the stored token
+   (`server/src/modules/repos/service.ts:53-57`) and enqueues the index job;
+   wait for the **Indexed** badge (`POST /repos/:id/reindex` if the index did
+   not start). The extractor refuses a repository without a clone or an index
+   with 409 (D15).
+3. **Model.** Settings → Models → the Conventions row = the policy model
+   (`openrouter` / `deepseek/deepseek-v4-flash`). The extractor resolves it on
+   every run (D8, `server/src/modules/conventions/service.ts:115`).
+4. **Run Scan** on `/conventions` with the work repository active. Observed
+   latency on this provider is 18–406 s (D14). A scan that stays `running` is
+   only reaped at the next boot (proposal 2 below).
+5. **Review** the cards with Accept / Reject / Edit. **Do not link the
+   resulting skill to an agent.** The Create-skill modal requires an agent
+   (`ConventionSkillSave.agent_id`, `conventions/service.ts:239`), so either
+   skip Create skill (the candidates are the result), or create the skill with
+   Enabled off and remove its link in the agent's Skills tab right away. A
+   linked skill would carry the work repository's rules into every PR that
+   agent reviews, in every repository (proposal 1).
+6. **Record** in this repo only what the sanitisation rule allows. No
+   screenshots: they show paths.
+7. **Clean up.** Delete the repository in the UI (that removes the DB row
+   only, `repos/service.ts:140-143`), then delete the clone
+   `~/.devdigest/workspace/<owner>/<repo>` (`DEVDIGEST_CLONE_DIR`,
+   `server/src/platform/config.ts:67`) **or** strip the token from its remote
+   with `git -C <clone> remote set-url origin https://github.com/<owner>/<repo>.git`:
+   the clone URL embeds `x-access-token:<PAT>` (`repos/helpers.ts:29-36`) and
+   git keeps it in `.git/config` (proposal 4). Revoke the token afterwards.
+
+#### Sanitisation rule — what may enter this repo
+
+| Allowed | Never |
+|---|---|
+| counts: samples, candidates, dropped, accepted / rejected | code snippets, `evidence_snippet`, the skill body, the trace |
+| categories (the D16 enum) | file paths, module names |
+| rules paraphrased to a generic form ("an async wrapper type", not its real name) | identifiers: type, class, function and variable names |
+| duration, provider / model, scan status | repository, organisation, company and product names; the GitHub URL |
+| a quality judgement in one or two sentences | screenshots |
+
+### Product proposals (X3)
+
+Approved by the user on 2026-10-04 as proposals; none is scheduled. Each one
+names what this homework showed, the proposal and a size. The evidence cites
+only committed sources (this spec's "Stage 1c results" and the packages'
+`INSIGHTS.md`).
+
+#### 1. Bind a conventions skill to a repository, not to the whole workspace
+
+- **What we saw.** `skills` is workspace-scoped and unique on `(workspace_id,
+  name)` (`server/src/db/schema/skills.ts:20`, `:46`). `saveSkill` looks the
+  name up per workspace, so a second repository's conventions are saved as
+  the **next version of the same `repo-conventions`**
+  (`server/src/modules/conventions/service.ts:257-263`, D18). The only trace
+  of the repository is `evidence_files`, paths without a repo id
+  (`schema/skills.ts:32`). An agent injects every enabled linked skill into
+  every PR it reviews, whatever the PR's repository
+  (`server/src/modules/reviews/run-executor.ts:362-369`). The X2 runbook has
+  to say "do not link" for exactly this reason.
+- **Proposal.** A nullable `repo_id` on the skill (or on the agent link); the
+  default name `repo-conventions-<repo>`; `enabledForAgent(agentId, repoId)`
+  skips repo-bound skills of other repositories and the trace says "skipped:
+  other repo". Scan B then no longer overwrites scan A's skill.
+- **Size.** Migration, repository filter, modal default, one trace line;
+  medium.
+
+#### 2. A timeout for the extraction LLM call
+
+- **What we saw.** The scan makes one `completeStructured` call with no
+  `timeoutMs` (`server/src/modules/conventions/service.ts:117-123`). The only
+  recovery for a stuck scan is the boot reaper
+  (`conventions/repository.ts:110`, `server/src/app.ts:92`), and a new scan is
+  refused with 409 while one is `running` (D14). The OpenRouter provider sets
+  the SDK `timeout: 90_000` (`reviewer-core/src/llm/openrouter.ts:54`), yet
+  review calls through the same provider ran 21.2 and 26.4 min (runs
+  `f36a22cf` and `066ebca1`, "Stage 1c results" → #486 run details;
+  `server/INSIGHTS.md:297-301`), and run `5caf4e59` ended after 27.8 min only
+  when openrouter.ai closed the connection ("Trace evidence" → Not evidence;
+  `server/INSIGHTS.md:302-305`). That timeout therefore does not bound the
+  body read, and a stalled extraction keeps the page polling until the
+  provider gives up. D14 rejected `JobRunner` on purpose: its 120 s limit and
+  retries would re-pay the call.
+- **Proposal.** One `AbortSignal.timeout(N)` per scan, passed through
+  `StructuredRequest` (the URL import already bounds its fetch this way,
+  `server/src/adapters/http/url-fetcher.ts`); the scan closes as `failed` with
+  `error: 'timeout'` and ReScan is available at once; N is a Settings value
+  with a default above the observed tail (for example 10 min); optionally a
+  "Cancel scan" button that fires the same signal. Check the SDK's abort
+  semantics first: the 90 s value did not fire here.
+- **Size.** Small server change plus one `.it` case with a never-resolving
+  mock.
+
+#### 3. Carry-over by evidence as the general pattern
+
+- **What we saw.** The D17 fix (`7b34a83`): on the live `supermacro/neverthrow`
+  scan the model rephrased every rule, so a text key matched nothing;
+  accepted rules came back `pending` and a rejected one came back, while the
+  evidence location was stable. Decisions are now carried by rule text OR
+  `evidence_path` + `evidence_line` ±2 + category, and the earlier decisions
+  go to the model as a `<prior-decisions>` data block
+  (`server/src/modules/conventions/helpers.ts:102-116`,
+  `server/test/conventions.it.test.ts:302`, `:360`).
+- **Proposal.** Make this the rule for every feature that re-runs an LLM over
+  the same input and keeps the user's decisions: key decisions on the stable
+  anchor (file + line ±k + kind), never on the model's wording, and prime the
+  model with the earlier decisions as data. Nearest consumer: re-reviewing the
+  same PR head. Today each run inserts its own findings with no link to the
+  previous run (`run-executor.ts:246`), so a dismissed finding returns
+  reworded. A shared `carryDecision(anchor, prior)` in `modules/_shared` plus
+  a "dismissed in run N" state on findings.
+- **Size.** The helper extraction is small; the reviews consumer is a feature.
+
+#### 4. Keep the GitHub token out of the clone's `.git/config`
+
+- **What we saw.** `withGitHubToken` writes `x-access-token:<PAT>` into the
+  https clone URL (`server/src/modules/repos/helpers.ts:29-36`),
+  `runCloneJob` clones with it (`repos/service.ts:53-57`), and the adapter runs
+  `git clone <url>` (`server/src/adapters/git/simple-git.ts:68`), so git
+  stores the token as `remote.origin.url` in
+  `<cloneDir>/<owner>/<repo>/.git/config` (`~/.devdigest/workspace` by
+  default, `server/src/platform/config.ts:67`). `DELETE /repos/:id` removes
+  the DB row only (`repos/service.ts:140-143`); the clone and the token stay on
+  disk. The repo rule is that secrets live only in `~/.devdigest/secrets.json`
+  (root `AGENTS.md`). The X2 runbook's last step exists because of this.
+- **Proposal.** Clone with a plain remote URL and hand the token to git
+  through `GIT_ASKPASS` (a helper the adapter points git at for that one
+  command) or a credential helper scoped to the command. The token then never
+  appears in the command line; `git -c http.extraHeader=…` is ruled out for
+  that reason (it is visible in `ps`). `sync` and `fetchPullHead` use the same
+  mechanism; `DELETE /repos/:id` removes the clone directory; a one-off step
+  rewrites existing remotes to the plain URL.
+- **Size.** Adapter plus a `GitClient` option; small, with an `.it` against a
+  fake remote.
+
+#### 5. A per-run cost that matches the tokens
+
+- **What we saw.** Two runs with the same agent, model and prompt:
+  `f36a22cf`, 108 730 tokens out, $0.0004; `066ebca1`, 132 039 tokens out,
+  $0.021 ("Stage 1c results" → #486 run details and Observation;
+  `server/INSIGHTS.md:306-310`). 21 % more tokens, 50× the cost, and neither
+  value matches the static price (0.14 / 0.28 per 1M tokens,
+  `server/src/adapters/llm/pricing.ts:31`, about $0.037 for 132k tokens out).
+  The stored value is OpenRouter's `usage.cost` when present, else the
+  PriceBook estimate (`reviewer-core/src/llm/openrouter.ts:97-98`, `:107`;
+  `run-executor.ts:265-268`), and which path a run took is not recorded.
+  Stage 1c recorded the observation and did not investigate it.
+- **Proposal.** Store `cost_usd` (the provider's figure),
+  `cost_estimated_usd` (tokens × price book) and `cost_source`; the L01 cost
+  badge shows the provider figure with a tooltip when the two diverge beyond a
+  threshold; keep the raw `usage` object in the trace for audit; never compare
+  runs by `cost_usd` alone (`server/INSIGHTS.md`).
+- **Size.** Two columns, one trace field, a badge tooltip; medium.
+
+#### 6. Accessible names per card button and an accessible `SearchableSelect` trigger
+
+- **What we saw.** Every card's buttons are named Accept / Reject / Edit, so
+  flow 09 clicks them through an `eval` scoped to the card's `aria-label`
+  (`e2e/specs/09-conventions.flow.json:20`, `:24`, `:28`;
+  `e2e/specs/flows-contract.md:150-159`); the card carries
+  `aria-label={candidate.rule}`
+  (`client/src/app/conventions/_components/ConventionsView/_components/CandidateCard/CandidateCard.tsx:52-53`).
+  The kit `SearchableSelect` trigger is a `div` with an `onClick` and no role
+  (`client/src/vendor/ui/kit/SearchableSelect.tsx:82-83`): `find text … click`
+  did not click it and the first hermetic run failed 8/9
+  (`e2e/INSIGHTS.md:27-40`). The D20 2d note already lists distinct names as a
+  follow-up.
+- **Proposal.** An `aria-label` per button through i18n ("Accept: <rule>",
+  "Reject: <rule>", "Edit: <rule>"); the trigger becomes a `<button
+  type="button" role="combobox" aria-expanded aria-haspopup="listbox"
+  aria-label>` and the option rows get `role="option"`; flow 09 and the modal
+  step then use plain `find role … click --name` with no `eval`.
+- **Size.** Small client and kit change, a simpler flow 09; the tests exist.
+
+#### 7. A "no frontmatter" import warning — done (`bc2c41d`, 2026-10-02)
+
+- **What we saw.** A README.md imported with only per-field warnings (type
+  defaulted, description missing); nothing said the file did not look like a
+  SKILL.md.
+- **Shipped.** `splitFrontmatter` reports `present` and `buildImportPreview`
+  emits `no_frontmatter` first for file, zip and URL import
+  (`server/src/modules/skills/import/frontmatter.ts`,
+  `server/src/modules/skills/import/pipeline.ts`; `server/specs/skills.md`;
+  the client title "No frontmatter"). Listed here as the one X3 proposal that
+  is already in the product.
+
 ## Final checks
 
 | Check | Evidence |
@@ -1123,6 +1343,12 @@ run filed a branch-only WARNING (7fae85c1); 1 run did not mention it
 - **D11 import.** All four API skills were imported as `.zip`, not one. #16
   is satisfied either way; creating a skill in the UI (#11, #12) is covered
   by the final walk.
+- **X2 not run (3b, 2026-10-04).** D22 planned a scan of the user's work
+  repository after the policy check. The check passed on 2026-10-01, but the
+  repository could not be connected (token / access setup pending), so no
+  scan was made. No result and no number about that repository is reported
+  anywhere in this repo; the X2 row stays "not run" until a real scan is
+  recorded through the "Stage 3b" runbook and sanitisation rule.
 - **D18 — an existing `repo-conventions` that is not `extracted`.** D18 says
   an existing skill with the default name gets a next version, and that 409
   is only for a typed name owned by another non-extracted skill. The 2b
