@@ -126,7 +126,7 @@ stage that closed it, "(was …)" is the status at spec time, and every
 | K3 | 2 | e2e + the demo |
 | K4 | 2 | one skill is enough ("1 скіл чи декілька"); #42, #48 |
 | K5 | 2 | D19: `path:line` → `githubBlobUrl` (`client/src/lib/github-urls.ts:24-36`) at the scan's head sha |
-| K6 | 2 | link in the modal → a review run → a `repo-conventions` block in the trace — live only; no run recorded yet (2026-10-04) |
+| K6 | 2 | link in the modal → a review run → a `repo-conventions` block in the trace. **Recorded 2026-10-04:** Create skill on the `supermacro/neverthrow` scan `6e85f7e5` saved `repo-conventions` v2 (the 4 accepted rules) linked to General Reviewer; run `8b81f86d-e117-4222-8978-44c1b2ae1336` on neverthrow PR #633 (General Reviewer v2, 15:58 UTC, 5.9 s, approve, 0 findings) has the trace block `repo-conventions · extracted · v2 · ≈ 313 tok` |
 | K7 | 1 | #18 |
 | X1a | 3 | D21 — built 2026-10-01 (3a): `server/src/modules/skills/import/url.ts`, `server/src/adapters/http/url-fetcher.ts`, routes `POST /skills/import-url(/preview)`, the client modal's URL mode |
 | X1b | — | **out of scope** (the agreed Stage 3 has two items only) |
@@ -1302,7 +1302,7 @@ only committed sources (this spec's "Stage 1c results" and the packages'
 | #38–53 Conventions | `.it` tests by name (`server/test/conventions.it.test.ts:210`, `:229`, `:288`, `:317`, `:360`, `:398`, `:494`) + client tests; e2e flow 09 with the seeded scan (D20); **Run Scan verified manually and in the demo with the real model** |
 | #43 — the four API skills listed on `/skills` as imported | live (DB state; recorded in the 17:18 traces, "Stage 1c results") |
 | K5 — the evidence link opens the file at that line on GitHub | manual, on the Stage 2 demo repo (the seeded e2e repo has no GitHub remote) |
-| K6 — `repo-conventions` linked to an agent; a review run shows its block in the trace | manual, live — no run recorded yet (2026-10-04) |
+| K6 — `repo-conventions` linked to an agent; a review run shows its block in the trace | live, recorded 2026-10-04: run `8b81f86d-e117-4222-8978-44c1b2ae1336` (neverthrow PR #633, General Reviewer) — Skills block `repo-conventions` v2 ≈ 313 tok |
 | K1 / K2 | the user's demo video and PR |
 
 ## Risks
