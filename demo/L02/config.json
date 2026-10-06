@@ -1,0 +1,83 @@
+{
+  "slug": "devdigest-l02",
+  "projectRoot": "../..",
+  "output": "demo/L02/devdigest-l02.mp4",
+  "order": ["s1", "s2", "s3", "s4", "s5", "s6", "s7", "s9"],
+  "surfaces": ["browser"],
+  "healthUrls": ["http://localhost:3000", "http://localhost:3001/health"],
+  "video": { "fps": 30, "zoom": 1 },
+  "tts": {
+    "provider": "elevenlabs",
+    "voiceId": "cjVigY5qzO86Huf0OWal",
+    "voiceName": "Eric",
+    "language": "uk",
+    "model": "eleven_multilingual_v2",
+    "keychainService": "elevenlabs-api",
+    "charsPerSecond": 14
+  },
+  "web": {
+    "baseUrl": "http://localhost:3000",
+    "repoId": "8269d0d3-e292-42f8-98c3-156e4d34ea6f",
+    "repoFullName": "supermacro/neverthrow",
+    "scanId": "6e85f7e5-7d09-40b5-ae27-77576e253023",
+    "scanHeadSha": "5ef3a018bda74fb960e44b68fc3672635ee8037d",
+    "skills": {
+      "repoConventions": "d9ca9088-9514-49cb-8c72-9bd78518002e",
+      "frontendDesign": "798759da-f819-49d0-9a28-f4fff4870faf",
+      "breakingChange": "f3e2fe60-4b15-4288-bbc6-8330063737c8",
+      "responseSchema": "ac854975-1037-48aa-bfc6-1c0e63fb06cf",
+      "semverDiscipline": "04e397ad-6c81-4562-b582-3af9a09d8cae",
+      "deprecationPolicy": "311e81f2-1f28-4579-953a-79c4229cded7"
+    },
+    "agents": {
+      "generalReviewer": "6ca7b5bd-c6e8-46e4-aa60-234348954f7a",
+      "apiContractReviewer": "4d57ed84-0595-4787-9ac6-9bf736ed0e3b"
+    },
+    "experiment": {
+      "repoId": "b5c1cf00-5abf-407f-929f-83d589f7c435",
+      "prNumber": 486,
+      "pullId": "477142bd-1578-460b-97fe-b1f84bfc1799",
+      "runWith": "cc249084-5519-4e3e-95ce-3b76f15e9d93",
+      "runWithout": "066ebca1-b7a0-44fc-95d9-b0888df75015"
+    },
+    "k6": {
+      "repoId": "8269d0d3-e292-42f8-98c3-156e4d34ea6f",
+      "prNumber": 633,
+      "pullId": "d4c86753-cd38-46ee-a2ed-3957d01cf7d4",
+      "runId": "8b81f86d-e117-4222-8978-44c1b2ae1336"
+    },
+    "importUrl": "https://raw.githubusercontent.com/supermacro/neverthrow/master/README.md",
+    "github": {
+      "repo": "https://github.com/vvysotsk/devDigest",
+      "branch": "lesson-2",
+      "evidenceRepo": "https://github.com/supermacro/neverthrow"
+    }
+  },
+  "neverClick": [
+    "Run review",
+    "Run Review",
+    "Run all enabled agents",
+    "Run on a PR…",
+    "Accept",
+    "Accepted",
+    "Reject",
+    "Edit",
+    "Delete",
+    "Cancel",
+    "Refresh",
+    "Configure agents",
+    "Run Scan",
+    "ReScan",
+    "Create skill",
+    "Import",
+    "Save",
+    "Save skill",
+    "Save skills",
+    "Restore",
+    "Detach",
+    "Enabled",
+    "Enable",
+    "Add Agent"
+  ],
+  "fetchAllowedIn": ["s3"]
+}
