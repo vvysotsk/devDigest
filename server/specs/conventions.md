@@ -1,5 +1,5 @@
 Status: Stage 2b (module, routes, extraction). The client page and the e2e flow arrive in 2c / 2d.
-Last verified: 2026-10-01 against the working tree (carry-over fix included).
+Last verified: 2026-10-12 against the working tree (ConventionSkillSave limits included).
 
 # Conventions Extractor — what must stay true
 
@@ -81,7 +81,7 @@ Wire fields are snake_case; dates are ISO strings.
 | `ConventionsState` | `{ scan: ConventionScan \| null, candidates: ConventionCandidate[] }` — non-rejected candidates only | `GET …/conventions` |
 | `ConventionPatch` | `{ status?, rule? (min 1), category? }`, at least one key | `PATCH /conventions/:id` body |
 | `ConventionSkillDraft` | `{ name: SkillName, description, type: SkillType, body, existing: { id, version } \| null }` | `GET …/skill-draft` |
-| `ConventionSkillSave` | `{ name: SkillName, description, type: SkillType, enabled, body (min 1), agent_id (uuid), candidate_ids (uuid[], min 1) }` | `POST …/skill` body |
+| `ConventionSkillSave` | `{ name: SkillName, description (trimmed, 1..SKILL_DESCRIPTION_MAX = 500), type: SkillType, enabled, body (1..SKILL_BODY_MAX = 50 000), agent_id (uuid), candidate_ids (uuid[], min 1) }` — the same description / body validators as `SkillInput` | `POST …/skill` body |
 | `ConventionErrorCode` | `scan_running` (409) · `repo_not_cloned` (409) · `repo_not_indexed` (409) · `candidate_not_accepted` (400) · `skill_name_taken` (409) | `error.code` of the routes |
 
 `ConventionExtraction` — the model's answer — is server-only
@@ -107,7 +107,7 @@ Every route declares `schema.response` (onion R3) and `params: IdParams`
 | GET | `/repos/:id/conventions` | 200 `ConventionsState` — the latest scan by `started_at` and its non-rejected candidates in insertion order; `{ scan: null, candidates: [] }` before the first scan | 404 repo |
 | PATCH | `/conventions/:id` | 200 `ConventionCandidate` — `status` / `rule` / `category` changed in place, workspace-scoped | 404; 422 empty patch |
 | GET | `/repos/:id/conventions/skill-draft` | 200 `ConventionSkillDraft` — built from the **accepted** candidates of the latest scan only; `name` `repo-conventions`, `type` `convention`; `existing` = the workspace skill with that name when its `source` is `extracted`, else `null` | 404 repo |
-| POST | `/repos/:id/conventions/skill` | 201 `Skill` (created) · 200 `Skill` (next version of the existing `extracted` skill) | 404 repo / agent; 400 `candidate_not_accepted` (`details.candidate_ids` = the refused ids); 409 `skill_name_taken` (the name belongs to a non-`extracted` skill) |
+| POST | `/repos/:id/conventions/skill` | 201 `Skill` (created) · 200 `Skill` (next version of the existing `extracted` skill) | 404 repo / agent; 422 `validation_error` (description > 500 or body > 50 000 chars, empty description / body — `src/app.ts:129`); 400 `candidate_not_accepted` (`details.candidate_ids` = the refused ids); 409 `skill_name_taken` (the name belongs to a non-`extracted` skill) |
 
 The routes build `ConventionsService` from `container.conventionsRepo`,
 `container.skillsService` and the container's deps; they call no adapter and

@@ -458,10 +458,10 @@ export type ConventionSkillDraft = z.infer<typeof ConventionSkillDraft>;
 /** `POST /repos/:id/conventions/skill` — save the edited draft and link it to an agent (D18). */
 export const ConventionSkillSave = z.object({
   name: SkillName,
-  description: z.string(),
+  description: z.string().trim().min(1).max(SKILL_DESCRIPTION_MAX),
   type: SkillType,
   enabled: z.boolean(),
-  body: z.string().min(1),
+  body: z.string().min(1).max(SKILL_BODY_MAX),
   agent_id: z.string().uuid(),
   /** Accepted candidates only; the server refuses any other id (400). */
   candidate_ids: z.array(z.string().uuid()).min(1),

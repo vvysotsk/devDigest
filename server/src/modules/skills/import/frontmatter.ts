@@ -61,4 +61,4 @@ export function splitFrontmatter(
 }
 
 /** Drops leading blank lines and trailing whitespace; keeps the body otherwise as written. */
-const trimBody = (s: string) => s.replace(/^(?:[ \t]*\r?\n)+/, '').replace(/\s+$/, '');
+const trimBody = (s: string) => s.replace(/^(?:[ \t]*\r?\n)+/, '').trimEnd();

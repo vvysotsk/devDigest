@@ -30,6 +30,8 @@ import {
   ConventionPatch,
   ConventionSkillSave,
   ConventionSkillDraft,
+  SKILL_BODY_MAX,
+  SKILL_DESCRIPTION_MAX,
   ConventionErrorCode,
 } from '@devdigest/shared';
 
@@ -415,5 +417,12 @@ describe('L02 skills contracts', () => {
     expect(() => ConventionPatch.parse({})).toThrow();
     expect(() => ConventionSkillSave.parse({ name: 'Repo Conventions', description: '', type: 'convention', enabled: true, body: 'b', agent_id: '00000000-0000-4000-8000-00000000000d', candidate_ids: [candidateId] })).toThrow();
     expect(() => ConventionSkillSave.parse({ name: 'repo-conventions', description: '', type: 'convention', enabled: true, body: 'b', agent_id: '00000000-0000-4000-8000-00000000000d', candidate_ids: [] })).toThrow();
+    // The same description / body limits as SkillInput (security A08): at the limit passes, one over fails.
+    const saveBase = { name: 'repo-conventions', description: 'd', type: 'convention', enabled: true, body: 'b', agent_id: '00000000-0000-4000-8000-00000000000d', candidate_ids: [candidateId] };
+    expect(() => ConventionSkillSave.parse({ ...saveBase, description: 'd'.repeat(SKILL_DESCRIPTION_MAX), body: 'x'.repeat(SKILL_BODY_MAX) })).not.toThrow();
+    expect(() => ConventionSkillSave.parse({ ...saveBase, description: 'd'.repeat(SKILL_DESCRIPTION_MAX + 1) })).toThrow();
+    expect(() => ConventionSkillSave.parse({ ...saveBase, body: 'x'.repeat(SKILL_BODY_MAX + 1) })).toThrow();
+    expect(() => ConventionSkillSave.parse({ ...saveBase, body: '' })).toThrow();
+    expect(ConventionSkillSave.parse({ ...saveBase, description: '  padded  ' }).description).toBe('padded');
   });
 });

@@ -8,6 +8,8 @@ import {
   ConventionSkillDraft,
   ConventionsState,
   Skill,
+  SKILL_BODY_MAX,
+  SKILL_DESCRIPTION_MAX,
 } from '@devdigest/shared';
 import { startPg, dockerAvailable, type PgFixture } from './helpers/pg.js';
 import { buildApp } from '../src/app.js';
@@ -423,6 +425,17 @@ d('conventions extractor (Testcontainers pg)', () => {
     expect(refused.statusCode).toBe(400);
     expect(refused.json().error).toMatchObject({ code: 'candidate_not_accepted', details: { candidate_ids: [b.id] } });
     expect((await save({ ...base, candidate_ids: [a.id], agent_id: crypto.randomUUID() })).statusCode).toBe(404);
+
+    // 422 validation_error (app.ts error handler): the same description / body limits as every other skill write.
+    const longDescription = await save({ ...base, candidate_ids: [a.id], description: 'd'.repeat(SKILL_DESCRIPTION_MAX + 1) });
+    expect(longDescription.statusCode).toBe(422);
+    expect(longDescription.json().error.code).toBe('validation_error');
+    expect(JSON.stringify(longDescription.json().error.details)).toContain('description');
+    const longBody = await save({ ...base, candidate_ids: [a.id], body: 'x'.repeat(SKILL_BODY_MAX + 1) });
+    expect(longBody.statusCode).toBe(422);
+    expect(longBody.json().error.code).toBe('validation_error');
+    expect(JSON.stringify(longBody.json().error.details)).toContain('body');
+    expect(await db.select().from(t.skills).where(and(eq(t.skills.workspaceId, ws), eq(t.skills.name, 'repo-conventions')))).toHaveLength(0);
 
     // 201: created as `extracted`, with evidence_files, linked to the agent with the body's `enabled`.
     const agentBefore = Agent.strict().parse((await app.inject({ method: 'GET', url: `/agents/${agentId}` })).json());

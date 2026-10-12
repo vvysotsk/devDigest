@@ -138,6 +138,20 @@ Never rewrite existing entries — correct with a dated note.
   refuses for an unrelated reason, and the spec claimed blob pages were
   refused (evidence: `test/skill-import-url.test.ts:71` — the case now
   asserts the blob → raw rewrite; `specs/skills.md` "Known limitations").
+- 2026-10-12: A second write path to an entity must reuse the entity's
+  validators, not re-type the fields: `ConventionSkillSave` had
+  `description: z.string()` / `body: z.string().min(1)` while `SkillInput`,
+  `SkillPatch` and the import pipeline capped them at 500 / 50 000, so the
+  conventions route could store an unbounded skill body that is injected
+  into every review prompt (pr-self-review security A08 / zod findings
+  85f882ca, c23f6ce0) (evidence: `src/vendor/shared/contracts/knowledge.ts:459`;
+  `test/conventions.it.test.ts` "422 validation_error").
+- 2026-10-12: `/\s+$/` on untrusted text is O(n²) — the engine retries
+  `\s+` from every whitespace position of a long run that does not end the
+  string; use `String.prototype.trimEnd()` (same whitespace set, linear).
+  Found by pr-self-review security (d0d93367) on the import body trimmer
+  (evidence: `src/modules/skills/import/frontmatter.ts:64`;
+  `test/frontmatter.test.ts` 100k-space cases).
 
 ## Codebase Patterns
 
