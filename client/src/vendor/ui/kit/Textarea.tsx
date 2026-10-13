@@ -1,21 +1,23 @@
 import React from "react";
 
-/** REAL controlled textarea. */
+/** REAL controlled textarea. Extra native attributes (aria-label, …) pass through. */
 export function Textarea({
   value,
   onChange,
   placeholder,
   rows = 5,
   mono,
+  ...rest
 }: {
   value: string;
   onChange?: (v: string) => void;
   placeholder?: string;
   rows?: number;
   mono?: boolean;
-}) {
+} & Omit<React.TextareaHTMLAttributes<HTMLTextAreaElement>, "value" | "onChange" | "rows" | "style">) {
   return (
     <textarea
+      {...rest}
       className={mono ? "mono" : undefined}
       value={value}
       rows={rows}

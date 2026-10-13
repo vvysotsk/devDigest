@@ -4,5 +4,15 @@
       "source": { "source": "github", "repo": "vvysotsk/screencast-demo-maker" }
     }
   },
-  "enabledPlugins": { "screencast-demo-maker@screencast-demo-maker": true }
+  "enabledPlugins": { "screencast-demo-maker@screencast-demo-maker": true },
+  "hooks": {
+    "PreToolUse": [
+      {
+        "matcher": "Bash",
+        "hooks": [
+          { "type": "command", "command": "node \"$CLAUDE_PROJECT_DIR/.claude/hooks/course-integrity.mjs\"" }
+        ]
+      }
+    ]
+  }
 }

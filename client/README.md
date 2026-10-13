@@ -28,17 +28,22 @@ flowchart TD
   PULLS --> PR["/pulls/:number<br/>review detail<br/>(overview · diff · findings)"]
 
   AGENTS["/agents"] --> AGENT["/agents/:id<br/>editor (config)"]
+  CONV["/conventions<br/>scan · cards · create skill"]
   SETTINGS["/settings/:section<br/>API keys · models"]
 
   PULLS -->|"GET /repos/:id/pulls · /repos/:id/index-state"| API
   PR -->|"GET /pulls/:id · /reviews · /pulls/:id/comments<br/>POST /pulls/:id/review · /findings/:id/(accept|dismiss)"| API
   AGENTS -->|"/agents · /agents/:id"| API
+  CONV -->|"/repos/:id/conventions(/extract · /skill-draft · /skill) · PATCH /conventions/:id"| API
   SETTINGS -->|"/settings · /providers"| API
 ```
 
 Cross-cutting chrome lives in `src/components/app-shell` (nav, breadcrumbs,
-`g`-then-key shortcuts). Pages are thin; feature logic sits in colocated
-`_components/<Name>/` folders, each with its own `*.test.tsx`.
+`g`-then-key shortcuts). Pages are thin route entries; feature logic sits in
+colocated `_components/<Name>/` folders, each with its own `*.test.tsx`. The
+one exception is `src/app/repos/[repoId]/pulls/[number]/page.tsx`, which still
+owns tab state, run invalidation and the trace-drawer wiring (a listed refactor
+candidate, see `INSIGHTS.md`).
 
 ## Testing
 

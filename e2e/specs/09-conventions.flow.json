@@ -1,0 +1,59 @@
+{
+  "name": "Conventions page: seeded candidates, accept / reject / edit survive a reload, Create skill lands on /skills",
+  "description": "HW02 D20 (#44, #46-#50, #52). The ONLY writing flow of the suite: it accepts, rejects and edits the seeded candidates of acme/payments-api, then creates the repo-conventions skill linked to General Reviewer. It needs a FRESH seed (hermetic stack or CI) and runs last, after every read-only flow — it changes skill and agent-link counts that 08 asserts. Every find … click is preceded by a wait --text for its target (flows-contract authoring rules). Clicks on per-card buttons (Accept / Reject / Edit / Save) and on the modal's Create skill are evals scoped to the card's aria-label or to [role=dialog], because several buttons share those names. No model call: the scan is seeded.",
+  "steps": [
+    { "cmd": ["open", "{BASE}/skills"], "label": "start from the skills page" },
+    { "cmd": ["wait", "--text", "Conventions"], "label": "the sidebar shows the Conventions item (SKILLS LAB, #44)" },
+    { "cmd": ["find", "text", "Conventions", "click"], "label": "open Conventions from the sidebar" },
+    { "cmd": ["wait", "--url", "/conventions"], "label": "conventions route reached" },
+    { "cmd": ["wait", "--text", "Conventions in"], "label": "the heading rendered" },
+    { "cmd": ["wait", "--text", "payments-api"], "label": "the active repo is the seeded one" },
+    { "cmd": ["wait", "--text", "Detected from 14 sample files"], "label": "the seeded scan's subtitle" },
+    { "cmd": ["wait", "--text", "0 of 4 accepted"], "label": "four pending candidates, none accepted yet" },
+    { "cmd": ["wait", "--text", "Always use async/await instead of .then() chains"], "label": "card 1: the rule (#46)" },
+    { "cmd": ["wait", "--text", "All public route handlers return typed Result<T, ApiError>"], "label": "card 2: the rule" },
+    { "cmd": ["wait", "--text", "Redis access goes through the src/lib/redis.ts singleton"], "label": "card 3: the rule" },
+    { "cmd": ["wait", "--text", "src/api/users.ts:23"], "label": "card 1: the evidence path:line (#46)" },
+    { "cmd": ["wait", "--text", "91%"], "label": "card 1: the confidence percent (#46)" },
+    { "cmd": ["wait", "--text", "ReScan"], "label": "a scan exists, so the header offers ReScan (#45)" },
+
+    { "cmd": ["eval", "(() => { const c = document.querySelector('[role=listitem][aria-label=\"Always use async/await instead of .then() chains\"]'); const b = [...c.querySelectorAll('button')].find((x) => x.textContent.trim() === 'Accept'); b.click(); return 'CLICKED_ACCEPT'; })()"], "label": "Accept card 1 (#47)", "assert": { "stdoutIncludes": "CLICKED_ACCEPT" } },
+    { "cmd": ["wait", "--text", "1 of 4 accepted"], "label": "the counter follows the accept" },
+    { "cmd": ["wait", "--text", "Create skill"], "label": "Create skill appears after the first accept (#50)" },
+
+    { "cmd": ["eval", "(() => { const c = document.querySelector('[role=listitem][aria-label=\"All public route handlers return typed Result<T, ApiError>\"]'); const b = [...c.querySelectorAll('button')].find((x) => x.textContent.trim() === 'Reject'); b.click(); return 'CLICKED_REJECT'; })()"], "label": "Reject card 2 (#47)", "assert": { "stdoutIncludes": "CLICKED_REJECT" } },
+    { "cmd": ["wait", "--text", "1 of 3 accepted"], "label": "the rejected card left the list" },
+    { "cmd": ["eval", "(() => document.body.innerText.includes('All public route handlers return typed Result<T, ApiError>') ? 'R2_PRESENT' : 'R2_ABSENT')()"], "label": "the rejected rule is gone from the page (#48)", "assert": { "stdoutIncludes": "R2_ABSENT" } },
+
+    { "cmd": ["eval", "(() => { const c = document.querySelector('[role=listitem][aria-label=\"Redis access goes through the src/lib/redis.ts singleton\"]'); const b = [...c.querySelectorAll('button')].find((x) => x.textContent.trim() === 'Edit'); b.click(); return 'CLICKED_EDIT'; })()"], "label": "Edit card 3 in place (#47, #49)", "assert": { "stdoutIncludes": "CLICKED_EDIT" } },
+    { "cmd": ["wait", "--text", "Category"], "label": "the inline edit form rendered (Rule + Category fields)" },
+    { "cmd": ["eval", "(() => { const i = document.querySelector('input[aria-label=Rule]'); Object.getOwnPropertyDescriptor(HTMLInputElement.prototype, 'value').set.call(i, 'Redis access goes through the src/lib/redis.ts singleton (edited)'); i.dispatchEvent(new Event('input', { bubbles: true })); return 'FILLED ' + i.value.length; })()"], "label": "type the edited rule (native setter + input event)", "assert": { "stdoutIncludes": "FILLED 65" } },
+    { "cmd": ["eval", "(() => { const c = document.querySelector('[role=listitem][aria-label=\"Redis access goes through the src/lib/redis.ts singleton\"]'); const b = [...c.querySelectorAll('button')].find((x) => x.textContent.trim() === 'Save'); b.click(); return 'CLICKED_SAVE'; })()"], "label": "Save the edit", "assert": { "stdoutIncludes": "CLICKED_SAVE" } },
+    { "cmd": ["wait", "--text", "(edited)"], "label": "the card shows the edited rule (#49)" },
+
+    { "cmd": ["reload"], "label": "reload the page (#48)" },
+    { "cmd": ["wait", "--text", "1 of 3 accepted"], "label": "after the reload: the accept and the reject persisted" },
+    { "cmd": ["wait", "--text", "(edited)"], "label": "after the reload: the edit persisted" },
+    { "cmd": ["eval", "(() => document.body.innerText.includes('All public route handlers return typed Result<T, ApiError>') ? 'R2_PRESENT' : 'R2_ABSENT')()"], "label": "after the reload: the rejected rule never returns (#48)", "assert": { "stdoutIncludes": "R2_ABSENT" } },
+
+    { "cmd": ["wait", "--text", "Create skill"], "label": "Create skill is still offered" },
+    { "cmd": ["find", "role", "button", "click", "--name", "Create skill"], "label": "open the create-skill modal (#51)" },
+    { "cmd": ["wait", "--text", "Create skill from conventions"], "label": "the modal says it is created from conventions (#51)" },
+    { "cmd": ["wait", "--text", "Merged from 1 accepted convention in acme/payments-api"], "label": "the modal counts the accepted candidate" },
+    { "cmd": ["wait", "--text", "repo-conventions.md"], "label": "the body editor shows the default skill name (#41)" },
+    { "cmd": ["wait", "--text", "Choose an agent…"], "label": "the agent picker rendered" },
+    { "cmd": ["eval", "(() => { const d = document.querySelector('[role=dialog]'); const t = [...d.querySelectorAll('span')].find((x) => x.textContent.trim().startsWith('Choose an agent')); t.parentElement.click(); return 'CLICKED_PICKER'; })()"], "label": "open the agent picker (a clickable div, not a button: scoped eval)", "assert": { "stdoutIncludes": "CLICKED_PICKER" } },
+    { "cmd": ["wait", "--text", "General Reviewer"], "label": "the seeded agents are listed" },
+    { "cmd": ["find", "role", "button", "click", "--name", "General Reviewer"], "label": "pick General Reviewer (#42): the options are buttons" },
+    { "cmd": ["eval", "(() => { const d = document.querySelector('[role=dialog]'); const b = [...d.querySelectorAll('button')].find((x) => x.textContent.trim() === 'Create skill'); if (b.disabled) return 'CREATE_DISABLED'; b.click(); return 'CLICKED_CREATE'; })()"], "label": "Create skill in the modal", "assert": { "stdoutIncludes": "CLICKED_CREATE" } },
+    { "cmd": ["wait", "--url", "/skills/"], "label": "the new skill opens on /skills/:id" },
+    { "cmd": ["wait", "--url", "tab=preview"], "label": "on its Preview tab" },
+    { "cmd": ["wait", "--text", "repo-conventions"], "label": "the new skill is listed on /skills (#52)" },
+    { "cmd": ["wait", "--text", "Extracted"], "label": "its source chip reads Extracted" },
+
+    { "cmd": ["open", "{BASE}/agents"], "label": "load the agents page" },
+    { "cmd": ["wait", "--url", "/agents"], "label": "agents route reached" },
+    { "cmd": ["wait", "--text", "General Reviewer"], "label": "the General Reviewer card is visible" },
+    { "cmd": ["wait", "--text", "1 skill"], "label": "General Reviewer now has the linked repo-conventions skill (#42)" }
+  ]
+}

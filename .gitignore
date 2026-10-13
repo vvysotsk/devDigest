@@ -23,3 +23,9 @@ test-results/
 
 # emdash worktree config (local)
 .emdash.json
+
+# Local tooling: Claude Code worktrees/settings, pnpm v12 auto-created workspace files
+.claude/worktrees/
+.claude/settings.local.json
+client/pnpm-workspace.yaml
+server/pnpm-workspace.yaml

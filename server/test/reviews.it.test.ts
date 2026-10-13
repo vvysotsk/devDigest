@@ -1,10 +1,10 @@
 import { describe, it, expect, beforeAll, afterAll } from 'vitest';
 import { startPg, dockerAvailable, type PgFixture } from './helpers/pg.js';
-import { waitForPrRuns } from './helpers/runs.js';
+import { waitForPrRuns, waitForRunTrace } from './helpers/runs.js';
 import { buildApp } from '../src/app.js';
 import { loadConfig } from '../src/platform/config.js';
 import { seed } from '../src/db/seed.js';
-import { MockLLMProvider, MockEmbedder, MockGitClient } from '../src/adapters/mocks.js';
+import { MockLLMProvider, MockEmbedder, MockGitClient, MockSecretsProvider } from '../src/adapters/mocks.js';
 import * as t from '../src/db/schema.js';
 import { eq } from 'drizzle-orm';
 import type { Review } from '@devdigest/shared';
@@ -115,6 +115,10 @@ d('A2 reviews + agents (Testcontainers pg)', () => {
       config: config(),
       db: pg.handle.db,
       overrides: {
+        // Empty secrets: no real GitHub token (PR list takes its offline path)
+        // and no OpenRouter key (PriceBook uses the static price table the cost
+        // assertions are computed from). Keeps the suite machine-independent.
+        secrets: new MockSecretsProvider({}),
         embedder: new MockEmbedder(),
         git: new MockGitClient({ diff: DIFF }),
         llm: {
@@ -198,6 +202,7 @@ d('A2 reviews + agents (Testcontainers pg)', () => {
 
     // a run_traces document was written (single doc)
     const runId = body.runs[0].run_id;
+    expect(await waitForRunTrace(pg.handle.db, runId)).toBe(true);
     const trace = (await app.inject({ method: 'GET', url: `/runs/${runId}/trace` })).json();
     expect(trace.config.model).toBe('gpt-4.1');
     expect(trace.stats.grounding).toBe('1/2 passed');
@@ -325,6 +330,7 @@ d('A2 reviews + agents (Testcontainers pg)', () => {
     ).json();
     const runId1 = first.runs[0].run_id;
     await waitForPrRuns(pg.handle.db, pr.id, { expected: 1 });
+    expect(await waitForRunTrace(pg.handle.db, runId1)).toBe(true);
 
     // cost + batch persisted on the agent_runs row (mock LLM yields costUsd 0.001/call)
     const [row1] = await pg.handle.db.select().from(t.agentRuns).where(eq(t.agentRuns.id, runId1));

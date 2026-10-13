@@ -11,18 +11,188 @@ Never rewrite existing entries — correct with a dated note.
 
 ## What Works
 
+- 2026-09-30: A role-only reviewer can see a test gap and still file nothing:
+  on #485 C (canRefund, only day 1 and day 30 tested) two of four no-skills
+  runs named the untested partial-refund branch in the summary yet returned
+  approve with 0 findings, one filed a branch-only WARNING, one missed it.
+  The pipeline scores, grounds and counts findings only, so a summary-only
+  mention is a miss. With the four seeded Test Quality skills both runs filed
+  a WARNING naming the exact day-7 / day-14 boundaries. Judge experiments by
+  findings, never by summaries; on this fixture the skills' value was turning
+  an inconsistent mention into a consistent, precise finding (n = 2, unstable
+  baseline) (evidence: `src/db/seed-skills.ts` Test Quality entries;
+  `src/db/seed-prs.ts` #485; runs `9f907ecd`, `ed0c7743`, `7fae85c1` vs
+  `40c5db49`, `58257669` in `../specs/HW02-conventions-and-api-contract.md`
+  "Stage 1c results").
+
 ## What Doesn't Work
 
-- 2026-09-22: `test/indexer-pipeline.test.ts` (6 tests) fails on this Windows
-  box with ENOENT on temp-dir files — pre-existing environment issue, not
-  caused by unrelated diffs; don't chase it unless working on repo-intel
-  (evidence: `ENOENT: open 'C:\Users\...\Temp\repo-intel-full-*\src\util.ts'`
-  on a clean tree).
-- 2026-09-24: UPDATE to the 2026-09-22 entry — evidence lines: the temp clone
-  comes from `mkdtemp(join(tmpdir(), 'repo-intel-full-'))` at
-  `test/indexer-pipeline.test.ts:155` (`:267` for the incremental suite).
+- 2026-09-27: A two-step import ("preview returns the parsed text, the client
+  POSTs it back to the normal create route") makes every server-side trust
+  rule client-enforced: the client can send any body and claim any `source`,
+  so the first-enable acknowledgement for imported skills could be skipped by
+  posting the text as `manual`. Save imports on their own route that
+  re-parses the uploaded FILE and sets `source` / `enabled` /
+  `acknowledged_at` itself; the manual create accepts `source: 'manual'` only
+  (evidence: `src/vendor/shared/contracts/knowledge.ts:170`, `:247`;
+  reviewer correction during L02 Stage 1 review).
+
+- 2026-09-27: Updating `specs/review-flow.md` only for the sections a change
+  "touches" lets its `path:line` evidence rot: after the onion stages a–e,
+  63 of ~135 references were off by 1–10 lines (new imports / types at the
+  top of `run-executor.ts`, `reviews/service.ts`, `container.ts`, new tests
+  in `test/reviews.it.test.ts`), though no claim was wrong. Any edit that
+  adds or removes lines above cited code shifts every later reference: after
+  such an edit, re-check all references into that file (a read-only agent
+  pass took ~2.5 min) and bump the "Last verified" line
+  (evidence: `specs/review-flow.md:3`).
+- 2026-09-27: An it-test that calls a route touching GitHub without
+  `overrides.github` is machine-dependent: `container.github()` then reads a
+  real token from `~/.devdigest/secrets.json` / `GITHUB_TOKEN` and calls the
+  real API for the test's fake `acme/*` repos (the route swallows the error,
+  so it passes by accident). Always inject `MockGitHubClient`, or force the
+  offline path with `overrides.secrets: new MockSecretsProvider({})`
+  (evidence: `test/reviews.it.test.ts:113-126` builds apps without a github
+  override; `src/platform/container.ts:153-160`; the pattern to copy is
+  `test/pulls-sync.it.test.ts` `appWith`).
+  - 2026-09-27 update: a real `OPENROUTER_API_KEY` has the same effect on
+    `container.priceBook` (live prices instead of the static table), and the
+    L01 run-cost test in `reviews.it` failed once under full-suite load
+    (4 later full runs green). Fixed in 2712a6e: `reviews.it` `appWith` now
+    passes `secrets: new MockSecretsProvider({})`
+    (evidence: `test/reviews.it.test.ts:117-121`).
+- 2026-09-29: In a seed skill, a reporting rule that caps findings per unit
+  ("One finding per changed route") makes the model merge distinct breaking
+  changes into one finding and drop the lower-severity one. On #484 the
+  default sort-order change (WARN) was lost in 2 of 2 runs with v1. Phrase
+  the rule per difference instead ("one finding per breaking difference … do
+  not merge"); v2 reports the sort order in 2 of 2. Check recall per defect,
+  not per route, when you change a skill's wording (evidence:
+  `src/db/seed-skills.ts:417-419`, commit `8aabc17`; runs `3cc3a7dd`,
+  `77338a0b` vs `ee0ce762`, `1125706e` in `../specs/L02-skills.md` "Stage 8
+  results").
+  - 2026-09-29 note: HW02 Stage 0f removed `route-signature-diff` from the
+    seed. The cited lines are in git history, `src/db/seed-skills.ts:417-419`
+    at `8d65d15`; the lesson still applies to the HW02 API skills.
+- 2026-09-30: A field rename in a shared zod schema cannot be calibrated as
+  an API-contract experiment defect: the role-only reviewer (no skills, no
+  method text) caught #486 A' in 3 of 4 runs, and rewriting the title and
+  body so they no longer name the rename did not help (2/2 caught after the
+  edit). The three-line diff itself gives the rename away. When you plant a
+  "missed without skills" defect, prefer the subtler classes from the
+  pre-registered list (optionality, an enum value merged) over renames, and
+  pre-register them first (evidence: `src/db/seed-prs.ts` #486, fixtures
+  `5e0a93d7c2b1` → `7f3c1a9e4b02` → `9a4e7c3b1d68`;
+  `../specs/HW02-conventions-and-api-contract.md` "Stage 1c results").
+
+- 2026-10-01: A path that comes back from the LLM is attacker-influenced
+  (the model read the repo's files, README and comments). Never pass it to
+  `GitClient.readFile` — the real adapter is `readFile(join(clonePath, path))`
+  with no traversal guard, so `../../.devdigest/secrets.json` would be read
+  and stored as "evidence". Allowlist it against the exact set of paths the
+  server itself sent to the model, and reuse the contents already in memory
+  for any check (plan correction by the user before 2b) (evidence:
+  `src/adapters/git/simple-git.ts:129-131`;
+  `src/modules/conventions/helpers.ts:106-112`, `:118-147`;
+  `test/conventions.it.test.ts:214` asserts `git.reads`).
+- 2026-10-01: A "quote may span lines" fallback that joins the candidate line
+  with the next two and does `includes(q)` attributes a quote found on line
+  N+2 to line N (the join contains it), so the stored `evidence_line` is
+  wrong and the ±2 window degrades to ±4. Require the match to START inside
+  the first line (`indexOf(q) < first.length`); caught by the helpers test
+  "expected 1 to be 3" (evidence: `src/modules/conventions/helpers.ts:60-74`;
+  `test/conventions-helpers.test.ts:82-92`).
+
+- 2026-10-01: A mock LLM that returns the same fixture on every call cannot
+  test a "match the model's new answer against its earlier answers" rule:
+  every text key matched, the `.it` re-scan case was green, and the first
+  live re-scan on `supermacro/neverthrow` (deepseek-v4-flash) lost every
+  decision because the model rephrases every rule each time. Key such rules
+  on something the model does not author freely (here the verified evidence
+  path + line ±2 + category, with the text as a second chance), and add a
+  rephrased fixture to the `.it` suite — a second app with a different
+  `structuredBySchema` answer on the same DB (evidence:
+  `src/modules/conventions/helpers.ts:102-116`;
+  `test/conventions.it.test.ts:360`; the live scans of 2026-10-01).
+- 2026-10-01: Text the model wrote earlier is still untrusted when it comes
+  back into a prompt, even after a user accepted or rejected it: a rejected
+  rule can echo an injection from the repo. Re-inject such text only inside a
+  delimited data block with its closing tag neutralised (and `</untrusted>`
+  too), never as plain instructions (user correction during the fix plan)
+  (evidence: `src/modules/conventions/helpers.ts:141-158`, `:241-242`;
+  `test/conventions-helpers.test.ts:317`).
+
+- 2026-10-02: An extension rule on a URL (`.md` / `.zip`) is not a content
+  check: a GitHub blob URL ends in `.md` and serves the HTML page, which the
+  import pipeline then parsed as SKILL.md (no frontmatter, `type_defaulted`,
+  `raw_source` = `<!DOCTYPE html>…`). Carry the response `Content-Type`
+  through the port with the bytes and sniff the first non-whitespace bytes
+  (`<!doctype html` / `<html`) in the service BEFORE parsing; rewrite only
+  the exact `github.com/<owner>/<repo>/blob/…` pattern to its raw URL
+  (evidence: `src/modules/skills/import/url.ts:178`,
+  `src/modules/skills/service.ts:189`; manual check of 3a with
+  `https://github.com/anthropics/skills/blob/main/skills/frontend-design/SKILL.md`).
+- 2026-10-02: A spec sentence "X is refused by design" needs a test that
+  feeds the REAL X, not an input that happens to trip some rule: 3a's only
+  blob-URL test used `blob/main/SKILL.md.html`, which the extension rule
+  refuses for an unrelated reason, and the spec claimed blob pages were
+  refused (evidence: `test/skill-import-url.test.ts:71` — the case now
+  asserts the blob → raw rewrite; `specs/skills.md` "Known limitations").
+- 2026-10-12: A second write path to an entity must reuse the entity's
+  validators, not re-type the fields: `ConventionSkillSave` had
+  `description: z.string()` / `body: z.string().min(1)` while `SkillInput`,
+  `SkillPatch` and the import pipeline capped them at 500 / 50 000, so the
+  conventions route could store an unbounded skill body that is injected
+  into every review prompt (pr-self-review security A08 / zod findings
+  85f882ca, c23f6ce0) (evidence: `src/vendor/shared/contracts/knowledge.ts:459`;
+  `test/conventions.it.test.ts` "422 validation_error").
+- 2026-10-12: `/\s+$/` on untrusted text is O(n²) — the engine retries
+  `\s+` from every whitespace position of a long run that does not end the
+  string; use `String.prototype.trimEnd()` (same whitespace set, linear).
+  Found by pr-self-review security (d0d93367) on the import body trimmer
+  (evidence: `src/modules/skills/import/frontmatter.ts:64`;
+  `test/frontmatter.test.ts` 100k-space cases).
 
 ## Codebase Patterns
+
+- 2026-09-27: `test/reviews-golden.it.test.ts` pins a mocked run's trace
+  `log` message by message, so ANY new unconditional `runLog.info` in the
+  executor breaks it. Log only when there is something to report (L02 logs one
+  line per injected skill and nothing for an agent without skills) or update
+  the golden on purpose (evidence: `test/reviews-golden.it.test.ts:271`,
+  `src/modules/reviews/run-executor.ts:358-373`).
+
+- 2026-09-27: A port shared by two modules cannot live in `src/vendor/shared`
+  while contracts are frozen, and the consumer may not import it from the
+  owning module. Declare it in the owner's `types.ts` (types the container
+  getter) and let each consumer declare its own narrow structural interface;
+  the container wires one instance into both (evidence:
+  `src/modules/skills/types.ts:69` `SkillsPort`, `src/modules/agents/types.ts:9`
+  `AgentSkillLinks`, `src/platform/container.ts:109-128`).
+- 2026-09-27: A cross-module write that must share a transaction goes through
+  the owning module's repository method taking `DbOrTx`; the calling service
+  opens `deps.db.transaction` and passes `tx`. Do not import `db/client` in the
+  service even as a type — dependency-cruiser flags it as
+  `no-drizzle-outside-persistence` (evidence: `src/modules/skills/service.ts:143`,
+  `src/modules/agents/repository.ts:170`, `:184`).
+  - 2026-09-27 note: after the Stage 3b import methods the transaction is at
+    `src/modules/skills/service.ts:178`.
+
+- 2026-09-27: `Pick<Container, 'llm' | 'github' | 'embedder' | …>` picks
+  METHODS that read `this` (`this.overrides`, `this.secrets`,
+  `src/platform/container.ts:195-196`). Pass the container itself as `deps`
+  and call `this.deps.llm(id)` (`src/modules/reviews/run-executor.ts:163`);
+  never destructure (`const { llm } = deps`) or pass `deps.llm` as a
+  callback — the call then runs with `this` undefined and throws. Getters
+  (`git`, `repoIntel`, `jobs`) are safe either way.
+- 2026-09-27: A service that needs another module's repository types it as
+  `Container['reposRepo']` / `Container['reviewRepo']`, never with
+  `import type { RepoRepository } from '../repos/repository.js'`: the
+  advisory `no-cross-module` rule runs with `tsPreCompilationDeps: true`, so a
+  type-only import of another module's folder is a new violation too. The
+  instance comes from the container in the route (evidence:
+  `src/modules/pulls/service.ts:27`, `:29`; `src/modules/pulls/routes.ts:26`;
+  `.dependency-cruiser.cjs` `options.tsPreCompilationDeps`).
 
 - 2026-09-24: `POST /pulls/:id/review` ALWAYS answers `reviews: []` —
   `runReview` starts `executeRuns` un-awaited and returns before any review
@@ -37,8 +207,158 @@ Never rewrite existing entries — correct with a dated note.
   `status === 'done'` itself, as `sumSettledRunCost` does (evidence:
   `src/modules/_shared/run-cost.ts:25`, `:28`;
   `src/modules/_shared/latest-batch.ts:71`; `test/latest-batch.test.ts:70`).
+- 2026-09-26: `polling` is not a read-only "thin" module: its route inserts
+  into `pull_requests` and updates `repos` — tables owned by `pulls` and
+  `repos` — as two separate statements with no transaction. Do not treat it
+  as covered by the thin-module exception; new write paths go through a
+  service (evidence: `src/modules/polling/routes.ts:33`, `:61`;
+  `docs/architecture.md` "Architecture decisions").
+- 2026-09-26: No route declares `schema.response` (0 of 37), so the zod
+  `serializerCompiler` installed in `app.ts` never runs and responses go out
+  via plain `JSON.stringify` — nothing strips fields a service adds. The docs
+  claimed "serializes every response" until today. When you add a response
+  schema, add a shape test (`Contract.strict().parse(res.json())`): the
+  serializer (`fastify-type-provider-zod` 4.0.2) drops unknown keys and turns a
+  mismatch into a 500 (evidence: `src/app.ts:64-65`;
+  `node_modules/fastify-type-provider-zod/dist/src/core.js:85-92`;
+  grep `response:` over `src/modules/**/routes.ts` → 0).
+- 2026-09-27: An offline (never cloned) repo is still reviewable: with
+  `repos.clone_path = null`, `git.diff` throws and `loadDiff` falls back to
+  `diffFromPrFiles`, which silently SKIPS every `pr_files` row without a
+  `patch`. Seeded PR #482 has no patches, so a review on it gets an empty
+  diff. Seed PRs meant for real runs must carry `patch` text (GitHub patch
+  format starting at `@@`); repo-intel then degrades to empty callers / repo map
+  instead of failing (evidence: `src/modules/reviews/diff-loader.ts:19-29`,
+  `:37`; `src/db/seed.ts:121-126`; `src/modules/repo-intel/service.ts:467-468`).
+- 2026-09-29: Do not put LLM work on `JobRunner`. It has a hard 120 s
+  timeout and 2 retries by default, so a slow model call (18–406 s measured
+  for conventions) is killed and then paid for again. Run it the way review
+  runs do: a status row plus a detached promise with `.catch`, reaped on
+  restart (evidence: `src/platform/jobs.ts:41-42`,
+  `src/modules/reviews/service.ts:157`, `:113`;
+  `../specs/HW02-conventions-and-api-contract.md` D14).
+- 2026-09-29: `repoIntel.getConventionSamples(repoId, n)` returns ranked
+  paths only, never contents. It filters out every path containing
+  `eslint`, `prettier` or `.config.`, and it returns `[]` for a repo that
+  was never indexed, because it reads `file_rank`. A conventions sampler must
+  read the config files from the clone itself and treat `[]` as "not
+  indexed", not as "no samples" (evidence:
+  `src/modules/repo-intel/service.ts:636-662`, `:729-733`).
+
+- 2026-10-01: `resolveFeatureModel` (`src/modules/settings/feature-models.ts`)
+  cannot be imported by another module: it imports `drizzle-orm`, `db/schema`,
+  `Container` and a settings helper, so both `no-cross-module` and
+  `no-drizzle-outside-persistence` fire. Expose it as a port on the
+  container instead — `FeatureModelResolver` in `src/modules/settings/types.ts`,
+  wired as `container.featureModels` — and let the consumer type it as
+  `Pick<Container, 'featureModels'>` (evidence: `src/modules/settings/feature-models.ts:1-9`;
+  `src/platform/container.ts:162-166`; `src/modules/conventions/types.ts:102`).
+- 2026-10-01: Nothing on the container could create, version or link a skill
+  before 2b: `container.skillsRepo` is the read-only `SkillsPort`, and
+  `SkillsService.create` accepts `source: 'manual'` only (the import path sets
+  its source privately). A module that must write skills with another
+  `source` gets a new service method (`createExtracted` / `updateExtracted`,
+  which carry `evidence_files`) and reaches the service through
+  `container.skillsService`, typed on the consumer side as a structural
+  interface (`SkillsWriter`) so `modules/skills` is never imported (evidence:
+  `src/modules/skills/types.ts:69-78`, `src/modules/skills/service.ts:64-73`,
+  `:118-160`; `src/modules/conventions/types.ts:92-99`;
+  `src/platform/container.ts:144-150`).
+- 2026-10-01: An advisory lock (`sql\`select pg_advisory_xact_lock(…)\``)
+  belongs in a repository method, not in the service's `db.transaction`
+  callback: the `sql` tag is a `drizzle-orm` import and the conventions
+  module is not in dependency-cruiser's `PERSISTENCE` list, so a service
+  using it is a `no-drizzle-outside-persistence` violation. Put
+  "lock → check → insert" in one repository method that returns what the
+  service needs to decide (plan correction by the user) (evidence:
+  `.dependency-cruiser.cjs` `PERSISTENCE`;
+  `src/modules/conventions/repository.ts:70-89`).
+- 2026-10-01: `MockGitClient.readFile` returns `''` for an unknown path while
+  `SimpleGitClient.readFile` throws ENOENT, so a sampler that only catches
+  the throw would count a missing file as a sample under the mock. Skip
+  empty contents as well as throws, and the two behave the same (evidence:
+  `src/adapters/mocks.ts:303-306`; `src/adapters/git/simple-git.ts:129-131`;
+  `src/modules/conventions/service.ts:172-180`).
+
+- 2026-10-01: `withTimeout` (`src/platform/resilience.ts:13`) only races a
+  promise against a timer — it cannot abort the underlying `fetch`, so a slow
+  download would keep streaming after the "timeout". For outbound HTTP
+  create ONE `AbortSignal.timeout(ms)` per operation and pass it to every
+  redirect hop AND the body read; a per-hop signal lets a chain of hops each
+  under the limit run far past it (plan correction by the user) (evidence:
+  `src/adapters/http/url-fetcher.ts:48`, `:76`;
+  `test/skill-import-url.test.ts:236`).
+- 2026-10-01: `new URL(…).hostname` already normalises numeric host forms
+  (`2130706433`, `0x7f.0.0.1`, `0177.0.0.1` → `127.0.0.1`), so an SSRF
+  allow/deny check must run on the PARSED hostname, never on the raw string;
+  IPv6 literals keep their brackets in `hostname` (`[::1]`) and need them
+  stripped before the range check (evidence:
+  `src/modules/skills/import/url.ts:98-108`;
+  `test/skill-import-url.test.ts:50-61`).
+
+- 2026-10-02: `splitFrontmatter` used to return `frontmatter: {}` for BOTH
+  "no `---` block" and an empty `---\n---` block, so a caller could not tell
+  a README from a skill that merely lacks fields; it now returns `present`
+  — branch on that, never on `Object.keys(frontmatter).length`. The opener
+  is deliberately strict (line 1, BOM the only prefix — user decision: that
+  is how GitHub and skill tooling read SKILL.md); blank lines before `---`
+  are "no frontmatter" and the `no_frontmatter` warning says so rather than
+  the parser guessing (evidence: `src/modules/skills/import/frontmatter.ts:19`,
+  `:57`; `src/modules/skills/import/pipeline.ts:110`).
 
 ## Tool & Library Notes
+
+- 2026-09-30: OpenRouter deepseek/deepseek-v4-flash single-pass reviews have
+  a heavy latency tail. On 2–3-file diffs most runs finished in 6 s–7 min
+  with 0.1–3.6k tokens out, but both #486 variant A no-skills runs
+  (066ebca1, f36a22cf; the same prompt) took 26 and 21 min with 132k / 109k
+  tokens out, while the with-skills runs on that PR took 24–40 s; #483 run
+  35178148 took 11 min with 15k tokens out; #483 run 5caf4e59 failed after
+  27.8 min with "Premature close" from openrouter.ai (no user prompt in the
+  trace, 0 tokens). Budget experiment time for the tail, keep every run, and
+  treat a failed run as neither evidence nor a reason to rerun the others.
+  cost_usd does not scale with tokens_out across these runs (f36a22cf: 109k
+  out, $0.0004; 066ebca1: 132k out, $0.021), so do not compare runs by cost
+  (evidence: `src/modules/reviews/run-executor.ts:287`, `:367`;
+  `../specs/HW02-conventions-and-api-contract.md` "Stage 1c results" and
+  "Trace evidence").
+- 2026-09-27: fflate `unzipSync` inflates each entry into
+  `new Uint8Array(declaredSize)` and never checks CRC-32: a header that
+  under-declares the size is silently truncated (memory stays capped, content
+  is corrupted). Compare the inflated length AND CRC-32 with the central
+  directory (evidence: `src/modules/skills/import/zip.ts:199-200`;
+  `node_modules/fflate/esm/index.mjs:2704`; `test/skill-import.test.ts`).
+- 2026-09-27: fflate `unzipSync` keys its result by entry name (duplicates
+  collapse into one) and exposes neither external attributes nor the host OS,
+  so symlink / duplicate detection needs an own central-directory read. Decode
+  names with fflate's `strFromU8(bytes, !(flags & 0x800))` so they match its
+  keys (evidence: `src/modules/skills/import/zip.ts:131`, `:169`).
+- 2026-09-27: fflate follows a ZIP64 locator whenever one is present, even if
+  the classic EOCD fields are not maxed out — a pre-check that reads only the
+  classic EOCD would see a different entry list than fflate. Reject (or
+  parse) ZIP64 before inflating (evidence: `src/modules/skills/import/zip.ts:91-98`;
+  `node_modules/fflate/esm/index.mjs:2682-2690`).
+
+- 2026-09-27: With the zod type provider a 204 route declared as
+  `response: { 204: z.null() }` must reply `reply.status(204).send(null)`;
+  `send()` without an argument fails typecheck (TS2554). Fastify sends no body
+  for 204 either way (evidence: `src/modules/skills/routes.ts:66-72`).
+
+- 2026-09-26: To ignore type-only cycles in dependency-cruiser, put the
+  filter in `to.viaOnly.dependencyTypesNot: ['type-only']`, not in
+  `to.dependencyTypesNot`: the top-level one checks only the single edge a
+  cycle is reported from, so `platform/container.ts` → `repo-intel/service.ts`
+  (a runtime import) kept reporting a cycle that is closed by
+  `import type { Container }`. All five cycles in the first run were
+  type-only (evidence: `.dependency-cruiser.cjs` rule `no-circular`;
+  `node_modules/dependency-cruiser/src/validate/matchers.mjs:186-191`;
+  `src/modules/repo-intel/service.ts:21`, `src/modules/agents/helpers.ts:3`).
+- 2026-09-26: dependency-cruiser 17.4.3 rejects `enhancedResolveOptions.extensionAlias`
+  ("must NOT have additional properties"); it is not needed — with
+  `tsConfig` set, `.js` specifiers resolve to `.ts` files (466 of 466
+  dependencies resolved). Keep `tsPreCompilationDeps: true`, otherwise
+  `import type` row leaks are invisible (evidence: `.dependency-cruiser.cjs`
+  options; first `pnpm deps:check` run).
 
 - 2026-09-24: Starting the API from WSL via `/mnt/c/...` crashes at boot with
   `Error: unable to determine transport target for "pino-pretty"`
@@ -49,8 +369,89 @@ Never rewrite existing entries — correct with a dated note.
   stack on 2026-09-22 ended in
   `at buildApp (/mnt/c/OSPanel/home/devDigest/server/src/app.ts:46:15)`).
 
+- 2026-09-27: A snapshot of `GET /runs/:id/trace` is not stable after
+  normalizing ids and ISO timestamps: log entries carry a wall-clock number
+  `t`, stage durations sit in `ms` / `duration_ms`, and messages embed
+  `(Nms)` ("Loading PR diff done (0ms)"). Normalize all three, as
+  `test/reviews-golden.it.test.ts:75-95` does, or the snapshot flakes on
+  timing only.
+- 2026-09-27: `MockGitClient.diff()` ignores its arguments and records no
+  calls (`src/adapters/mocks.ts:281`), so no test can assert which
+  `base` / `head_sha` the review diff was requested for; only typecheck
+  guards that wiring. Add call recording to the mock before relying on it.
+
+- 2026-09-27: `src/adapters/depgraph/index.ts:82` and
+  `src/modules/repo-intel/pipeline/repo-map.ts:64` contain a literal NUL byte
+  inside a template-literal dedup key (`${from}\0${to}`). git and grep treat
+  both files as binary: `git diff` prints `Bin 4246 -> 4082 bytes` (no hunks,
+  so diff-based review sees nothing), `grep` prints "Binary file matches".
+  Use `grep -a` / `git diff --text`, and edit them byte-wise (Python `rb`) or
+  with the Edit tool — never round-trip them through a text tool that drops
+  the byte (changing the key changes dedup behaviour).
+  - 2026-09-27 correction: the literal byte is now the `\u0000` escape (same
+    string at runtime), so both files are plain text for git and grep again.
+    Keep the separator as the escape, never a raw control character (evidence:
+    `src/adapters/depgraph/index.ts:82`,
+    `src/modules/repo-intel/pipeline/repo-map.ts:64`).
+
+- 2026-10-02: `new Response('text')` (undici) always sets
+  `content-type: text/plain;charset=UTF-8`; a fake-fetch case for "the
+  server sends no Content-Type" must `res.headers.delete('content-type')`
+  before returning the Response, or the null branch is never exercised
+  (evidence: `test/skill-import-url.test.ts:267`).
+- 2026-10-02: `pnpm deps:check` once failed with
+  `ERR_PNPM_RECURSIVE_EXEC_FIRST_FAIL × Command "deps:check" not found`
+  while `pnpm run deps:check` ran the same script fine; when the shorthand
+  fails, use the `run` form before debugging the script (evidence:
+  `package.json:11`).
+
 ## Recurring Errors & Fixes
 
+- 2026-09-27: A `.it.test.ts` file can report green while running NOTHING:
+  `dockerAvailable()` (`test/helpers/pg.ts:28-37`) caches a failed
+  `docker info` and the file calls `describe.skip`. With 15 integration files
+  starting containers in parallel, the old 5 s timeout expired and
+  `test/skill-import.it.test.ts` was skipped ("4 skipped" in the summary).
+  Timeout is now 30 s; still read the summary for `skipped` / `↓` lines,
+  not only for failures.
+  - 2026-09-27 note: a longer timeout only makes the skip rarer. The gate is
+    now strict: with `DEVDIGEST_REQUIRE_DOCKER=1` (CI
+    `../.github/workflows/server-integration.yml`, the documented command in
+    `CLAUDE.md`) `dockerAvailable()` THROWS when Docker is unreachable, so the
+    file fails instead of skipping (`test/helpers/pg.ts:22-48`). Report the
+    skipped count of every integration run.
+
+- 2026-09-27: `pnpm typecheck` checks only `src/` (`tsconfig.json:28`
+  `"include": ["src/**/*.ts"]`) and vitest does not typecheck, so a change to
+  a reviewer-core or contract API can leave `test/*.ts` calling the old shape
+  with a green typecheck: L02 Stage 4a (`ReviewSkill[]` instead of `string[]`)
+  broke `test/prompt-structured.test.ts:17` and only the unit run caught it.
+  After an API change in reviewer-core or `src/vendor/shared`, run the server
+  unit tests too, not just the typecheck.
+
+- 2026-09-27: In a fresh checkout or git worktree, `pnpm typecheck` fails
+  with `Cannot find module 'openai'` / `'zod'` inside
+  `../reviewer-core/src/llm/*.ts` until `cd reviewer-core && npm ci`: the
+  `@devdigest/reviewer-core` path alias compiles reviewer-core's SOURCES,
+  which resolve their imports from reviewer-core's own `node_modules`
+  (evidence: `tsconfig.json:24-25`; `../reviewer-core/src/llm/structured.ts:1`;
+  hit by three L02 Wave-2 tracks).
+
+- 2026-09-27: repo-intel tests build a partial `Container` with
+  `as unknown as Container` (`test/indexer-pipeline.test.ts:140`,
+  `test/repo-intel-resync.test.ts:50`, `test/repo-intel-phantom.test.ts:36`),
+  so typecheck does not notice a container member the code newly reads — the
+  test fails at runtime with "Cannot read properties of undefined". When the
+  service or a pipeline starts using a new port (`codeParser` in stage d),
+  add it to every such fake: the real adapter where the test pins real
+  parsing, `MockCodeParser` where it pins service logic.
+- 2026-09-26: Path splitting on `'/'` breaks on Windows: `join()` yields
+  backslashes, so `full.lastIndexOf('/')` is -1. It made the 6
+  `test/indexer-pipeline.test.ts` tests fail with ENOENT (no `mkdir` for
+  `src\`) — wrongly logged on 2026-09-22 as an environment issue — and only
+  worked by accident in `test/indexer-walk.test.ts`. Use `dirname()` from
+  `node:path` (evidence: `test/indexer-pipeline.test.ts:140-145`,
+  `test/indexer-walk.test.ts:18-23`).
 - 2026-09-22: `pnpm db:migrate` exits 0 WITHOUT applying migrations on
   Windows — the CLI guard `import.meta.url === \`file://${process.argv[1]}\``
   in `src/db/migrate.ts:37` never matches (`file:///C:/...` vs `C:\...`).
@@ -58,6 +459,28 @@ Never rewrite existing entries — correct with a dated note.
   `pnpm exec tsx -e "import('./src/db/migrate.ts').then(m => m.runMigrations(process.env.DATABASE_URL))"`,
   then verify the columns actually exist (evidence: 0010 columns absent from
   information_schema after a "successful" `pnpm db:migrate`).
+  - 2026-09-27 correction: fixed in 653defa — `migrate.ts` and `seed.ts` use
+    `isEntryPoint()` (`src/db/cli.ts`, `pathToFileURL(resolve(argv1)).href`);
+    the `tsx -e` workaround is no longer needed. `./scripts/dev.sh --db-only`
+    in Git Bash now prints `✓ migrations applied` and `✓ seeded`;
+    `test/db-cli-entry.test.ts` guards the CLI branch (evidence:
+    `src/db/migrate.ts:38`, `src/db/seed.ts:228`).
+  - 2026-09-27 note: on an already-migrated DB `pnpm db:migrate` prints three
+    Postgres NOTICE objects (`42710` vector exists, `42P06` schema drizzle
+    exists, `42P07` `__drizzle_migrations` exists, `file: 'parse_utilcmd.c'`)
+    before `✓ migrations applied` — they come from the `IF NOT EXISTS`
+    statements (`src/db/migrate.ts:24,31`) and are not failures; judge success
+    by `select count(*) from drizzle.__drizzle_migrations` = number of journal
+    entries (12 after `0011_white_sumo`).
+
+- 2026-09-27: `waitForPrRuns` does not make `GET /runs/:id/trace` safe: the
+  executor writes `agent_runs.status = done` (`completeAgentRun`) before
+  `saveRunTrace` (`src/modules/reviews/run-executor.ts:243`, `:289`), so a
+  trace read right after the wait intermittently 404s ("Cannot read properties
+  of undefined (reading map)" on `trace.tool_calls`, about 1 run in 4 under
+  the full .it suite; it predates the onion refactor and also hit
+  `test/reviews.it.test.ts:344` L01 on the old code). Also wait with `waitForRunTrace`
+  (`test/helpers/runs.ts`) before reading a trace.
 
 ## Session Notes
 
@@ -66,5 +489,70 @@ Never rewrite existing entries — correct with a dated note.
   `review-api.ts` response comment (mirrored to the client copy) and the
   "seed has 2 enabled agents" comment in `test/reviews.it.test.ts:298`
   (seed creates three).
+- 2026-09-26: Added the `onion-architecture` skill and the advisory
+  `pnpm deps:check` (`.dependency-cruiser.cjs`, `--ignore-known` against
+  `.dependency-cruiser-known-violations.json`, 18 known violations);
+  `docs/architecture.md` gained "Architecture decisions" (pulls/polling
+  deferred, pulls sync without a transaction at
+  `src/modules/pulls/routes.ts:251-285`) and a corrected serialization
+  description.
+- 2026-09-27: Onion stage c: the reviews service/executor no longer see
+  Drizzle rows (agents arrive as the `Agent` contract from
+  `container.agentsRepo`, PRs/repos as narrow types in
+  `src/modules/reviews/types.ts`); golden responses pinned before the change
+  (`test/reviews-golden.it.test.ts`) match unchanged; non-default agent fields
+  covered by `test/reviews-row-fields.it.test.ts`.
+- 2026-09-27: Onion stage d: `parseUnifiedDiff`, the regex extractor and the
+  job kinds moved inward (`src/modules/_shared/{diff-parser,job-kinds}.ts`,
+  `src/modules/repo-intel/extract.ts`); repo-intel reaches ast-grep only via
+  the `CodeParser` port (`src/modules/repo-intel/types.ts`,
+  `container.codeParser`, fake `MockCodeParser` in `src/adapters/mocks.ts`,
+  service rule pinned by `test/repo-intel-phantom.test.ts`);
+  dependency-cruiser baseline 10 → 1 (`src/modules/repos/helpers.ts`).
+- 2026-09-27: Onion stage e: one `RepoIntelService` per container
+  (`container.repoIntelService`, `src/platform/container.ts`); the repo-intel
+  plugin registers job handlers on it, `repoIntel` = override ?? it.
+  `RepoIntelService`, the pipelines and `ReviewService` (+ executor,
+  `loadDiff`) take `Pick<Container, …>`; `test/repo-intel-registration.test.ts`
+  pins the single instance and the three job kinds via `JobRunner.hasHandler`.
+
+- 2026-10-01: HW02 Stage 2b — the conventions module
+  (`src/modules/conventions/`): five routes with response schemas, the 202 +
+  detached extraction with a boot reaper, the per-repo advisory lock in the
+  repository, the D16 evidence check as an allowlist over the sampled paths,
+  decision carry-over by normalised rule, `repo-conventions` created /
+  versioned / linked through `container.skillsService`; `GitClient.listRootFiles`
+  added to the port (server + client mirror of the one member);
+  `container.featureModels` is the first caller of `resolveFeatureModel`.
+  `pnpm deps:check` 0 new violations before and after (1 known).
+
+- 2026-10-01 (fix): conventions carry-over keyed on evidence location +
+  category as well as rule text; earlier decisions sent to the model in a
+  `<prior-decisions>` data block; rephrased-fixture `.it` case.
+
+- 2026-10-01 (3a): skill import from a URL — `UrlFetcher` port +
+  `FetchUrlFetcher` adapter (SSRF rules, manual redirects, one deadline,
+  streamed cap), `import/url.ts` pure checks, two routes with `sha256`
+  preview/save integrity, `needsAck` for `imported_url`.
+
+- 2026-10-02 (3a fix): URL import — `contentType` on the `UrlFetchResult`
+  ok variant, `isHtmlResponse` / `htmlPageFailure` (415 `import_url_html`)
+  in `fetchForImport` on preview and save, `rewriteGitHubBlobUrl` inside
+  `checkImportUrl`, `fetched_url` on `SkillImportUrlPreview`; full `.it`
+  suite 18 files / 103 tests, 0 skipped; `pnpm run deps:check` 0 new (1 known).
+
+- 2026-10-02 (import warning): `no_frontmatter` first in `buildImportPreview`
+  for every import path (file, zip's SKILL.md, URL); `splitFrontmatter.present`;
+  `SkillImportWarningKind` gained the value (mirrored); README-like `.it` case.
 
 ## Open Questions
+
+- 2026-09-29: The provider's `tokens_in` (stored as-is on the run) is not
+  comparable across runs of the same prompt. On OpenRouter
+  `deepseek/deepseek-v4-flash`, runs `8c19c5c0` / `cd669ea3` sent the same
+  2077-token cl100k prompt and reported 2233 vs 3379. The v2 skills prompt
+  (2738 cl100k) reported 2821, while the smaller v1 prompt (2672) reported
+  3980. Is it prompt caching or upstream variance? Until that is known,
+  measure skill cost from the cl100k `skill_blocks`, not from `tokens_in`
+  (evidence: `src/modules/reviews/run-executor.ts:287`, `:367`;
+  `../specs/L02-skills.md` "Stage 8 results").

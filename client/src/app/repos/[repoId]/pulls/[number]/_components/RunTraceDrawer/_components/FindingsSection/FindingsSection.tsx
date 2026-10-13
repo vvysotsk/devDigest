@@ -9,8 +9,9 @@ import React from "react";
 import { useTranslations } from "next-intl";
 import { Badge } from "@devdigest/ui";
 import type { FindingRecord } from "@devdigest/shared";
-import { SeveritySummary, countBySeverity } from "@/components/severity-summary";
-import { FindingPreview, sortBySeverity } from "@/components/findings-preview";
+import { SeveritySummary } from "@/features/reviews/components/severity-summary";
+import { FindingPreview } from "@/features/reviews/components/findings-preview";
+import { countBySeverity, sortBySeverity } from "@/features/reviews/lib/severity";
 import { s } from "../../styles";
 import { TraceSection } from "../TraceSection";
 

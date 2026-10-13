@@ -32,7 +32,16 @@ import type {
   SecretsProvider,
   SecretKey,
 } from '@devdigest/shared';
-import { parseUnifiedDiff } from './git/diff-parser.js';
+import { parseUnifiedDiff } from '../modules/_shared/diff-parser.js';
+import type { UrlFetchResult, UrlFetcher } from '../modules/skills/types.js';
+import { SUPPORTED_EXT } from '../modules/repo-intel/constants.js';
+import type {
+  CodeParser,
+  ParsedImport,
+  ParsedInvocationHead,
+  ParsedReference,
+  ParsedSymbol,
+} from '../modules/repo-intel/types.js';
 
 /**
  * Deterministic MOCK adapters for tests/dev — NO real network. Each mirrors the
@@ -46,9 +55,9 @@ export interface MockLLMOptions {
   /** Fixture returned by completeStructured (validated against the schema). */
   structured?: unknown;
   /**
-   * Per-schemaName fixtures for multi-call flows (e.g. the conventions 2-step
-   * dialogue: 'ConventionFileSelection' then 'ConventionExtraction'). Looked up
-   * by req.schemaName; falls back to `structured` when no entry matches.
+   * Per-schemaName fixtures for flows with several structured calls (the
+   * conventions extractor makes one, 'ConventionExtraction'). Looked up by
+   * req.schemaName; falls back to `structured` when no entry matches.
    */
   structuredBySchema?: Record<string, unknown>;
   completionText?: string;
@@ -254,6 +263,8 @@ export interface MockGitOptions {
 export class MockGitClient implements GitClient {
   public cloned: { repo: RepoRef; url: string }[] = [];
   public syncs: { repo: RepoRef; branch: string }[] = [];
+  /** Every `readFile` path, in order — lets a test assert that a path was NEVER read. */
+  public reads: string[] = [];
   private syncedHead?: string;
 
   constructor(private opts: MockGitOptions = {}) {}
@@ -291,7 +302,12 @@ export class MockGitClient implements GitClient {
     return [{ sha: 'a1b2c3d4', message: 'init', author: 'marisa.koch', date: '2026-06-01' }];
   }
   async readFile(_repo: RepoRef, path: string): Promise<string> {
+    this.reads.push(path);
     return this.opts.files?.[path] ?? '';
+  }
+  /** The top-level keys of `files` (no `/` in the key) — the clone root. */
+  async listRootFiles(): Promise<string[]> {
+    return Object.keys(this.opts.files ?? {}).filter((k) => !k.includes('/'));
   }
 }
 
@@ -305,6 +321,42 @@ export class MockCodeIndex implements CodeIndex {
   }
   async references(_repo: RepoRef, symbol: string): Promise<CodeReference[]> {
     return [{ fromPath: 'src/api/public/index.ts', toSymbol: symbol, line: 23 }];
+  }
+}
+
+// ---------- Mock CodeParser (repo-intel port) ----------
+export interface MockCodeParserOptions {
+  /** Canned results per file path; a file not listed parses to `[]`. */
+  symbols?: Record<string, ParsedSymbol[]>;
+  references?: Record<string, Omit<ParsedReference, 'refFile'>[]>;
+  imports?: Record<string, ParsedImport[]>;
+  heads?: Record<string, ParsedInvocationHead[]>;
+}
+
+/**
+ * Deterministic `CodeParser`: ignores the source text and returns the canned
+ * rows for the file. `langForFile` accepts the same extensions as the real
+ * parser (SUPPORTED_EXT).
+ */
+export class MockCodeParser implements CodeParser {
+  constructor(private opts: MockCodeParserOptions = {}) {}
+  langForFile(file: string): string | null {
+    const dot = file.lastIndexOf('.');
+    const ext = dot < 0 ? '' : file.slice(dot).toLowerCase();
+    return (SUPPORTED_EXT as readonly string[]).includes(ext) ? 'mock' : null;
+  }
+  parseSymbols(file: string): ParsedSymbol[] {
+    return this.langForFile(file) ? (this.opts.symbols?.[file] ?? []) : [];
+  }
+  parseReferences(file: string): ParsedReference[] {
+    if (!this.langForFile(file)) return [];
+    return (this.opts.references?.[file] ?? []).map((r) => ({ ...r, refFile: file }));
+  }
+  parseImports(file: string): ParsedImport[] {
+    return this.langForFile(file) ? (this.opts.imports?.[file] ?? []) : [];
+  }
+  parseInvocationHeads(file: string): ParsedInvocationHead[] {
+    return this.langForFile(file) ? (this.opts.heads?.[file] ?? []) : [];
   }
 }
 
@@ -326,5 +378,25 @@ export class MockSecretsProvider implements SecretsProvider {
   constructor(private secrets: Partial<Record<string, string>> = {}) {}
   async get(key: SecretKey): Promise<string | undefined> {
     return this.secrets[key as string];
+  }
+}
+
+// ---------- Mock URL fetcher (skill URL import, HW02 D21) ----------
+/**
+ * Canned results per URL. A value may be an array: each call shifts the next
+ * result (the last one repeats), so a test can make the save's re-fetch return
+ * different bytes than the preview's. Unknown URL → `network` failure.
+ */
+export class MockUrlFetcher implements UrlFetcher {
+  public calls: { url: string; limits: { maxBytes: number; timeoutMs: number } }[] = [];
+
+  constructor(private responses: Record<string, UrlFetchResult | UrlFetchResult[]> = {}) {}
+
+  async fetch(url: string, limits: { maxBytes: number; timeoutMs: number }): Promise<UrlFetchResult> {
+    this.calls.push({ url, limits });
+    const r = this.responses[url];
+    if (!r) return { ok: false, code: 'network', detail: 'no mock response' };
+    if (Array.isArray(r)) return r.length > 1 ? r.shift()! : r[0]!;
+    return r;
   }
 }

@@ -46,8 +46,10 @@ fails there if the win32 prebuilt is missing).
 **server-integration** — the `*.it.test.ts` files. Each starts a real Postgres
 (pgvector) via testcontainers, builds the Fastify app, migrates + seeds, and
 drives routes end-to-end: reviews + run lifecycle (incl. grounding), agents CRUD,
-repo-intel symbol clamping, pulls comments, settings models. They self-skip when
-Docker is unavailable.
+repo-intel symbol clamping, pulls comments, settings models, skills, skill
+import, skills in runs, seed. They self-skip when Docker is unavailable —
+unless `DEVDIGEST_REQUIRE_DOCKER=1` is set (CI and the gate set it), in which
+case they fail.
 
 **reviewer-core** — the pure engine: `toReview` selection, prompt construction,
 and a `run` with a stubbed model → grounded findings. No DB / GitHub / FS.
@@ -65,7 +67,7 @@ cd reviewer-core && npm test
 
 # server — the unit/integration split (see note below)
 cd server && pnpm exec vitest run --exclude '**/*.it.test.ts'   # unit, no Docker
-cd server && pnpm exec vitest run .it.test                      # integration, needs Docker
+cd server && DEVDIGEST_REQUIRE_DOCKER=1 pnpm exec vitest run .it.test   # integration, needs Docker
 cd server && pnpm test                                          # both
 
 # browser e2e (needs the full stack + agent-browser CLI)

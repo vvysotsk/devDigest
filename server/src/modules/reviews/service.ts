@@ -1,17 +1,13 @@
 import type { Container } from '../../platform/container.js';
-import type { FindingActionKind, RunEventKind, RunTrace } from '@devdigest/shared';
+import type { Agent, FindingActionKind, RunEventKind, RunTrace } from '@devdigest/shared';
 import { AppError, NotFoundError } from '../../platform/errors.js';
-import type { AgentRow } from '../../db/rows.js';
-import { ReviewRepository } from './repository.js';
-import { type ReviewDto, type ReviewDtoFinding } from './helpers.js';
-import { ReviewRunExecutor, type Logger } from './run-executor.js';
+import type { ReviewRepository } from './repository.js';
+import type { ReviewDto, ReviewDtoFinding } from './helpers.js';
+import { ReviewRunExecutor, type Logger, type ReviewRunDeps } from './run-executor.js';
 import { actOnFinding as actOnFindingImpl } from './findings.js';
-import { reviewToDto } from './helpers.js';
 import { resolveRunCost } from '../_shared/run-cost.js';
 
-// Re-export DTO types + converters for backward-compatible imports from
-// './service.js' (these previously lived here; logic now in ./helpers.ts).
-export { findingRowToDto, reviewToDto } from './helpers.js';
+// Re-export the DTO types for backward-compatible imports from './service.js'.
 export type { ReviewDto, ReviewDtoFinding } from './helpers.js';
 
 /**
@@ -26,15 +22,23 @@ export type { ReviewDto, ReviewDtoFinding } from './helpers.js';
  * Also: the finding accept/dismiss actions. The bulky run execution lives in
  * run-executor; this class keeps the public method surface.
  */
+/**
+ * What `ReviewService` reads from the container (onion R5): its shared
+ * repositories, `runBus` / `priceBook`, and what it hands to the executor.
+ */
+export type ReviewDeps = Pick<Container, 'reviewRepo' | 'agentsRepo' | 'runBus' | 'priceBook'> &
+  ReviewRunDeps;
+
 export class ReviewService {
   private repo: ReviewRepository;
   private agents: Container['agentsRepo'];
   private executor: ReviewRunExecutor;
 
-  constructor(private container: Container) {
-    this.repo = new ReviewRepository(container.db);
-    this.agents = container.agentsRepo;
-    this.executor = new ReviewRunExecutor(container, this.repo, this.agents);
+  constructor(private deps: ReviewDeps) {
+    // Shared instances from the composition root (onion skill R5).
+    this.repo = deps.reviewRepo;
+    this.agents = deps.agentsRepo;
+    this.executor = new ReviewRunExecutor(deps, this.repo, this.agents);
   }
 
   // ===========================================================================
@@ -47,10 +51,10 @@ export class ReviewService {
   async resolveTargets(
     workspaceId: string,
     opts: { agentId?: string; all?: boolean },
-  ): Promise<AgentRow[]> {
-    if (opts.all) return this.agents.listEnabled(workspaceId);
+  ): Promise<Agent[]> {
+    if (opts.all) return this.agents.listEnabledAgents(workspaceId);
     if (opts.agentId) {
-      const agent = await this.agents.getById(workspaceId, opts.agentId);
+      const agent = await this.agents.getAgent(workspaceId, opts.agentId);
       if (!agent) throw new NotFoundError('Agent not found');
       return [agent];
     }
@@ -82,7 +86,7 @@ export class ReviewService {
           tokensIn: r.tokens_in,
           tokensOut: r.tokens_out,
         },
-        (model, tokensIn, tokensOut) => this.container.priceBook.estimate(model, tokensIn, tokensOut),
+        (model, tokensIn, tokensOut) => this.deps.priceBook.estimate(model, tokensIn, tokensOut),
       ),
     }));
   }
@@ -100,9 +104,9 @@ export class ReviewService {
    */
   async cancelRun(runId: string): Promise<void> {
     this.publish(runId, 'info', 'Cancellation requested — stopping…');
-    this.container.runBus.cancel(runId);
+    this.deps.runBus.cancel(runId);
     await this.repo.cancelRunIfRunning(runId);
-    this.container.runBus.complete(runId);
+    this.deps.runBus.complete(runId);
   }
 
   /** Reap runs left 'running' by a previous (now-dead) process. Called on boot. */
@@ -119,7 +123,7 @@ export class ReviewService {
   async runReview(
     workspaceId: string,
     prId: string,
-    targets: AgentRow[],
+    targets: Agent[],
     logger?: Logger,
   ): Promise<{ runs: { run_id: string; agent_id: string; agent_name: string }[]; reviews: ReviewDto[] }> {
     const pull = await this.repo.getPull(workspaceId, prId);
@@ -131,7 +135,7 @@ export class ReviewService {
     // the client persists these in global state and subscribes to the SSE
     // stream. The actual (slow) review runs in the background below.
     const runs: { run_id: string; agent_id: string; agent_name: string }[] = [];
-    const jobs: { agent: AgentRow; runId: string }[] = [];
+    const jobs: { agent: Agent; runId: string }[] = [];
     // ONE batch id per "Run review" action — the PR list sums the latest
     // batch's cost, so every run queued here must share it.
     const batchId = crypto.randomUUID();
@@ -158,7 +162,7 @@ export class ReviewService {
   }
 
   private publish(runId: string, kind: RunEventKind, msg: string, data?: unknown) {
-    return this.container.runBus.publish(runId, kind, msg, data);
+    return this.deps.runBus.publish(runId, kind, msg, data);
   }
 
   // ===========================================================================
@@ -180,17 +184,18 @@ export class ReviewService {
   async reviewsForPull(workspaceId: string, prId: string): Promise<ReviewDto[]> {
     const pull = await this.repo.getPull(workspaceId, prId);
     if (!pull) throw new NotFoundError('Pull request not found');
-    const rows = await this.repo.reviewsForPull(prId);
+    const reviews = await this.repo.reviewsForPull(prId);
     const names = new Map<string, string>();
-    for (const { review } of rows) {
-      if (review.agentId && !names.has(review.agentId)) {
-        const a = await this.agents.getById(workspaceId, review.agentId);
-        if (a) names.set(review.agentId, a.name);
+    for (const review of reviews) {
+      if (review.agent_id && !names.has(review.agent_id)) {
+        const a = await this.agents.getAgent(workspaceId, review.agent_id);
+        if (a) names.set(review.agent_id, a.name);
       }
     }
-    return rows.map(({ review, findings }) =>
-      reviewToDto(review, findings, review.agentId ? names.get(review.agentId) : null),
-    );
+    return reviews.map((review) => ({
+      ...review,
+      agent_name: (review.agent_id ? names.get(review.agent_id) : null) ?? null,
+    }));
   }
 
   async getRunTrace(runId: string): Promise<RunTrace | undefined> {
@@ -199,10 +204,10 @@ export class ReviewService {
     if (trace.stats.cost_usd != null) return trace;
     // Traces persisted before cost_usd existed: backfill on read from the
     // agent_runs row (stored cost, else tokens × PriceBook). Never re-persisted.
-    const run = await this.repo.getAgentRun(runId);
+    const run = await this.repo.getCostableRun(runId);
     const cost = run
       ? resolveRunCost(run, (model, tokensIn, tokensOut) =>
-          this.container.priceBook.estimate(model, tokensIn, tokensOut),
+          this.deps.priceBook.estimate(model, tokensIn, tokensOut),
         )
       : null;
     return { ...trace, stats: { ...trace.stats, cost_usd: cost } };

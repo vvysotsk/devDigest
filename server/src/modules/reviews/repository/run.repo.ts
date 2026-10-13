@@ -1,7 +1,9 @@
-import { and, desc, eq } from 'drizzle-orm';
+import { and, desc, eq, inArray } from 'drizzle-orm';
 import type { Db } from '../../../db/client.js';
 import * as t from '../../../db/schema.js';
 import type { RunSummary, RunTrace } from '@devdigest/shared';
+import type { CostableRun } from '../../_shared/run-cost.js';
+import type { BatchRunRow } from '../../_shared/latest-batch.js';
 
 // ---- in-flight / history --------------------------------------------------
 
@@ -179,12 +181,18 @@ export async function completeAgentRun(
     .where(eq(t.agentRuns.id, runId));
 }
 
-/** One agent_runs row by PK (used to backfill cost on old traces at read time). */
-export async function getAgentRun(
-  db: Db,
-  runId: string,
-): Promise<typeof t.agentRuns.$inferSelect | undefined> {
-  const [row] = await db.select().from(t.agentRuns).where(eq(t.agentRuns.id, runId));
+/** The cost inputs of one run by PK (used to backfill cost on old traces at read time). */
+export async function getCostableRun(db: Db, runId: string): Promise<CostableRun | undefined> {
+  const [row] = await db
+    .select({
+      costUsd: t.agentRuns.costUsd,
+      status: t.agentRuns.status,
+      model: t.agentRuns.model,
+      tokensIn: t.agentRuns.tokensIn,
+      tokensOut: t.agentRuns.tokensOut,
+    })
+    .from(t.agentRuns)
+    .where(eq(t.agentRuns.id, runId));
   return row;
 }
 
@@ -199,4 +207,27 @@ export async function saveRunTrace(db: Db, runId: string, trace: RunTrace): Prom
 export async function getRunTrace(db: Db, runId: string): Promise<RunTrace | undefined> {
   const [row] = await db.select().from(t.runTraces).where(eq(t.runTraces.runId, runId));
   return row ? (row.trace as RunTrace) : undefined;
+}
+
+/**
+ * Cost + batch inputs of every run of the given PRs, NEWEST FIRST — the order
+ * `groupLatestBatches` requires. Read by the pulls module (PR list COST and
+ * FINDINGS columns); the rules stay in `modules/_shared/latest-batch.ts`.
+ */
+export async function batchRunsForPulls(db: Db, prIds: readonly string[]): Promise<BatchRunRow[]> {
+  if (prIds.length === 0) return [];
+  return db
+    .select({
+      id: t.agentRuns.id,
+      prId: t.agentRuns.prId,
+      batchId: t.agentRuns.batchId,
+      status: t.agentRuns.status,
+      model: t.agentRuns.model,
+      costUsd: t.agentRuns.costUsd,
+      tokensIn: t.agentRuns.tokensIn,
+      tokensOut: t.agentRuns.tokensOut,
+    })
+    .from(t.agentRuns)
+    .where(inArray(t.agentRuns.prId, [...prIds]))
+    .orderBy(desc(t.agentRuns.ranAt));
 }

@@ -12,7 +12,7 @@ import { loadConfig } from '../src/platform/config.js';
 import { seed } from '../src/db/seed.js';
 import { MockGitHubClient } from '../src/adapters/mocks.js';
 import * as t from '../src/db/schema.js';
-import type { PrReviewComment } from '@devdigest/shared';
+import { PrReviewComment } from '@devdigest/shared';
 
 const hasDocker = await dockerAvailable();
 const d = hasDocker ? describe : describe.skip;
@@ -81,7 +81,8 @@ d('inline PR comments routes (Testcontainers pg)', () => {
 
     const res = await app.inject({ method: 'GET', url: `/pulls/${pr.id}/comments` });
     expect(res.statusCode).toBe(200);
-    const body = res.json() as PrReviewComment[];
+    // R3 response-shape test: the route declares schema.response.
+    const body = PrReviewComment.strict().array().parse(res.json());
     expect(body).toHaveLength(1);
     expect(body[0]!.body).toBe('Why hardcode this key?');
   });
@@ -104,7 +105,7 @@ d('inline PR comments routes (Testcontainers pg)', () => {
       line: 11,
       body: 'Please move this to an env var.',
     });
-    const created = res.json() as PrReviewComment;
+    const created = PrReviewComment.strict().parse(res.json()); // R3 shape test
     expect(created.path).toBe('src/config.ts');
     expect(created.line).toBe(11);
   });

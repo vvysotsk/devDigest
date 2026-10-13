@@ -8,10 +8,13 @@
     "build": "tsc -p tsconfig.json",
     "start": "node dist/server.js",
     "typecheck": "tsc --noEmit -p tsconfig.json",
+    "deps:check": "depcruise src ../reviewer-core/src --config .dependency-cruiser.cjs --ignore-known --output-type err-long",
+    "deps:baseline": "depcruise-baseline src ../reviewer-core/src --config .dependency-cruiser.cjs",
     "test": "vitest run",
     "db:generate": "drizzle-kit generate",
     "db:migrate": "tsx src/db/migrate.ts",
-    "db:seed": "tsx src/db/seed.ts"
+    "db:seed": "tsx src/db/seed.ts",
+    "skill:pack": "node scripts/pack-skill.mjs"
   },
   "dependencies": {
     "@anthropic-ai/sdk": "^0.33.1",
@@ -27,6 +30,7 @@
     "fastify": "^5.2.0",
     "fastify-sse-v2": "^4.2.1",
     "fastify-type-provider-zod": "^4.0.2",
+    "fflate": "^0.8.3",
     "graphology": "^0.26.0",
     "graphology-metrics": "^2.4.0",
     "js-tiktoken": "^1.0.21",
@@ -35,6 +39,7 @@
     "p-queue": "^8.0.1",
     "postgres": "^3.4.5",
     "simple-git": "^3.27.0",
+    "yaml": "^2.9.1",
     "zod": "^3.24.1"
   },
   "devDependencies": {

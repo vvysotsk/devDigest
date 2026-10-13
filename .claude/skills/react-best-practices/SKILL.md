@@ -1,6 +1,8 @@
 ---
 name: react-best-practices
 description: "Modern React best practices and anti-pattern catalog (2025-26). Use when writing, reviewing, or refactoring React components, hooks, and state management. Covers component design, state patterns, hooks misuse, performance, data fetching, and code organization."
+metadata:
+  applies_to: "client/src/**/*.tsx, client/src/lib/hooks/**/*.ts, !client/**/*.test.tsx"
 ---
 
 # React Best Practices & Anti-Patterns
@@ -23,8 +25,7 @@ Each rule is tagged with a severity for use by consuming agents:
 - Business logic in hooks/helpers, NOT in component bodies
 - Container components fetch data; presentational components receive props and render UI
 - Helper functions extracted OUTSIDE the component body
-- Max 200 lines per component — split if larger
-- Max 5-7 props — more suggests the component does too much
+- Size is a review signal, not a cap: >200 lines or >7 props means "justify or split by responsibility" — thresholds and the `Signals:` report line are defined in `frontend-architecture` (`.claude/skills/frontend-architecture/SKILL.md`, "Review signals")
 - One component per file (small colocated internal helpers are fine)
 
 ### Composition Patterns

@@ -1,0 +1,309 @@
+# server — skills
+
+Last verified: 2026-10-02 (HW02 3a fix + `no_frontmatter` import warning)
+
+## Scope
+
+What must stay true for skills on the server: the tables, the contracts, the
+skills routes (`src/modules/skills/`) and what agents expose about their skill
+links. The feature
+plan, stages and UI live in the root spec `../specs/L02-skills.md`. Prompt
+rendering of skills belongs to reviewer-core (`../reviewer-core/specs/`).
+
+Paths are relative to `server/`. `knowledge.ts`, `trace.ts` →
+`src/vendor/shared/contracts/` (mirrored byte-for-byte to
+`../client/src/vendor/shared/contracts/`).
+
+## Data model
+
+- `skills` (`src/db/schema/skills.ts:16-48`): unique
+  `(workspace_id, name)` (`skills_ws_name_uq`), index `skills_ws_idx`;
+  `acknowledged_at` (null until the first enable of an imported skill is
+  acknowledged); `updated_at` refreshed by Drizzle `$onUpdate` on every
+  `db.update(skills)` — services never set it by hand.
+- `source` / `type` enums exist only in TypeScript; the SQL columns are `text`
+  without a CHECK, so a new enum value (`imported_file`) needs no migration.
+- `agent_skills.enabled` (`src/db/schema/agents.ts:60-63`): per-agent switch,
+  default true. A skill is injected only when `agent_skills.enabled AND
+  skills.enabled`.
+- Migration `src/db/migrations/0011_white_sumo.sql` adds the three columns and
+  the two indexes.
+
+## Contracts
+
+- `Skill` (`knowledge.ts`) carries `agent_count`, `body_tokens` (cl100k),
+  `acknowledged_at` (ISO or null), `created_at`, `updated_at`.
+- Inputs: `SkillInput` (manual create only: kebab-case `SkillName`,
+  `source` is the literal `manual`), `SkillImportSave` (the import save: the
+  file again + optional `name` / `description` / `type` overrides — never a
+  body, source or enabled flag; the server re-parses the file and sets
+  `source = imported_file`, `enabled = false`, `acknowledged_at = null`),
+  `SkillImportUrlRequest` (`{ url }`, ≤ 2048 chars — the scheme / host / path
+  rules are the server's, HW02 D21) and `SkillImportUrlSave` (the URL again +
+  the preview's `sha256` (64 hex) + the same optional overrides; the server
+  re-fetches and sets `source = imported_url`),
+  `SkillPatch` (non-empty; `acknowledge_injection` is the
+  literal `true`), `AgentSkillsPut` (ordered, unique `skill_id`s, ≤ 100).
+- Outputs: `SkillVersion`, `AgentSkill`, `AgentSkillsResult {version,
+  skills}`, `SkillImportPreview` (`raw_source`, `frontmatter`, `files`,
+  `warnings` with kinds `SkillImportWarningKind`; `warnings[].line` is a
+  1-based line of `raw_source`), `SkillImportUrlPreview` (the same plus
+  `sha256` of the fetched bytes and `fetched_url`, the URL they came from),
+  error codes `SkillErrorCode` (incl.
+  `import_description_missing`, `import_invalid_name` and
+  `import_invalid_field` — `details: {field, limit}` for a description > 500,
+  a body > 50,000 or an empty body — for the save; and the URL codes
+  `import_url_not_https` 422, `import_url_blocked` 422, `import_url_redirect`
+  422, `import_url_bad_status` 502, `import_url_timeout` 504,
+  `import_url_network` 502, `import_url_changed` 409, each with
+  `details: { url, detail? }`).
+- `Skill.agent_count` = agents with a link to the skill, enabled or not
+  (the delete confirm's "Used by N agents").
+- `Agent.skill_count` = the agent's **effective** skills
+  (`agent_skills.enabled AND skills.enabled` — what reaches the prompt); every
+  `Agent` the agents module returns carries it, read through the port
+  (`SkillsRepository.effectiveSkillCounts`,
+  `src/modules/skills/repository.ts:218`).
+- Agent version snapshots store `skills: [{skill_id, order, enabled}]`
+  (`SkillsRepository.links`, `src/modules/skills/repository.ts:172`, written by
+  `AgentsRepository.snapshotVersion` / `bumpVersion`,
+  `src/modules/agents/repository.ts:184-200`). `AgentVersionConfig` reads a
+  pre-L02 `string[]` snapshot as `{skill_id, order: index, enabled: true}`.
+- `PromptAssembly.skill_blocks` (`trace.ts`) is optional: traces saved before
+  L02 stay valid.
+
+## Routes (`src/modules/skills/routes.ts`)
+
+Every route declares `schema.response`; errors use the envelope
+`{ error: { code, message, details } }`; everything is workspace-scoped and a
+foreign or unknown id is 404 `not_found`.
+
+| Route | Response | Errors |
+|---|---|---|
+| `GET /skills` (`:47`) | `Skill[]`, sorted by name | — |
+| `POST /skills` (`:52`, body `SkillInput`) | 201 `Skill` (v1) | 409 `skill_name_taken` |
+| `POST /skills/import/preview` (`:62`, body `SkillImportRequest`) | `SkillImportPreview`; stores nothing | 413 `import_too_large`, 415 `import_unsupported_file`, 422 other `import_*` |
+| `POST /skills/import` (`:71`, body `SkillImportSave`) | 201 `Skill` — `imported_file`, disabled, `acknowledged_at` null, v1 | as above + 409 `skill_name_taken`, 422 `import_description_missing` / `import_invalid_name` / `import_invalid_field` |
+| `POST /skills/import-url/preview` (`:81`, body `SkillImportUrlRequest`) | `SkillImportUrlPreview` (the preview + `sha256` + `fetched_url`, the URL the bytes came from); fetched server-side, stores nothing | 422 `import_url_not_https` / `import_url_blocked` / `import_url_redirect`, 502 `import_url_bad_status` / `import_url_network`, 504 `import_url_timeout`, 413 `import_too_large`, 415 `import_unsupported_file` (path not `.md` / `.zip`), 415 `import_url_html` (the response is a web page), 422 other `import_*` |
+| `POST /skills/import-url` (`:90`, body `SkillImportUrlSave`) | 201 `Skill` — `imported_url`, disabled, `acknowledged_at` null, v1 | as above (incl. 415 `import_url_html`, checked before the hash) + 409 `import_url_changed` (the re-fetched bytes' sha256 ≠ the sent one), 409 `skill_name_taken`, 422 save codes |
+| `GET /skills/:id` (`:100`) | `Skill` | 404 |
+| `PUT /skills/:id` (`:105`, body `SkillPatch`) | `Skill` | 404, 409 `skill_name_taken`, 409 `skill_ack_required` |
+| `DELETE /skills/:id` (`:114`) | 204, empty body (`reply.status(204).send(null)`) | 404 |
+| `GET /skills/:id/versions` (`:124`) | `SkillVersion[]`, newest first | 404 |
+| `GET /agents/:id/skills` (`:133`) | `AgentSkill[]` by `order` | 404 |
+| `PUT /agents/:id/skills` (`:142`, body `AgentSkillsPut`) | `AgentSkillsResult` | 404, 400 `skill_not_in_workspace` (`details.skill_ids`) |
+
+## Rules (`src/modules/skills/service.ts`, `helpers.ts`)
+
+- **Create** (`service.ts:83`): one transaction inserts the skill at v1 and its
+  `skill_versions` v1 row. A unique violation on `skills_ws_name_uq` maps to
+  409 `skill_name_taken` (`helpers.ts:89`).
+- **Update** (`service.ts:244`): one transaction locks the row
+  (`SELECT … FOR UPDATE`, `repository.ts:75`), applies the ack rule and the
+  version rule, writes, and snapshots the body on a bump.
+  - Version rule (`bumpsVersion`, `helpers.ts:25`): a name / description /
+    type / body value **different from the stored one** bumps; sending a
+    field with its current value, or `enabled` only, does not.
+  - Ack rule (`needsAck`, `helpers.ts:39`; `IMPORTED_SOURCES`, `:44`):
+    `enabled: true` on an `imported_file` or `imported_url` skill whose
+    `acknowledged_at` is null needs `acknowledge_injection: true` (else 409
+    `skill_ack_required`); with it, `acknowledged_at` is stored once and
+    never needed again.
+- **Import** (`previewImport`, `saveImport` in `service.ts`): both decode the
+  upload and run `buildImportPreview` with the workspace's skill names
+  (`namesInWorkspace` → `name_exists`); the save re-runs it on the FILE,
+  applies only the name / description / type overrides via
+  `resolveImportSave`, and inserts the skill itself as `imported_file`,
+  disabled, unacknowledged, with a v1 body snapshot — a body, source or
+  enabled flag sent by the client is dropped by the `SkillImportSave` schema.
+  Pipeline failures become `SkillImportError` (413 / 415 / 422,
+  `errors.ts`).
+- **URL import** (`previewImportUrl` `service.ts:137`, `saveImportUrl`
+  `:149`, both through `fetchForImport` `:172`, HW02 D21): the pure
+  `checkImportUrl` (`import/url.ts`) first — https only; then exactly
+  `https://github.com/<owner>/<repo>/blob/<rest>` is rewritten to
+  `https://raw.githubusercontent.com/<owner>/<repo>/<rest>` with the blob
+  page's query and hash dropped (`rewriteGitHubBlobUrl`; `<rest>` copied as
+  is, so a slashed ref needs no split; `tree/`, `raw/`, `www.github.com`,
+  other hosts are not rewritten); then on the (possibly rewritten) URL: no
+  credentials, no `localhost` / `*.localhost` / `*.local` / `*.internal`,
+  no literal private / loopback address (the URL parser has already
+  normalised `2130706433`, `0x7f.0.0.1` and `[::1]` to loopback literals),
+  hash dropped, last path segment must end in `.md` / `.zip` (else 415
+  `import_unsupported_file`) — then `container.urlFetcher.fetch(url, {
+  maxBytes: SKILL_IMPORT_MAX_BYTES, timeoutMs: IMPORT_URL_TIMEOUT_MS })`;
+  a port refusal becomes the matching `import_url_*` / `import_too_large`
+  error (`mapFetchFailure`). **Web-page guard** on the response
+  (`isHtmlResponse`, `url.ts`): the `Content-Type` media type is
+  `text/html` / `application/xhtml+xml` (params ignored), OR the first bytes
+  after an optional UTF-8 BOM and ASCII whitespace start with `<!doctype
+  html` / `<html` (case-insensitive) → 415 `import_url_html` with
+  `details { url: fetched URL, content_type }` (`htmlPageFailure`); a
+  markdown file with inline HTML further down passes. The path check is
+  NOT a content check: a GitHub blob URL ends in `.md` and serves HTML.
+  Then the bytes go through the SAME `buildImportPreview` as an upload, so
+  the zip limits (200 entries, 1 MiB declared, length + CRC per entry)
+  apply unchanged. The preview returns the bytes' SHA-256 and `fetched_url`
+  (the adapter's `finalUrl`: the rewritten URL, redirects followed); the
+  save fetches the typed URL AGAIN through the same path (same rewrite, same
+  guard), refuses it with 409 `import_url_changed` when the hash differs
+  from the sent one (nothing is inserted), then saves the parsed body as
+  `imported_url`, disabled, unacknowledged. A client-sent body / source /
+  enabled is dropped by `SkillImportUrlSave`.
+- **Delete** cascades the skill's versions and agent links (FK).
+- **Link save** (`setAgentSkills`, `service.ts:172`): one transaction locks the
+  agent row (`AgentsRepository.lockVersion`), checks that every skill is in
+  the workspace, compares the new `[{skill_id, order = index, enabled}]` list
+  with the stored one (`linksChanged`, `helpers.ts:53` — stored `order`
+  values count, so a legacy list with gaps changes once), and only when it
+  differs replaces the links and bumps the agent version once with a snapshot
+  (`AgentsRepository.bumpVersion`). An unchanged list writes nothing and
+  returns the current version.
+- `Skill.body_tokens` = `container.tokenizer` (cl100k) over the body.
+- **In a review run** the executor reads `skillsRepo.enabledForAgent` and
+  writes `prompt_assembly.skill_blocks` — see `review-flow.md` ("Skills").
+
+## Import pipeline (`src/modules/skills/import/`, pure — no I/O, no DB)
+
+Public surface (`index.ts`): `decodeImportBase64`, `buildImportPreview`,
+`resolveImportSave` (`pipeline.ts:37`, `:63`, `:160`); failures are
+`{ ok: false, code: SkillErrorCode, message, details? }`. The routes that call
+them (`POST /skills/import/preview`, `POST /skills/import`) come in Stage 3b.
+
+- **Decode:** base64 over `SKILL_IMPORT_MAX_BYTES` → `import_too_large`
+  (checked before decoding); malformed base64 → `import_bad_archive`; a
+  `data:` URL prefix is NOT stripped (the client sends bare base64).
+- **File type:** `.md` → one entry; `.zip` → unzipped in memory with fflate;
+  anything else → `import_unsupported_file`.
+- **Zip checks** (`zip.ts`): an own central-directory read runs before any
+  inflate (`readCentralDirectory`, `zip.ts:80`): ≤ 200 entries
+  (`ZIP_MAX_ENTRIES`) and ≤ 1 MiB declared total (`ZIP_MAX_UNCOMPRESSED_BYTES`,
+  `types.ts:17-18`) → else `import_too_large`; paths normalised (`\` → `/`,
+  `.` and empty segments dropped) and `..`, leading `/`, drive letters, NUL
+  and symlink entries (`S_IFLNK` in the external attributes, any host) →
+  `import_unsafe_path`; ZIP64, encrypted entries and duplicate paths →
+  `import_bad_archive`. After inflating only the vetted entries, each size
+  must equal the declared size and its CRC-32 must match (`zip.ts:199-200`),
+  else `import_bad_archive`.
+- **SKILL.md:** the only candidates are a case-sensitive `SKILL.md` at the
+  root or directly inside one top-level folder; exactly one is required —
+  none or several (`details.candidates`) → `import_no_skill_md`
+  (`pipeline.ts:219`). Decoded as strict UTF-8 (else `import_bad_archive`);
+  a BOM stays in `raw_source` and is warned.
+- **Frontmatter** (`frontmatter.ts:15`): `---` fenced YAML via `yaml`
+  (`uniqueKeys`, `maxAliasCount: 100`). The block must OPEN ON LINE 1 — a
+  BOM is the only allowed prefix; blank lines before `---` mean "no
+  frontmatter" and the `---` lines stay in the body (strict, as GitHub and
+  skill tooling read SKILL.md). The result carries `present` (`:19`, `:57`):
+  no block → `present: false`, `{}`; an empty `---\n---` block →
+  `present: true`, `{}`; invalid, not a mapping or never closed →
+  `import_bad_frontmatter`. Body = the text after the closing fence, leading
+  blank lines and trailing whitespace trimmed.
+- **Draft:** `present: false` → warning `no_frontmatter` (`line: null`,
+  "This file has no frontmatter — it does not look like a SKILL.md…",
+  `pipeline.ts:110`) FIRST in the list; it never blocks the import or
+  changes the save rules. Name from frontmatter normalised to kebab-case
+  (`name.ts:9`, warning `name_normalized`), fallback folder / file name;
+  `name_exists` when it is in the workspace's names; `type` must match
+  exactly, else `custom` + `type_defaulted`; missing description → `''` +
+  `description_missing`.
+- **Files:** every non-directory entry: `imported` (SKILL.md), `reference`
+  (`references/**/*.md`, "not imported (v1)"), `skipped` (everything else,
+  "skipped — never executed or stored").
+- **Warnings** (`warnings.ts:13`) on `raw_source` lines: `html_comment`,
+  `invisible_char`, `long_line` (> 500) — warned, never stripped. Order:
+  `no_frontmatter`, then name/type/description warnings (all `line: null`),
+  then the content warnings by line.
+- **Save** (`resolveImportSave`): overrides win for name / description / type
+  only; the body is always the parsed body. Final name not a `SkillName` →
+  `import_invalid_name`; no description → `import_description_missing`;
+  description > 500, body > 50,000 or an empty body → `import_invalid_field`
+  with `details: {field, limit}`.
+- `pnpm skill:pack <dir> <out.zip>` (`scripts/pack-skill.mjs`, fflate,
+  forward-slash paths) packs a folder such as
+  `test/fixtures/skills/api-deprecation-policy/` for a manual import.
+
+## Seed data (`src/db/seed-skills.ts`, `src/db/seed-prs.ts`)
+
+Plain typed data written by `src/db/seed.ts` (idempotent: skills by name
+with a v1 body snapshot, PRs by number, and an agent's links only while it has
+none, so user edits survive a re-seed — `test/seed.it.test.ts`):
+`SEED_SKILLS` (10 manual skills), `SEED_AGENT_SKILL_LINKS` (per agent, array
+order = `agent_skills.order`; Security 6 linked / 3 enabled; no API Contract
+Reviewer — the user creates that agent and its skills in the UI,
+`../specs/HW02-conventions-and-api-contract.md` D9),
+`SEED_EXPERIMENT_PRS` (#483, #484 for L02 and #485, #486 for HW02 on
+`acme/payments-api`, with `pr_files` patches in GitHub format, read by
+`diffFromPrFiles` when there is no clone). `upsertExperimentPr`
+(`src/db/seed.ts`) inserts each PR once. A PR with `refreshOnSeed` (#485, #486)
+is rewritten, row + files + commits in one transaction, when its fixture has a
+new `headSha`. That is how a calibration edit reaches a running DB
+(`../specs/HW02-conventions-and-api-contract.md` D13).
+Skill bodies and prompts stay generic — they never name the experiment PRs'
+defects (see `../specs/L02-skills.md` D8). The seeded conventions scan
+(`src/db/seed-conventions.ts`) is specified in `conventions.md` → "Seed data".
+
+## URL fetch (`src/adapters/http/url-fetcher.ts`, the `UrlFetcher` port of `types.ts:102`)
+
+`FetchUrlFetcher` (`:41`) is the one outbound HTTP adapter; the container
+wires it as `urlFetcher` (`src/platform/container.ts:198`, override key
+`urlFetcher`, fake `MockUrlFetcher` in `src/adapters/mocks.ts:390`). It
+never throws across the port: every refusal is `{ ok: false, code, detail? }`
+with `code ∈ not_https | blocked_address | redirect | timeout | too_large |
+bad_status | network` (`types.ts:83`); a success is `{ ok: true, bytes,
+finalUrl, contentType }` — the final hop's raw `Content-Type` header (null
+when absent) travels with the bytes and is judged by the service, never by
+the adapter. Per call:
+
+- one `AbortSignal.timeout(timeoutMs)` is created (`:48`) and passed to
+  every hop and the body read — the whole redirect chain plus the download
+  share the 10 s deadline (`IMPORT_URL_TIMEOUT_MS`, `url.ts:15`);
+- per hop: https only; the parsed hostname through `hostBlockReason`
+  (`:60`); DNS `lookup(host, { all: true })` and every answer through
+  `isPrivateAddress` (`:70`; any private → `blocked_address`, a lookup error
+  → `network`); `fetch(url, { redirect: 'manual' })` (`:76`) with
+  `accept: text/markdown, text/plain, application/zip, …`;
+- 3xx: `Location` resolved against the current URL, must be https, at most
+  3 hops (`IMPORT_URL_MAX_REDIRECTS`), else `redirect` (`:103`); non-2xx →
+  `bad_status` with the status in `detail`;
+- `content-length` over `maxBytes` → `too_large` before reading; the body
+  is streamed with a running count and cancelled at `maxBytes + 1`
+  (`:107-120`); an abort → `timeout`, any other throw → `network`.
+
+## Known limitations
+
+- ZIP64 archives and encrypted entries are rejected, not supported.
+- URL import: DNS is resolved by the adapter and then `fetch` opens its own
+  connection (no IP pinning), so a DNS-rebinding host could still reach a
+  private address inside that window; https-only and the refusal of every
+  private answer keep the exposure to it.
+- URL import: the `.md` / `.zip` path rule does NOT refuse web pages (a
+  GitHub blob URL ends in `.md` and serves HTML); the response guard does
+  (415 `import_url_html`). Only `github.com/…/blob/…` is rewritten to its
+  raw URL; a GitLab / Bitbucket / other blob page ending in `.md` is fetched
+  and refused with 415 `import_url_html` — use that host's Raw link.
+
+- `skill_versions` holds only the body: a metadata-only edit bumps
+  `skills.version` with an unchanged body (the UI labels it "metadata
+  change"). No migration planned.
+
+## Tests
+
+| Rule | Enforced by |
+|---|---|
+| old `string[]` snapshot → ordered enabled links; object links kept | `test/contracts.test.ts` ("L02 skills contracts") |
+| `PromptAssembly` parses with and without `skill_blocks` | `test/contracts.test.ts` |
+| `Skill` requires the L02 fields; `SkillInput` kebab-case + defaults, rejects `source: imported_file`; `SkillImportSave` overrides only (client body/source/enabled dropped); `SkillPatch` non-empty + ack literal; `AgentSkillsPut` unique ids | `test/contracts.test.ts` |
+| agent version snapshots still written and read | `test/agents-versions.it.test.ts` |
+| `skill_count` = effective links only; snapshot stores every link as `{skill_id, order, enabled}` | `test/agents-versions.it.test.ts:179` |
+| CRUD, v1 + snapshot, version rule, no bump on enabled-only / unchanged values, 409 duplicate create + rename, ack 409 → OK → not needed again, `agent_count` incl. disabled links, delete cascade, workspace scope, R3 shapes | `test/skills.it.test.ts` |
+| link order/enabled, one bump per changed save, no bump on unchanged list, detach-all bump, 400 foreign/unknown skill with nothing written, 404 agent, effective `skill_count`, config edit snapshots links, port `enabledForAgent` / `namesInWorkspace`, R3 shapes | `test/agent-skills.it.test.ts` |
+| import routes + trust path: preview stores nothing and lists skipped scripts; save ignores a client body/source/enabled, stores `imported_file` disabled with the parsed body; `name_exists` then 409 duplicate; enable → 409 `skill_ack_required` → with ack 200 + `acknowledged_at`, no bump; overrides on a `.md`; 415 / 422 codes incl. `import_invalid_field` details; R3 shapes | `test/skill-import.it.test.ts` |
+| URL import routes: preview fetches through the port (limits 512 KB / 10 s), returns `sha256` + `fetched_url`, stores nothing; save re-fetches (two port calls), ignores a client body/source/enabled, stores `imported_url` disabled with the parsed body; ack on first enable; a changed file → 409 `import_url_changed` and nothing inserted; a malformed `sha256` → 422; every port refusal and pure check → its code and status, the pure checks without a port call; a web page → 415 `import_url_html` by `Content-Type` and by sniffing (null type), on preview and on save with a matching hash, nothing inserted, `details { url, content_type }`; a GitHub blob link is fetched as its raw URL on preview and save (`fetched_url` = raw, the port never sees `github.com`); a `.zip` URL runs the zip pipeline; R3 shapes | `test/skill-import-url.it.test.ts` ("preview fetches…", "the trust path…", "a file that changed…", "maps every port refusal…", "a web page is refused…", "a GitHub blob link…", "a .zip URL…") |
+| URL rules: `checkImportUrl` (https, credentials, blocked names, literal and parser-normalised private hosts, `.md` / `.zip` path, hash dropped; GitHub blob → raw with query + hash dropped and a slashed ref, `tree/` / directory / `www.github.com` / `gitlab.com` / `raw/` / http not rewritten, a non-blob query kept), `isHtmlResponse` (html / xhtml types with params and casing, sniffed doctype / `<html>` after BOM + whitespace with a wrong or missing type; markdown with inline HTML later, a zip, an empty body, an HTML fragment accepted), `htmlPageFailure` → 415, `isPrivateAddress` over every refused range and public addresses, `mapFetchFailure` total; the adapter with fake fetch + DNS: the raw content-type carried (text/plain default, text/html, deleted header → null), manual redirects, re-checked hops, non-https / over-long chains, private DNS answer refused before any request, 404, content-length and streamed caps, one signal shared by every hop, two hops that each fit the deadline but together exceed it → `timeout`, `ECONNRESET` → `network`; `MockUrlFetcher` | `test/skill-import-url.test.ts` ("checkImportUrl (D21)", "isHtmlResponse / htmlPageFailure", "isPrivateAddress / …", "mapFetchFailure / …", "FetchUrlFetcher (D21 adapter…)", "MockUrlFetcher") |
+| `needsAck` for `imported_url` (true unacknowledged, false after; `extracted` never) | `test/skills-helpers.test.ts` |
+| seed idempotent (second run adds nothing); 4 agents, 10 skills + v1 snapshots, 12 links, PRs #482–#486 with `@@` patches; a refreshable PR is rewritten only on a new head sha, never an L02 PR, and counts are unchanged afterwards; Security 6 linked / 3 enabled in design order; a re-seed keeps a user's unticked link | `test/seed.it.test.ts` |
+| experiment PR fixtures: additions / deletions and hunk headers match each patch; only #485 / #486 refresh on seed | `test/seed-prs.test.ts` |
+| pure rules: `bumpsVersion`, `needsAck`, `linksChanged`, `missingIds`, DTO mapping, unique-violation detection | `test/skills-helpers.test.ts` |
+| import: `.md` and folder zip; quoted / colon / `>` / `\|` / nested frontmatter; `..`, absolute, drive, backslash, symlink paths; > 200 entries; declared and inflated size + CRC; references and skipped files; no or several SKILL.md; bad frontmatter; unsupported file; base64 limit and malformed base64; every warning kind incl. `no_frontmatter` first for a README-like `.md` and a zip's SKILL.md, not for an empty block or a BOM-prefixed block, fired for blank lines before `---` (strict opener); `resolveImportSave` overrides, `import_description_missing`, `import_invalid_name`, `import_invalid_field` (description, empty body, long body), body never overridable | `test/skill-import.test.ts` |
+| import route: a README-like `.md` preview lists `no_frontmatter` first, then the per-field warnings; nothing stored | `test/skill-import.it.test.ts` ("preview warns no_frontmatter…") |

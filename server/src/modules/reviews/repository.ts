@@ -1,5 +1,4 @@
 import type { Db } from '../../db/client.js';
-import * as t from '../../db/schema.js';
 import type { Finding, Intent, RunSummary, RunTrace } from '@devdigest/shared';
 
 /**
@@ -10,13 +9,13 @@ import type { Finding, Intent, RunSummary, RunTrace } from '@devdigest/shared';
  *
  * The query implementations are colocated, split by aggregate, under
  * `./repository/` (review+findings, agent runs, pull/intent). This class
- * composes them so its public API stays identical.
+ * composes them. No Drizzle row leaves this layer (onion skill R1): reads
+ * return the review DTOs (`./helpers.ts`) or the narrow types in `./types.ts`.
  */
 
-import type { FindingRow, PullRow } from '../../db/rows.js';
-export type { FindingRow, PullRow };
-
-export type ReviewRow = typeof t.reviews.$inferSelect;
+import type { BatchRunRow } from '../_shared/latest-batch.js';
+import type { ReviewDto, ReviewDtoFinding } from './helpers.js';
+import type { PrFilePatch, PullForReview, ReviewRepoRef } from './types.js';
 
 import * as reviewRepo from './repository/review.repo.js';
 import * as runRepo from './repository/run.repo.js';
@@ -27,15 +26,15 @@ export class ReviewRepository {
 
   // ---- PR lookup (workspace-scoped) --------------------------------------
 
-  getPull(workspaceId: string, prId: string): Promise<PullRow | undefined> {
+  getPull(workspaceId: string, prId: string): Promise<PullForReview | undefined> {
     return pullRepo.getPull(this.db, workspaceId, prId);
   }
 
-  getRepo(repoId: string): Promise<typeof t.repos.$inferSelect | undefined> {
+  getRepo(repoId: string): Promise<ReviewRepoRef | undefined> {
     return pullRepo.getRepo(this.db, repoId);
   }
 
-  getPrFiles(prId: string): Promise<(typeof t.prFiles.$inferSelect)[]> {
+  getPrFiles(prId: string): Promise<PrFilePatch[]> {
     return pullRepo.getPrFiles(this.db, prId);
   }
 
@@ -51,21 +50,18 @@ export class ReviewRepository {
     summary: string | null;
     score: number | null;
     model: string | null;
-  }): Promise<ReviewRow> {
+  }): Promise<{ id: string }> {
     return reviewRepo.insertReview(this.db, values);
   }
 
-  insertFindings(reviewId: string, findings: Finding[]): Promise<FindingRow[]> {
+  /** Returns how many findings were stored. */
+  insertFindings(reviewId: string, findings: Finding[]): Promise<number> {
     return reviewRepo.insertFindings(this.db, reviewId, findings);
   }
 
-  /** Reviews for a PR (newest first), each with its findings. */
-  reviewsForPull(prId: string): Promise<{ review: ReviewRow; findings: FindingRow[] }[]> {
+  /** Reviews for a PR (newest first) with their findings; `agent_name` is null. */
+  reviewsForPull(prId: string): Promise<ReviewDto[]> {
     return reviewRepo.reviewsForPull(this.db, prId);
-  }
-
-  getReview(reviewId: string): Promise<ReviewRow | undefined> {
-    return reviewRepo.getReview(this.db, reviewId);
   }
 
   /** In-flight runs for a PR (status='running') — the server-side source of
@@ -106,22 +102,16 @@ export class ReviewRepository {
 
   // ---- finding actions ----------------------------------------------------
 
-  getFinding(findingId: string): Promise<FindingRow | undefined> {
-    return reviewRepo.getFinding(this.db, findingId);
+  /** The workspace a finding belongs to (via review → pr), for tenancy checks. */
+  findingWorkspace(findingId: string): Promise<{ workspaceId: string } | undefined> {
+    return reviewRepo.findingWorkspace(this.db, findingId);
   }
 
-  /** Resolve workspace_id + pr_id for a finding (via review → pr). */
-  findingContext(
-    findingId: string,
-  ): Promise<{ finding: FindingRow; review: ReviewRow; pull: PullRow } | undefined> {
-    return reviewRepo.findingContext(this.db, findingId);
-  }
-
-  setFindingAccepted(findingId: string, at: Date | null): Promise<FindingRow | undefined> {
+  setFindingAccepted(findingId: string, at: Date | null): Promise<ReviewDtoFinding | undefined> {
     return reviewRepo.setFindingAccepted(this.db, findingId, at);
   }
 
-  setFindingDismissed(findingId: string, at: Date | null): Promise<FindingRow | undefined> {
+  setFindingDismissed(findingId: string, at: Date | null): Promise<ReviewDtoFinding | undefined> {
     return reviewRepo.setFindingDismissed(this.db, findingId, at);
   }
 
@@ -172,9 +162,9 @@ export class ReviewRepository {
     return runRepo.completeAgentRun(this.db, runId, values);
   }
 
-  /** One agent_runs row by PK (used to backfill cost on old traces at read time). */
-  getAgentRun(runId: string) {
-    return runRepo.getAgentRun(this.db, runId);
+  /** The cost inputs of one run by PK (used to backfill cost on old traces at read time). */
+  getCostableRun(runId: string) {
+    return runRepo.getCostableRun(this.db, runId);
   }
 
   /** Record the head SHA a review ran against (PR-list freshness derivation). */
@@ -189,5 +179,22 @@ export class ReviewRepository {
 
   getRunTrace(runId: string): Promise<RunTrace | undefined> {
     return runRepo.getRunTrace(this.db, runId);
+  }
+
+  // ---- PR-list aggregates (the pulls module reads them via container.reviewRepo)
+
+  /** `review`-kind scores of the PRs, newest first (first per PR = latest). */
+  reviewScoresNewestFirst(prIds: readonly string[]): Promise<{ prId: string; score: number | null }[]> {
+    return reviewRepo.reviewScoresNewestFirst(this.db, prIds);
+  }
+
+  /** Cost + batch inputs of every run of the PRs, newest first. */
+  batchRunsForPulls(prIds: readonly string[]): Promise<BatchRunRow[]> {
+    return runRepo.batchRunsForPulls(this.db, prIds);
+  }
+
+  /** `{ prId, severity }` per finding of the review-kind reviews of these runs. */
+  findingSeveritiesForRuns(runIds: readonly string[]): Promise<{ prId: string; severity: string }[]> {
+    return reviewRepo.findingSeveritiesForRuns(this.db, runIds);
   }
 }

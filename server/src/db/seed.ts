@@ -1,12 +1,17 @@
 import 'dotenv/config';
 import { createDb, type Db } from './client.js';
+import { isEntryPoint } from './cli.js';
 import * as t from './schema.js';
 import { eq, and } from 'drizzle-orm';
 import {
   GENERAL_REVIEWER_PROMPT,
   SECURITY_REVIEWER_PROMPT,
   PERFORMANCE_REVIEWER_PROMPT,
+  TEST_QUALITY_REVIEWER_PROMPT,
 } from './seed-prompts.js';
+import { SEED_AGENT_SKILL_LINKS, SEED_SKILLS } from './seed-skills.js';
+import { SEED_EXPERIMENT_PRS, type SeedPr } from './seed-prs.js';
+import { SEED_CONVENTIONS, SEED_CONVENTION_SCAN } from './seed-conventions.js';
 
 /** Default provider/model for the built-in reviewer agents. */
 const DEFAULT_PROVIDER = 'openrouter' as const;
@@ -18,11 +23,21 @@ const DEFAULT_MODEL = 'deepseek/deepseek-v4-flash';
  *
  * Seeds: default workspace + system user + membership, default settings,
  * demo repo (acme/payments-api), PR #482 with files/commits, a sample review
- * with a few findings, and the three built-in agents (General + Security +
- * Performance), all on the default openrouter/deepseek-v4-flash provider+model.
+ * with a few findings, the experiment PRs #483 / #484 (L02) and #485 / #486
+ * (HW02; refreshed on a re-seed when their fixture's head sha changes) with
+ * patches, so a review works without a clone, four built-in agents (General, Security,
+ * Performance, Test Quality) on the default openrouter/deepseek-v4-flash
+ * provider+model, the 10 L02 seed skills and their links (an agent's links
+ * are seeded only while it has none, so user edits survive a re-seed). The
+ * API Contract Reviewer is not seeded: the user creates it in the UI (HW02
+ * D9, D10).
  *
- * Course lessons populate the other tables (skills, conventions, memory, eval,
- * …) once their features are built — they start empty here.
+ * HW02 D20 adds one finished conventions scan with four pending candidates on
+ * the demo repo (inserted once per repo, never rewritten, so a user's accept /
+ * reject / edit survives a re-seed) for the browser flow `e2e/specs/09-conventions`.
+ *
+ * Course lessons populate the other tables (memory, eval, …) once their
+ * features are built — they start empty here.
  */
 
 export const DEFAULT_WORKSPACE_NAME = 'default';
@@ -175,7 +190,10 @@ export async function seed(db: Db): Promise<{ workspaceId: string; userId: strin
     ]);
   }
 
-  // ---- built-in agents (the three starter presets) ----
+  // ---- experiment PRs: L02 #483 / #484, HW02 #485 / #486 (refreshed, D13) ----
+  for (const p of SEED_EXPERIMENT_PRS) await upsertExperimentPr(db, workspaceId, repoId, p);
+
+  // ---- built-in agents (starter presets + the L02 Test Quality agent) ----
   // Prompt bodies live in ./seed-prompts.ts (mirrored in docs/agent-prompts/*.md).
   const seedAgents: Array<typeof t.agents.$inferInsert> = [
     {
@@ -211,6 +229,17 @@ export async function seed(db: Db): Promise<{ workspaceId: string; userId: strin
       version: 1,
       createdBy: userId,
     },
+    {
+      workspaceId,
+      name: 'Test Quality Reviewer',
+      description: 'Finds untested branches, missing corner cases, over-mocked and flaky tests.',
+      provider: DEFAULT_PROVIDER,
+      model: DEFAULT_MODEL,
+      systemPrompt: TEST_QUALITY_REVIEWER_PROMPT,
+      enabled: true,
+      version: 1,
+      createdBy: userId,
+    },
   ];
   for (const a of seedAgents) {
     const [existing] = await db
@@ -220,11 +249,129 @@ export async function seed(db: Db): Promise<{ workspaceId: string; userId: strin
     if (!existing) await db.insert(t.agents).values(a);
   }
 
+  // ---- L02 seed skills (idempotent by name; v1 + its body snapshot) ----
+  const skillIds = new Map<string, string>();
+  for (const sk of SEED_SKILLS) {
+    let [row] = await db
+      .select({ id: t.skills.id })
+      .from(t.skills)
+      .where(and(eq(t.skills.workspaceId, workspaceId), eq(t.skills.name, sk.name)));
+    if (!row) {
+      [row] = await db
+        .insert(t.skills)
+        .values({ workspaceId, ...sk, enabled: true, version: 1 })
+        .returning({ id: t.skills.id });
+      await db.insert(t.skillVersions).values({ skillId: row!.id, version: 1, body: sk.body });
+    }
+    skillIds.set(sk.name, row!.id);
+  }
+
+  // ---- agent ↔ skill links, only for an agent that has none yet ----
+  for (const [agentName, links] of Object.entries(SEED_AGENT_SKILL_LINKS)) {
+    const [agent] = await db
+      .select({ id: t.agents.id })
+      .from(t.agents)
+      .where(and(eq(t.agents.workspaceId, workspaceId), eq(t.agents.name, agentName)));
+    if (!agent) continue;
+    const [linked] = await db
+      .select({ skillId: t.agentSkills.skillId })
+      .from(t.agentSkills)
+      .where(eq(t.agentSkills.agentId, agent.id))
+      .limit(1);
+    if (linked) continue;
+    await db.insert(t.agentSkills).values(
+      links.map((l, order) => ({ agentId: agent.id, skillId: skillIds.get(l.skill)!, order, enabled: l.enabled })),
+    );
+  }
+
+  // ---- one finished conventions scan + candidates, only while the repo has no scan (HW02 D20) ----
+  const [scanExists] = await db
+    .select({ id: t.conventionScans.id })
+    .from(t.conventionScans)
+    .where(eq(t.conventionScans.repoId, repoId))
+    .limit(1);
+  if (!scanExists) {
+    await db.transaction(async (tx) => {
+      const [scan] = await tx
+        .insert(t.conventionScans)
+        .values({
+          workspaceId,
+          repoId,
+          status: 'done',
+          headSha: SEED_CONVENTION_SCAN.headSha,
+          sampleCount: SEED_CONVENTION_SCAN.sampleCount,
+          candidatesDropped: SEED_CONVENTION_SCAN.candidatesDropped,
+          provider: SEED_CONVENTION_SCAN.provider,
+          model: SEED_CONVENTION_SCAN.model,
+          finishedAt: new Date(),
+        })
+        .returning({ id: t.conventionScans.id });
+      await tx.insert(t.conventions).values(
+        SEED_CONVENTIONS.map((c) => ({ workspaceId, repoId, scanId: scan!.id, ...c })),
+      );
+    });
+  }
+
   return { workspaceId, userId };
 }
 
+/**
+ * Write one experiment PR with its files and commits.
+ *
+ * A new PR is inserted. An existing one is left alone, unless the fixture has
+ * `refreshOnSeed` (the HW02 calibration PRs #485 / #486) and a different
+ * `headSha`. Then its row, files and commits are rewritten in one
+ * transaction and its status goes back to `needs_review`. This lets a
+ * calibration edit reach a running DB with `pnpm db:seed`, without touching
+ * any other data (specs/HW02-conventions-and-api-contract.md D13).
+ */
+export async function upsertExperimentPr(
+  db: Db,
+  workspaceId: string,
+  repoId: string,
+  p: SeedPr,
+): Promise<'inserted' | 'refreshed' | 'unchanged'> {
+  const values = {
+    title: p.title,
+    author: p.author,
+    branch: p.branch,
+    base: p.base,
+    headSha: p.headSha,
+    additions: p.files.reduce((n, f) => n + f.additions, 0),
+    deletions: p.files.reduce((n, f) => n + f.deletions, 0),
+    filesCount: p.files.length,
+    status: 'needs_review',
+    body: p.body,
+  };
+  const [existing] = await db
+    .select({ id: t.pullRequests.id, headSha: t.pullRequests.headSha })
+    .from(t.pullRequests)
+    .where(and(eq(t.pullRequests.repoId, repoId), eq(t.pullRequests.number, p.number)));
+
+  if (existing && (!p.refreshOnSeed || existing.headSha === p.headSha)) return 'unchanged';
+
+  await db.transaction(async (tx) => {
+    let prId: string;
+    if (existing) {
+      prId = existing.id;
+      await tx.update(t.pullRequests).set({ ...values, updatedAt: new Date() }).where(eq(t.pullRequests.id, prId));
+      await tx.delete(t.prFiles).where(eq(t.prFiles.prId, prId));
+      await tx.delete(t.prCommits).where(eq(t.prCommits.prId, prId));
+    } else {
+      const [row] = await tx
+        .insert(t.pullRequests)
+        .values({ workspaceId, repoId, number: p.number, ...values })
+        .returning({ id: t.pullRequests.id });
+      prId = row!.id;
+    }
+    await tx.insert(t.prFiles).values(p.files.map((f) => ({ prId, ...f })));
+    await tx.insert(t.prCommits).values(p.commits.map((c) => ({ prId, ...c })));
+  });
+  return existing ? 'refreshed' : 'inserted';
+}
+
 // CLI entrypoint
-if (import.meta.url === `file://${process.argv[1]}`) {
+if (isEntryPoint(import.meta.url)) {
   const url = process.env.DATABASE_URL;
   if (!url) {
     console.error('DATABASE_URL is required');

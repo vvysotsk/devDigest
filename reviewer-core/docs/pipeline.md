@@ -1,6 +1,6 @@
 # reviewer-core — pipeline
 
-Last verified: 2026-09-24 against c03665a
+Last verified: 2026-09-26 against dfd7ab8
 
 ## Purpose
 
@@ -9,7 +9,11 @@ inputs into a grounded `Review`: it assembles the prompt, calls the injected
 `LLMProvider` for structured output, merges partial reviews, drops findings
 that do not cite a real diff line, and recomputes the score from what
 survived. It has no database, filesystem, GitHub or HTTP access of its own —
-the single side effect is the injected provider (`src/index.ts:2-11`). The
+the single side effect is the injected provider (`src/index.ts:2-11`) — with
+one documented exception: `OpenRouterProvider` (`src/llm/openrouter.ts`)
+is an LLM adapter that makes HTTP calls and is exported for the server and
+the CI runner to inject. In onion terms the package is the domain core of
+the review pipeline and `LLMProvider` its one port. The
 server calls `reviewPullRequest()` from
 `../server/src/modules/reviews/run-executor.ts` and owns persistence, SSE,
 cancellation semantics and cost books.
@@ -54,7 +58,12 @@ flowchart TD
    ordered sections task → PR description → skills → memory → repo skeleton →
    project context (specs) → callers → diff, each untrusted block wrapped in
    `<untrusted source="…">` with any closing tag escaped
-   (`src/prompt.ts:85-127`, `:30-34`). The `assembly` kept for the trace is the
+   (`src/prompt.ts:128-170`, `:30-34`). Skills are the exception by design:
+   each `ReviewSkill` renders as `### Skill: <name> (<source>, v<N>)` + its
+   body verbatim, in the caller's order, and the section ends with a fixed
+   closing line; it is NOT wrapped (a skill is an instruction), so trust is
+   decided upstream — the server's first-enable acknowledgement for imported
+   skills (`src/prompt.ts:43-73`, `:152`). The `assembly` kept for the trace is the
    single-pass call, or the whole-diff assembly in map-reduce
    (`src/review/run.ts:141-142`, `:173`).
 3. **LLM.** `llm.completeStructured<Review>({ model, schema: Review,
@@ -75,10 +84,15 @@ to SSE, `test/run.test.ts:69` asserts the grounding line.
 
 ## Boundaries & dependencies
 
-- **Pure.** No import may touch DB, fs, network or process state; the only
-  runtime dependencies are `openai` (SDK + zod helper) and `zod`
-  (`package.json`). Persistence, SSE, cancellation errors and price books are
-  the caller's (`src/review/run.ts:19-23`, `:87-92`).
+- **Pure — no DB, fs, process state or HTTP.** The only runtime dependencies
+  are `openai` (SDK + zod helper) and `zod` (`package.json`). Persistence,
+  SSE, cancellation errors and price books are the caller's
+  (`src/review/run.ts:19-23`, `:87-92`). **Exception:** `src/llm/openrouter.ts`
+  is an HTTP adapter (OpenAI SDK + `fetch` for `/models`, `:1`, `:124`);
+  `src/llm/structured.ts` imports only the pure `openai/helpers/zod`. The
+  server's advisory `pnpm deps:check` rule `reviewer-core-pure` and the
+  `onion-architecture` skill (R9, trigger "OpenRouter adapter out of the
+  core") track it.
 - **Provider-agnostic.** The engine only needs `LLMProvider.completeStructured`;
   `OpenRouterProvider` lives here because both the studio server and the CI
   runner need the same guarded implementation (`src/llm/openrouter.ts:12-23`);
@@ -98,7 +112,7 @@ to SSE, `test/run.test.ts:69` asserts the grounding line.
 - **New prompt slot:** add the field to `PromptParts` and `ReviewInput`,
   render it in `assemblePrompt` (wrapped with `wrapUntrusted` when the content
   is not ours), and add it to `PromptAssembly` in the shared contract so the
-  trace drawer can show it (`src/prompt.ts:39-73`, `:104-138`).
+  trace drawer can show it (`src/prompt.ts:78-116`, `:128-183`).
 - **New grounding exemption:** extend `FULL_FILE_KINDS`
   (`src/grounding.ts:16`) and cover it in `../server/test/grounding.test.ts`.
 - **New score weights:** `SEVERITY_PENALTY` (`src/review/reduce.ts:13-17`);
@@ -110,9 +124,10 @@ to SSE, `test/run.test.ts:69` asserts the grounding line.
 
 ## Open questions
 
-- `skills`, `memory`, `specs` slots (`src/review/run.ts:55-60`) and the
+- `memory`, `specs` slots (`src/review/run.ts:55-60`) and the
   `toReviewPayload` CI output are exported but have no caller in the starter;
-  they are reserved for later lessons. Unverified whether the CI runner still
+  they are reserved for later lessons. The `skills` slot is fed by the server
+  since L02 (`../server/src/modules/reviews/run-executor.ts`, `resolveSkills`). Unverified whether the CI runner still
   expects the current `ToReviewOptions` shape.
 - `sliceDiff` matches a file header with `line.includes(\` ${path}\`)`
   (`src/review/reduce.ts:64`), which also matches paths that share a suffix;

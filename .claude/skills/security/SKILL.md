@@ -1,6 +1,9 @@
 ---
 name: security
 description: "Web application security best practices based on OWASP Top 10:2025. Use when reviewing code for vulnerabilities, implementing auth/authorization, handling user input, working with file uploads, managing secrets, or building API endpoints. Covers React, Express, MongoDB, and JWT security."
+metadata:
+  applies_to: "server/src/**, client/src/**, reviewer-core/src/**, e2e/**/*.ts, **/package.json, .github/**, !**/*.test.ts, !**/*.test.tsx, !**/*.it.test.ts"
+  blocking: "true"
 ---
 
 # Security Best Practices — OWASP Top 10:2025

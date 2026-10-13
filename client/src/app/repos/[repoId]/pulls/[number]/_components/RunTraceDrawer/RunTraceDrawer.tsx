@@ -10,7 +10,7 @@ import { useTranslations } from "next-intl";
 import { Button, Drawer, LiveLogStream, Tabs, type LogLine } from "@devdigest/ui";
 import type { FindingRecord } from "@devdigest/shared";
 import { useRunTrace } from "@/lib/hooks/trace";
-import { useRunEvents } from "@/lib/hooks/reviews";
+import { useRunEvents } from "@/features/reviews/hooks";
 import { DRAWER_WIDTH, LOG_HEIGHT, TABS } from "./constants";
 import { eventsToLog, traceLog } from "./helpers";
 import { s } from "./styles";

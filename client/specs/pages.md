@@ -1,6 +1,6 @@
 # client — pages
 
-Last verified: 2026-09-24 against c03665a
+Last verified: 2026-10-02 (HW02 3a fix: "Fetched from" line, web-page error)
 
 ## Scope
 
@@ -63,7 +63,7 @@ for the PR page (`FindingsPanel/FindingsPanel.tsx`, `RunHistory/RunHistory.tsx`,
   nothing; a fetch failure shows the error text instead of a loading note.
 - **COST** = `RunCostBadge` over `pr.cost_usd` (the server's sum of every
   `done` run); null renders a dash, a genuine 0 renders `$0.00`
-  (`PRRow/PRRow.tsx:61-63`, `src/components/run-cost-badge/helpers.ts:5-13`).
+  (`PRRow/PRRow.tsx:61-63`, `src/features/reviews/lib/cost-format.ts:5-14`).
 - Status badge = `STATUS_META[pr.status]` label + colour; unknown statuses fall
   back to `needs_review` (`PRRow/PRRow.tsx:19`, `constants.ts:10-17`).
 - Clicking a row navigates to `/repos/:repoId/pulls/<number>`
@@ -148,12 +148,164 @@ for the PR page (`FindingsPanel/FindingsPanel.tsx`, `RunHistory/RunHistory.tsx`,
 - `/agents`: `useAgents` → `GET /agents`; search filters client-side; the
   "Add agent" dropdown opens `CreateAgentModal`; the card toggle calls
   `useUpdateAgent` → `PUT /agents/:id { enabled }`; clicking a card opens
-  `/agents/:id?tab=config` (`src/app/agents/_components/AgentsListView/AgentsListView.tsx:20-25`,
-  `:83-93`; `agents.ts:8-12`, `:61-69`).
-- `/agents/:id`: left list of all agents, right `AgentEditor` with the single
-  `config` tab (model + system prompt); the header shows `provider/model` and a
-  "disabled" badge; load failure → full-screen `ErrorState`
-  (`src/app/agents/[id]/page.tsx:15`, `:40-51`, `:96-118`).
+  `/agents/:id?tab=config`; the card's "N skills" chip shows
+  `Agent.skill_count` (effective skills) and is hidden at 0
+  (`src/app/agents/_components/AgentsListView/AgentsListView.tsx:89`,
+  `src/app/agents/_components/AgentCard/AgentCard.tsx:61-65`). The card's
+  trash button ("Delete {name}") opens `DeleteAgentConfirm`
+  (`src/app/agents/_components/AgentCard/_components/DeleteAgentConfirm/DeleteAgentConfirm.tsx`,
+  kit `Modal`: Delete / Cancel / X); only Delete sends `DELETE /agents/:id`.
+  The modal renders next to the card, so its clicks never open the agent.
+- `/agents/:id`: left list of all agents, right `AgentEditor` with tabs
+  `config` and `skills` (`?tab=`, anything else → `config`,
+  `src/app/agents/[id]/page.tsx:15`, `:27`); the header shows
+  `provider/model` and a "disabled" badge; load failure → full-screen
+  `ErrorState`.
+- Skills tab: every workspace skill — linked ones first in their order, then
+  unlinked; "N of M enabled" (N = linked AND globally enabled, M = linked);
+  filter; order hint; rows with drag handle, ↑/↓, the per-agent enable
+  switch ("Enable {name} for this agent"), name, type badge, Detach; a
+  globally disabled skill is greyed with a hint. Switching an unlinked skill
+  on = link at the end, enabled; off = keep the link and position, disabled;
+  Detach = remove. Only an enabled skill — linked, enabled on this agent and
+  enabled globally (`isMovable`, `SkillsTab/helpers.ts`) — can be dragged or
+  dropped on, and only it shows ↑/↓ (the keyboard way to reorder; an arrow
+  moves it one step past its neighbour); the handle of any other linked row
+  is dimmed ("Only enabled skills can be dragged"). A drag always ends in
+  `dragend`, which clears the dragged row. All edits stay in a draft (tab label marked)
+  until "Save skills" sends ONE `PUT /agents/:id/skills`; "Discard" and an
+  agent switch drop it.
+
+### `/skills` and `/skills/:id`
+
+- `/skills`: master column of skill cards + a hint pane; `/skills/:id` mounts
+  the same list with the `SkillEditor` in the pane
+  (`src/app/skills/page.tsx`, `src/app/skills/[id]/page.tsx`,
+  `src/app/skills/_components/SkillsListView/SkillsListView.tsx`). Data:
+  `useSkills` → `GET /skills`, `useSkill(id)` → `GET /skills/:id`
+  (`src/features/skills/hooks.ts`).
+- Card: name, enabled switch, a Delete icon button, description, type badge,
+  source chip (Manual / Imported / Extracted / Community), the current version
+  `v{version}`, "N agents" from `agent_count`; search filters name +
+  description client-side. Clicking a card opens the skill in the side pane on
+  the current tab; from `/skills` (and for a bare `/skills/:id`) that is
+  `?tab=preview`. Delete opens `DeleteSkillConfirm`
+  (`src/app/skills/_components/DeleteSkillConfirm/DeleteSkillConfirm.tsx`, kit
+  `Modal`: Delete / Cancel / X, "Used by N agents") → `DELETE /skills/:id`;
+  deleting the open skill returns to `/skills`. The modal renders outside the
+  clickable card, so its clicks never open the skill.
+- Enabled switch (card and Config tab, `SkillEnabledToggle`) writes at once:
+  `PUT /skills/:id { enabled }` (no version bump). The FIRST enable of an
+  imported skill (`source` `imported_file` or `imported_url`, and
+  `acknowledged_at = null`; `needsInjectionAck`, `src/app/skills/helpers.ts:5`)
+  opens a dialog "I have read this text; it will be injected into the agent's
+  prompt as instructions"; confirming sends `{ enabled: true,
+  acknowledge_injection: true }`. An unsaved Config draft survives the toggle
+  and its refetch.
+- "Add Skill ▾": **Create** → `CreateSkillModal` → `POST /skills` (manual)
+  → navigates to the new skill; **Import file** → `ImportSkillModal`: a
+  "Choose file" kit button (over a visually hidden, labelled file input)
+  and the chosen file name; a `.md` / `.zip` ≤ 512 KB (checked before any
+  request) → bare base64 →
+  `POST /skills/import/preview` → editable name / description / type, the
+  **raw** `raw_source` (never rendered), the file table (imported / reference
+  / skipped + reason), every warning, the trust notice → "Save skill" (disabled
+  until the preview for the chosen file has loaded — the preview is the trust
+  point) =
+  `POST /skills/import` with the file + only the fields that differ from the
+  draft (never a body); saved disabled. `SkillErrorCode`s map to
+  `skills.errors.*` messages (`src/features/skills/lib/skill-errors.ts`);
+  **Import from URL** (HW02 D21) → the same `ImportSkillModal` with
+  `source="url"` (`…/ImportSkillModal/ImportSkillModal.tsx:28`): a "Skill
+  URL" input (Enter or "Fetch preview"; a value that does not start with
+  `https://` is refused before any request) → `POST /skills/import-url/preview`
+  (`useImportUrlPreview`, `src/features/skills/hooks.ts:110`) → the same
+  draft fields, raw text, file table, warnings and trust notice; when the
+  preview's `fetched_url` differs from the typed URL (a GitHub blob link the
+  server rewrote to raw) a mono "Fetched from <url>" line appears under the
+  URL field (`ImportSkillModal.tsx`, `url.fetchedFrom`) → "Save skill" =
+  `POST /skills/import-url` with the TYPED `{ url, sha256 }` from the
+  preview plus the changed overrides (never a body); saved disabled, source
+  `imported_url`; the toast reads "Imported … Disabled until you vet +
+  enable it." The URL codes (`import_url_*`, `import_url_changed`,
+  `import_url_html` — "This is a web page, not a raw file…") map to
+  `skills.errors.*` too.
+- `?tab=config`: local draft of name / description / type / body; "Save
+  skill" sends only the changed fields (`PUT /skills/:id`) and shows
+  "Saved (vN)"; the body editor shows `<name>.md`, line numbers, an "unsaved"
+  chip and `≈ body_tokens tok (cl100k)` when clean or `≈ chars/4 tok` while
+  dirty; "Delete skill" opens the same `DeleteSkillConfirm`, then `DELETE` and
+  back to `/skills`.
+- Body editor sizing: lines never wrap; the textarea is exactly as tall as
+  its lines (at least 14) and at least as wide as its longest line, so it
+  never scrolls internally and every line stays level with its gutter
+  number; only the frame scrolls (at most 520 px high, both axes) and the
+  gutter stays pinned on horizontal scroll
+  (`src/features/skills/components/skill-body-editor/SkillBodyEditor.tsx`,
+  checked by its `SkillBodyEditor.test.tsx` and e2e flow `08-skills`).
+- `?tab=preview`: rendered Markdown, "Raw" toggle.
+- `?tab=versions` (tab label "Versioning"): `GET /skills/:id/versions`
+  newest first; a version whose body equals the previous one is labelled
+  "metadata change"; a row shows its raw body. Every older version has
+  "Diff" (a line diff of its body against the current body, `lineDiff` in
+  `…/VersionsTab/helpers.ts`, falling back to all-out / all-in above 4 M LCS
+  cells) and "Restore" (`PUT /skills/:id { body }` — the old body becomes a
+  NEW version, toast "Restored vN as vM"; disabled when the body already
+  equals the current one).
+
+- Trace drawer → Prompt assembly: when the trace has `skill_blocks`, the
+  Skills block is titled "Skills · N · ≈ T tok (cl100k)" and lists each
+  skill (name, version, source, ≈ tokens); traces without `skill_blocks`
+  keep the plain "Skills (dynamic)" block
+  (`src/app/repos/[repoId]/pulls/[number]/_components/RunTraceDrawer/_components/TraceBody/TraceBody.tsx:82-86`,
+  `RunTraceDrawer/helpers.ts:26`).
+
+### `/conventions` — Conventions (HW02 D19)
+
+- Works on the active repo (`useActiveRepo`, `src/lib/repo-context.tsx:58`):
+  `useConventions(repoId)` → `GET /repos/:id/conventions`
+  (`src/lib/hooks/conventions.ts`), polled every 4 s while
+  `scan.status === "running"` (`conventionsPollInterval`); with no repo the
+  page shows "No repository yet" and no scan button
+  (`src/app/conventions/_components/ConventionsView/ConventionsView.tsx`).
+- Header: "Conventions in `<repo name>`"; the subtitle is the intro copy
+  before any scan, "Scanning…" while one runs, "Detected from N sample
+  files · last scan <ago>" after one, and a `role="alert"` "Extraction
+  failed: <error>" for a failed scan. Right: **Run Scan** while there is no
+  scan, **ReScan** once one exists (two labels, #45); both call
+  `useExtractConventions` → `POST /repos/:id/conventions/extract`; the
+  returned `running` scan is written to the cache so polling starts at once;
+  a 409 `scan_running` re-fetches the state (the page follows a scan started
+  elsewhere) and, like every `ConventionErrorCode` (`repo_not_cloned`,
+  `repo_not_indexed`, …), shows its `conventions.errors.*` message inline
+  (`src/app/conventions/helpers.ts`).
+- Cards (one `role="listitem"` per non-rejected candidate, #46): the rule,
+  a category badge, the evidence `path:line` as a link to
+  `githubBlobUrl(full_name, scan.head_sha, path, line)` opening in a new tab
+  (K5), the snippet, a confidence bar with the rounded percent; buttons
+  **Accept** (→ `accepted`; reads "Accepted" and a second click returns to
+  `pending`), **Reject** (→ `rejected`: the card leaves the list, #48) and
+  **Edit** (rule + category in place, Save / Cancel, #49), each a
+  `usePatchConvention` → `PATCH /conventions/:id`; the hook replaces the
+  candidate in the cache and drops a rejected one (`applyCandidate`)
+  (`…/ConventionsView/_components/CandidateCard/CandidateCard.tsx`).
+- Toolbar "N of M accepted"; **Create skill** renders only with ≥ 1 accepted
+  candidate (#50) and opens `CreateConventionSkillModal`
+  (`…/_components/CreateConventionSkillModal/CreateConventionSkillModal.tsx`):
+  `useConventionSkillDraft` → `GET /repos/:id/conventions/skill-draft`
+  (fresh on every open) fills name / description / type (`SkillMetaFields`),
+  the body (`SkillBodyEditor`, `<name>.md`, "unsaved" + token estimate while
+  edited), Enabled (default on) and an **Agent** `SearchableSelect` over
+  `useAgents` (required); the note reads "Saved as v1 · added to Skills Lab"
+  or "`<name>` already exists — saved as v{N+1}" when the draft's `existing`
+  is set (D18). **Create skill** → `useCreateConventionSkill` →
+  `POST /repos/:id/conventions/skill` with the accepted candidate ids;
+  success toasts "Skill … saved and linked to <agent>", closes and opens
+  `/skills/:id?tab=preview` (#52); `skill_name_taken` /
+  `candidate_not_accepted` show inline; **Cancel** saves nothing (U7).
+- States: skeleton rows while loading or scanning; `ErrorState` + Retry on a
+  load error; "No conventions extracted yet" + Run Scan before the first
+  scan; "No conventions found" + ReScan after a scan without candidates.
 
 ### `/settings/:section`
 
@@ -167,8 +319,13 @@ for the PR page (`FindingsPanel/FindingsPanel.tsx`, `RunHistory/RunHistory.tsx`,
   models and secrets status (`SettingsApiKeys/constants.ts:11-16`,
   `SettingsApiKeys/SettingsApiKeys.tsx:13-23`, `:42-50`; `core.ts:38-56`).
 - Feature Models: one `SearchableSelect` per `FEATURE_MODELS` entry, options
-  from `GET /providers/openrouter/models`, choice persisted with
-  `PUT /settings { feature_models }` (`SettingsModels/SettingsModels.tsx:20-46`).
+  from `GET /providers/openrouter/models` plus the current value, choice
+  persisted with `PUT /settings { feature_models }` as `{ provider, model }`
+  where the provider is the picked model's own: `openrouter` for a model from
+  the live list, the saved provider for the saved choice, `defaultProvider`
+  for the registry default (e.g. conventions → `openai` / `gpt-5.4`)
+  (`SettingsModels/SettingsModels.tsx:22-77`, `SettingsModels/helpers.ts`,
+  tested by `SettingsModels/helpers.test.ts`).
 
 ### Shell (every page)
 
@@ -178,6 +335,8 @@ for the PR page (`FindingsPanel/FindingsPanel.tsx`, `RunHistory/RunHistory.tsx`,
   (`src/components/app-shell/AppShell.tsx:18-29`,
   `src/components/app-shell/hooks/useGlobalShortcuts.ts:26-48`,
   `src/components/app-shell/constants.ts:4`).
+- Sidebar groups (`src/vendor/ui/nav.ts`): WORKSPACE (pulls) and SKILLS LAB
+  (Skills `g s`, Agents `g a`, Conventions).
 - Active repo = URL `:repoId` > `localStorage("dd-repo")` > first repo; a
   `:repoId` that matches no loaded repo renders `RepoNotFound` instead of an
   error (`src/lib/repo-context.tsx:46-49`, `:69-72`).
@@ -205,19 +364,36 @@ for the PR page (`FindingsPanel/FindingsPanel.tsx`, `RunHistory/RunHistory.tsx`,
 
 | Rule | Test |
 |---|---|
-| Never-reviewed PR shows a dash and never fetches reviews | `src/app/repos/[repoId]/pulls/_components/PRRow/PRRow.test.tsx:102` |
-| Icon + count per severity of the latest batch | `PRRow/PRRow.test.tsx:109` |
-| Quick sweep opens nothing and fetches nothing; settling opens + fetches + filters by `run_ids` | `PRRow/PRRow.test.tsx:116`, `:127` |
-| Keyboard focus opens immediately; fetch error replaces the loading note | `PRRow/PRRow.test.tsx:150`, `:158` |
-| Hover card: delay, grace, Escape, blur, outer scroll closes / inner scroll does not | `src/components/findings-preview/FindingsHoverCard.test.tsx:38-108` |
-| Popover: sorted previews, loading / empty / error precedence, `position: fixed` | `src/components/findings-preview/FindingsPopover.test.tsx:29-64` |
-| Pills count after hide-low-confidence; three chips always, zero-count chip disabled; vanished filter dropped | `src/app/repos/[repoId]/pulls/[number]/_components/FindingsPanel/FindingsPanel.test.tsx:72-138` |
+| Never-reviewed PR shows a dash and never fetches reviews | `src/app/repos/[repoId]/pulls/_components/PRRow/PRRow.test.tsx:57` |
+| Icon + count per severity of the latest batch | `PRRow/PRRow.test.tsx:64` |
+| Quick sweep opens nothing and fetches nothing; settling opens + fetches + filters by `run_ids` | `PRRow/PRRow.test.tsx:71`, `:82` |
+| Keyboard focus opens immediately; fetch error replaces the loading note | `PRRow/PRRow.test.tsx:105`, `:113` |
+| Hover card: delay, grace, Escape, blur, outer scroll closes / inner scroll does not; `onOpen` once per opening (hover timer + focus) | `src/features/reviews/components/findings-preview/FindingsHoverCard.test.tsx:39-143` |
+| Popover: sorted previews, loading / empty / error precedence, `position: fixed` | `src/features/reviews/components/findings-preview/FindingsPopover.test.tsx:14-55` |
+| Pills count after hide-low-confidence; three chips always, zero-count chip disabled; vanished filter dropped | `src/app/repos/[repoId]/pulls/[number]/_components/FindingsPanel/FindingsPanel.test.tsx:74-141` |
 | `visibleFindings` applies hideLow before the severity filter and sorts by severity | `FindingsPanel/helpers.test.ts:33-46` |
 | Second finding action reads "Reject" and dispatches `dismiss` | `FindingCard/FindingCard.test.tsx:52` |
-| Timeline badge outcome (rejected / approved / reviewed / error / running), cost line, severity icons + "N findings in this run" hover | `RunHistory/RunHistory.test.tsx:92-180` |
+| Timeline badge outcome (rejected / approved / reviewed / error / running), cost line, severity icons + "N findings in this run" hover | `RunHistory/RunHistory.test.tsx:71-165` |
 | Trace drawer stats, COST stat, Findings section, live-log tab | `RunTraceDrawer/RunTraceDrawer.test.tsx:42-95` |
 | Verdict banner label + score + counts | `VerdictBanner/VerdictBanner.test.tsx:18` |
-| `formatCost` dash vs `$0.00` vs scaled decimals; token compaction | `src/components/run-cost-badge/RunCostBadge.test.tsx:14-54` |
-| `countBySeverity` ignores unknown values; pills / icons render only present severities | `src/components/severity-summary/SeveritySummary.test.tsx:15-61` |
-| Agent card and editor render | `src/app/agents/_components/AgentCard/AgentCard.test.tsx:38`, `src/app/agents/[id]/_components/AgentEditor/AgentEditor.test.tsx:42` |
+| `formatCost` dash vs `$0.00` vs scaled decimals; token compaction | `src/features/reviews/lib/cost-format.test.ts:9-24`, `src/features/reviews/components/run-cost-badge/RunCostBadge.test.tsx:13-42` |
+| `countBySeverity` ignores unknown values; pills / icons render only present severities | `src/features/reviews/lib/severity.test.ts:11-43`, `src/features/reviews/components/severity-summary/SeveritySummary.test.tsx:12-37` |
+| Agent card and editor render | `src/app/agents/_components/AgentCard/AgentCard.test.tsx:34`, `src/app/agents/[id]/_components/AgentEditor/AgentEditor.test.tsx:29` |
+| Agent card Delete: confirm modal, Cancel / X close it, Delete deletes, the card's click is never reached | `src/app/agents/_components/AgentCard/AgentCard.test.tsx:49` |
+| Skill cards (version, agent count), switch, imported first-enable acknowledgement, card click → `?tab=preview`, card Delete confirm (cancel / X / delete → back to `/skills`), create flow | `src/app/skills/_components/SkillsListView/SkillsListView.test.tsx` |
+| Import preview (raw text, warnings, file statuses), save with overrides and no body, error-code messages, size pre-check; URL mode: Fetch preview → the shared details, save `{ url, sha256, overrides }` and no body, success toast + navigation, `http://` refused before any request, a server code's message; no "Fetched from" line when `fetched_url` equals the typed URL, the line with the raw URL for a GitHub blob link (the typed URL is what is sent), `import_url_html` → its message and the line reset | `src/app/skills/_components/SkillsListView/_components/ImportSkillModal/ImportSkillModal.test.tsx` |
+| Add Skill ▾ → Import from URL opens the modal in URL mode; a `imported_url` skill gets the first-enable acknowledgement | `src/app/skills/_components/SkillsListView/SkillsListView.test.tsx:148`, `:162` |
+| `needsInjectionAck` for both imported sources, false once acknowledged or for other sources | `src/app/skills/helpers.test.ts` |
+| Config changed-field PUT + "Saved (v2)", unsaved chip + token estimate, delete confirm, Config acknowledgement, Enabled toggle keeps the unsaved draft, Preview raw/rendered, Versioning tab label, "metadata change", Diff lines, Restore → new version (disabled for the current body) | `src/app/skills/[id]/_components/SkillEditor/SkillEditor.test.tsx` |
+| `lineDiff` (same / add / del, moved lines, the cell-limit fallback) and `versionRows` | `src/app/skills/[id]/_components/SkillEditor/_components/VersionsTab/helpers.test.ts` |
+| Every `SkillErrorCode` has a message | `src/features/skills/lib/skill-errors.test.ts` |
+| `relativeTime` buckets (now / m / h / d, dash for unknown) | `src/lib/date-format.test.ts` |
+| Every `ConventionErrorCode` (+ `not_found`) has a message; `formatConfidence`, `acceptedCount`, `evidenceLabel` | `src/app/conventions/helpers.test.ts` |
+| `applyCandidate` replaces by id and drops a rejected candidate (#48), unknown id unchanged; polling only while running; a 409 `scan_running` re-fetches the state, other errors do not; a success seeds the running scan | `src/lib/hooks/conventions.test.tsx` |
+| Run Scan vs ReScan (#45), Scanning… state, cards with category / GitHub link at the scan's sha / snippet / confidence (#46), Accept ↔ Accepted toggle, Reject removes the card (#48), Edit saves rule + category in place (#49), Create skill only after an accept (#50) and it opens the modal (#51), failed-scan alert, inline 409 message, load error, no-repo state | `src/app/conventions/_components/ConventionsView/ConventionsView.test.tsx` |
+| Card: Accept / Accepted → pending, empty rule disables Save, trimmed rule + category patch, pending disables the buttons, plain evidence without a repo name | `…/CandidateCard/CandidateCard.test.tsx` |
+| Modal: draft fills the form, Create waits for an agent, edited payload (`enabled`, `agent_id`, `candidate_ids`), success toast + `/skills/:id?tab=preview`, "already exists — saved as vN+1", 409 message, Cancel saves nothing, skeleton while loading (#41, #51) | `…/CreateConventionSkillModal/CreateConventionSkillModal.test.tsx` |
+| Agent Skills tab: draft-only switch on / off / ↑↓ / Detach, one PUT on Save, Discard, "N of M enabled", only enabled skills drag, take a drop or show ↑/↓, draft reset on agent switch, empty state | `src/app/agents/[id]/_components/AgentEditor/_components/SkillsTab/SkillsTab.test.tsx` |
+| "N skills" chip from `skill_count`, hidden at 0 | `src/app/agents/_components/AgentsListView/AgentsListView.test.tsx`, `src/app/agents/_components/AgentCard/AgentCard.test.tsx` |
+| Trace Skills label with count + tokens, one row per skill, plain block without `skill_blocks` | `RunTraceDrawer/_components/TraceBody/TraceBody.test.tsx` |
 | Kit gallery renders in both themes; diff viewer parses a unified patch | `src/test/smoke.test.tsx:15`, `:27` |

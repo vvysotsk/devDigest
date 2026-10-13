@@ -84,6 +84,17 @@ export async function buildApp(opts: BuildAppOptions = {}): Promise<FastifyInsta
     app.log.warn({ err: (err as Error).message }, 'stale-run reaping failed (non-fatal)');
   }
 
+  // Same for conventions scans (HW02 D14): a scan still 'running' belongs to a
+  // dead process — its extraction promise died with it — so close it as failed.
+  // Awaited after the run reaper for the same reason; order among the two
+  // does not matter (different tables).
+  try {
+    const reaped = await container.conventionsRepo.reapStaleRunningScans();
+    if (reaped > 0) app.log.info({ reaped }, 'reaped stale running convention_scans on boot');
+  } catch (err) {
+    app.log.warn({ err: (err as Error).message }, 'stale-scan reaping failed (non-fatal)');
+  }
+
   // Security headers (X-Content-Type-Options, X-Frame-Options, …). The API
   // serves JSON only, so the default CSP is fine.
   await app.register(helmet);

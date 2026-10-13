@@ -19,6 +19,17 @@ describe('mock adapters (no network)', () => {
     expect(diff.files[0]!.hunks[0]!.newLineNumbers.length).toBeGreaterThan(0);
   });
 
+  it('MockGitClient.listRootFiles returns the top-level keys of `files` and records readFile paths', async () => {
+    const git = new MockGitClient({
+      files: { 'tsconfig.json': '{}', 'package.json': '{}', 'src/a.ts': 'export {};' },
+    });
+    expect((await git.listRootFiles({ owner: 'a', name: 'b' })).sort()).toEqual(['package.json', 'tsconfig.json']);
+    expect(await new MockGitClient().listRootFiles({ owner: 'a', name: 'b' })).toEqual([]);
+    await git.readFile({ owner: 'a', name: 'b' }, 'src/a.ts');
+    await git.readFile({ owner: 'a', name: 'b' }, 'missing.ts');
+    expect(git.reads).toEqual(['src/a.ts', 'missing.ts']);
+  });
+
   it('MockGitHubClient records posted reviews and opened PRs', async () => {
     const gh = new MockGitHubClient();
     await gh.postReview({ owner: 'a', name: 'b' }, 482, { body: 'x', event: 'COMMENT' });

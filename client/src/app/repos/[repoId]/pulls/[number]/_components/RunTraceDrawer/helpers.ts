@@ -1,5 +1,5 @@
 import type { LogLine } from "@devdigest/ui";
-import type { RunTrace } from "@devdigest/shared";
+import type { RunTrace, SkillBlock } from "@devdigest/shared";
 
 interface RawEvent {
   t: string;
@@ -20,6 +20,11 @@ export function traceLog(trace: RunTrace | undefined): LogLine[] {
 /** Seconds-formatted duration. */
 export function formatSeconds(ms: number): string {
   return `${(ms / 1000).toFixed(1)}s`;
+}
+
+/** Count + summed ≈ tokens of the injected skill blocks, for the "Skills · N · ≈ T tok" label. */
+export function skillsSummary(blocks: SkillBlock[]): { count: number; tokens: number } {
+  return { count: blocks.length, tokens: blocks.reduce((sum, b) => sum + b.tokens, 0) };
 }
 
 /** Token in→out summary (e.g. "12k→1.5k"). */

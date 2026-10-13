@@ -55,7 +55,8 @@ flowchart LR
   tighter per-route caps on expensive endpoints (e.g. `POST /pulls/:id/review`);
   SSE and `/health*` are exempt.
 - Modules are registered statically in `src/modules/index.ts` (one import + one
-  `app.register` each); the engine reaps orphaned `running` runs on boot.
+  `app.register` each); the engine reaps orphaned `running` runs and
+  conventions scans on boot.
 
 ## API map (starter)
 
@@ -71,8 +72,10 @@ flowchart TB
   subgraph Review["Review & runs"]
     reviews["reviews<br/>/pulls/:id/review · /reviews · /findings/:id/(accept|dismiss)<br/>/runs/:id/(events|trace)"]
   end
-  subgraph Agents["Agents"]
-    agents["agents<br/>/agents · /agents/:id"]
+  subgraph Agents["Agents & skills"]
+    agents["agents<br/>/agents · /agents/:id · /agents/:id/versions"]
+    skills["skills<br/>/skills · /skills/:id · /skills/:id/versions<br/>/skills/import/preview · /skills/import<br/>/agents/:id/skills"]
+    conventions["conventions<br/>/repos/:id/conventions · /extract · /skill-draft · /skill<br/>/conventions/:id"]
   end
   subgraph Intel["Repo intelligence"]
     repoIntel["repo-intel<br/>/repos/:id/index-state · /resync"]

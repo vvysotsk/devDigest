@@ -1,4 +1,5 @@
 import { z } from 'zod';
+import { SkillSource } from './knowledge.js';
 
 /**
  * Run trace. The ENTIRE trace of one run is persisted as a SINGLE
@@ -36,14 +37,29 @@ export const ToolCall = z.object({
 });
 export type ToolCall = z.infer<typeof ToolCall>;
 
+/** One skill injected into the prompt (L02) — rendered as its own `### Skill:` block. */
+export const SkillBlock = z.object({
+  skill_id: z.string(),
+  name: z.string(),
+  version: z.number().int(),
+  source: SkillSource,
+  /** Tokens of the rendered block (js-tiktoken cl100k — approximate). */
+  tokens: z.number().int().nonnegative(),
+});
+export type SkillBlock = z.infer<typeof SkillBlock>;
+
 export const PromptAssembly = z.object({
   system: z.string(),
+  /** The rendered `## Skills / rules` section; null when no skill was injected. */
   skills: z.string().nullish(),
+  /** Injected skills in prompt order. Optional: traces saved before L02 lack it. */
+  skill_blocks: z.array(SkillBlock).optional(),
   memory: z.string().nullish(),
   specs: z.string().nullish(),
-  /** Callers-of-changed-symbols digest (repo-intel); null when absent. */
+  /** Callers-of-changed-symbols digest (T1.3); null when absent. */
   callers: z.string().nullish(),
-  /** Repo skeleton / map (repo-intel); null when absent. */
+  /** Repo skeleton / map (T3); null when absent. Enables per-slot token
+      attribution in the run trace. */
   repo_map: z.string().nullish(),
   /** PR author's description/body (truncated); null when absent. */
   pr_description: z.string().nullish(),

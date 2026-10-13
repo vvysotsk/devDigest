@@ -17,10 +17,48 @@ Never rewrite existing entries — correct with a dated note.
 
 ## What Doesn't Work
 
+- 2026-09-27: A cache key that omits one input of the result serves stale
+  results when only that input changes. pr-self-review keys a check by
+  (skill, rev, path, blob) — not the base — so after the base moved
+  (`c6af1e4` → `8ae46a9`) a journal finding on a line that had merged into
+  `main` was still reported (27ff45e6). Filter cached results against the
+  current input at read time (`report` now keeps a journal finding only while
+  its line is still added), or put the input into the key (evidence:
+  `.claude/skills/pr-self-review/scripts/self-review.mjs` report rebuild
+  loop, `.claude/skills/pr-self-review/scripts/journal-keys.mjs` `stillAdded`;
+  residual risk in `references/plan.md` §12).
+
+- 2026-09-27: Hashing text copied verbatim from an LLM reply does not give a
+  stable id. pr-self-review hashed the checker's `rule` string into the
+  finding id, and checkers word the same rule differently per run ("R3 —
+  response schema + shape test" vs "… for every new or changed route (check
+  2)"), so a re-check produced new ids: dismissals (matched by id) stopped
+  applying and one issue showed twice (journal: `b4faee06` / `1a435fbc`).
+  Normalize LLM-provided fields to a key before hashing (`ruleKey`), hash
+  fields the script computed itself (`line_hash`), and tell the model the
+  exact form to emit (evidence:
+  `.claude/skills/pr-self-review/scripts/self-review.mjs:763`,
+  `.claude/skills/pr-self-review/scripts/journal-keys.mjs` `ruleKey`,
+  `.claude/skills/pr-self-review/checker.md:49`).
+
 ## Codebase Patterns
 
 ## Tool & Library Notes
 
+- 2026-09-27: Agent-tool worktree isolation (`isolation: "worktree"`) created
+  every L02 Wave-2 track worktree from `ae6124d` (origin/main), NOT from the
+  current `lesson-2` HEAD `8118bcc`; all five tracks had to
+  `git reset --hard 8118bcc` before working. Every parallel-track brief must
+  start with `git merge-base --is-ancestor <wave base> HEAD` and reset (clean
+  tree) or rebase onto the wave base if it fails (evidence: track reports for
+  commits `dc5d927`, `330b4d2`, `61c8938`, `ce80bf0`, `118d991`; `specs/L02-skills.md`
+  "Execution waves").
+
+- 2026-09-27: `node --test <directory>` (Node 24.18) does not discover
+  tests in that directory — it treats the path as one test file and reports
+  a single failing test named after the directory ("test failed"). Pass the
+  file (`node --test .claude/skills/pr-self-review/scripts/journal-keys.test.mjs`)
+  or a glob (evidence: `.claude/skills/pr-self-review/scripts/journal-keys.test.mjs:1`).
 - 2026-09-22: pnpm v12 auto-recreates untracked `client/pnpm-workspace.yaml` /
   `server/pnpm-workspace.yaml` (the repo is deliberately NOT a workspace) —
   harmless to the build, but it breaks `git stash pop` of a stash made with
@@ -41,7 +79,22 @@ Never rewrite existing entries — correct with a dated note.
   the cited symbol appears near the line; a "path exists" check catches none
   of these (evidence: `.claude/skills/package-docs/SKILL.md:61`, `:88`).
 
+- 2026-09-29: On Node 24 (v24.18.0 here), `node --test .claude/hooks/` fails
+  with `Cannot find module 'C:\...\.claude\hooks'`. Since Node 21 the
+  arguments of `--test` are files or glob patterns, and a directory is not
+  expanded. Run `node --test ".claude/hooks/*.test.mjs"`; quote the pattern
+  so node expands it, not the shell (evidence:
+  `.claude/hooks/course-integrity.test.mjs:1`, `CLAUDE.md` "Course integrity
+  (hard rule)").
+
 ## Recurring Errors & Fixes
+
+- 2026-09-27: A gate written as `pnpm exec vitest run … | grep -E "Tests "`
+  exits with grep's status, so a red suite still let the `&&` chain reach
+  `git commit` (L02 commit `03ad7bb` went in with a failing
+  `reviews-golden.it.test.ts`). Run gate commands with `set -o pipefail` (or
+  redirect to a log and read `$?`) and report every command's exit code, not
+  just the test counts (evidence: commits `03ad7bb` → fix `dfa40a8`).
 
 - 2026-09-18: Python on this Windows box crashes with UnicodeEncodeError
   (cp1251) when printing non-ASCII from scripts run via Git Bash — prefix with
@@ -61,6 +114,15 @@ Never rewrite existing entries — correct with a dated note.
 
 ## Session Notes
 
+- 2026-09-26: Added `.claude/skills/pr-self-review` (SKILL.md v1.0.0, `scripts/self-review.mjs`, `checker.md`, `.claude/agents/skill-checker.md`); checker skills now declare `metadata.applies_to` as a comma-separated string (frontend-/onion-architecture bumped to 1.0.1). First dry-run on `lesson-1` was BLOCKED by the `test/indexer-pipeline.test.ts` ENOENT failure (failed tests are a non-dismissable CRITICAL); its cause turned out to be a test bug, fixed the same day (`server/INSIGHTS.md`). The first `security` checkers answered a bare `[]` in ~10 s, so a checker reply is now `{checked_files, rules_applied, findings}` and only listed files are journaled as checked (`.claude/skills/pr-self-review/scripts/self-review.mjs`, `cmdGround`).
+
+- 2026-09-26: Added `.claude/skills/onion-architecture` (SKILL.md v1.0.0, README with sources per rule, `references/` with the 104-source research, inventory and plan); root `CLAUDE.md` Verification now names the advisory `pnpm deps:check`.
+
+- 2026-09-26: Added `.claude/skills/frontend-architecture` (SKILL.md with the
+  settled placement rules R1–R7, review signals and architecture-change
+  triggers; `references/research.md` + `references/sources.md` hold the
+  275-source research it was distilled from). `react-best-practices` now
+  defers its size thresholds to it; `.claude/skills/README.md` catalog updated.
 - 2026-09-24: Rewrote the `engineering-insights` skill (path:line + date
   mandatory, routing by evidence file), added the `package-docs` skill, and
   seeded real docs/specs for server, client, reviewer-core and e2e; the
@@ -77,5 +139,33 @@ Never rewrite existing entries — correct with a dated note.
   `RunCostBadge` on PR list / timeline / trace drawer; spec in
   `specs/L01-run-cost.md`); hit the Windows db:migrate no-op and the stale
   stash/pnpm-workspace quirks recorded above.
+- 2026-09-27: pr-self-review 2.0.0 — the journal revision of a versioned
+  skill is `major.minor` (D8 revised), because the onion 1.1.0 → 1.1.1
+  wording bump had re-queued all four onion batches (~266k of an ~841k
+  full-run estimate); after the change the same full plan drops to ~663k
+  with onion served from the journal
+  (`.claude/skills/pr-self-review/scripts/journal-keys.mjs`,
+  `.claude/skills/pr-self-review/references/plan.md` D8).
 
 ## Open Questions
+
+- 2026-09-27: pr-self-review keeps a skill finding open while ITS file is
+  unchanged, even when the fix landed in a related file (e.g. an onion R3
+  "no shape test" finding on a route, fixed by a test): open findings are
+  rebuilt per (skill, rev, path, blob) from the journal and the pair is not
+  re-run, so only a user dismissal clears it. Recorded as an open question in
+  the skill's plan, not fixed (evidence:
+  `.claude/skills/pr-self-review/scripts/self-review.mjs:787-805`, `:530-533`;
+  `.claude/skills/pr-self-review/references/plan.md` §12; findings b01dbdca,
+  ef6bc205 on `server/src/modules/pulls/routes.ts:46`, `:55`).
+  - 2026-09-27 RESOLUTION: no "related paths" machinery (the user's
+    decision — coupling for little gain). When a fix lands in another file,
+    re-run that skill with `plan --full --skills <skill>`: the fresh check of
+    the unchanged file is appended and `report` keeps the latest one, so a
+    clean re-check clears the finding. The journal shows it for this case:
+    `pulls/routes.ts` at blob 1ba03e79 raised b01dbdca / ef6bc205 at onion
+    v1.0.1 (2026-09-26T22:47Z) and was `clean` with empty `finding_ids` at
+    v1.1.0 (2026-09-27T12:10Z). Procedure in pr-self-review 2.0.1 SKILL.md
+    "A fix that lands in another file" (evidence:
+    `.claude/skills/pr-self-review/scripts/self-review.mjs:713`, `:787-803`;
+    `.claude/skills/pr-self-review/references/plan.md` §12).

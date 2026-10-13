@@ -9,11 +9,11 @@ import type {
   CodeReference,
   GitClient,
 } from '@devdigest/shared';
-import { extractSymbols, extractReferences } from './extract.js';
+import { extractSymbols, extractReferences } from '../../modules/repo-intel/extract.js';
 
 /**
  * CodeIndex — ripgrep search + an ENHANCED regex symbol/reference
- * extractor (A3, L04). The symbol/reference logic lives in `./extract.ts`
+ * extractor (A3, L04). The symbol/reference logic lives in `modules/repo-intel/extract.ts`
  * (unit-tested in isolation); see that file's header for why we strengthened
  * the regex extractor rather than wiring `web-tree-sitter` under the
  * parallel-phase no-install constraint.

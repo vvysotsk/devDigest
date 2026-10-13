@@ -1,6 +1,6 @@
 # e2e — architecture
 
-Last verified: 2026-09-24 against c03665a
+Last verified: 2026-09-29 against 8aabc17 (flow 08 body-editor `eval` steps)
 
 ## Purpose
 
@@ -16,13 +16,13 @@ fixtures: every expectation comes from the server seed
 
 | Path | Role |
 |---|---|
-| `run.ts` | The runner: loads `specs/*.flow.json` in lexical order, executes each step with `execFile(agent-browser, args)`, stops a flow at its first failure, screenshots on failure, closes the browser, exits 1 if any flow failed. |
+| `run.ts` | The runner: loads `specs/*.flow.json` in lexical order, executes each step with `execFile(agent-browser, args)` and logs its elapsed time, stops a flow at its first failure, records URL / page errors / accessibility snapshot / screenshot on failure, closes the browser, exits 1 if any flow failed. |
 | `lib/assert.ts` | `Flow` / `Step` types, `{BASE}` substitution (`resolveArgs`), the `stdoutIncludes` check, the PASS/FAIL summary. |
-| `specs/NN-<slug>.flow.json` | One browser flow each (01–07); `specs/flows-contract.md` is the curated contract for them. |
+| `specs/NN-<slug>.flow.json` | One browser flow each (01–09); `specs/flows-contract.md` is the curated contract for them. 01–08 are read-only; 09 writes (see Boundaries). |
 | `agent-browser.json` | CLI config: headless, HTTPS errors not ignored. |
 | `package.json` | `npm test` → `tsx run.ts`; `npm run e2e:hermetic` → `../scripts/e2e.sh`; `npm run typecheck`. npm + `package-lock.json`, not pnpm. |
 | `tsconfig.json` | ES2022 / Bundler resolution over `run.ts` and `lib/**`. |
-| `test-results/` | Failure screenshots `<flow-id>-fail.png` (git-ignored, uploaded by CI). |
+| `test-results/` | Failure artifacts `<flow-id>-fail.png` and `<flow-id>-fail.snapshot.txt` (git-ignored, uploaded by CI). |
 | `../scripts/e2e.sh` | Hermetic stack: ephemeral pgvector container on :5433, API on :3101, web on :3100, migrate + seed, run, tear down. |
 | `../.github/workflows/e2e-web.yml` | CI: compose Postgres, migrate + seed, API via `tsx`, `next build` + `start`, `agent-browser install --with-deps`, `npm test`. |
 
@@ -32,21 +32,27 @@ fixtures: every expectation comes from the server seed
    `AGENT_BROWSER_BIN` (default `agent-browser`) and `E2E_STEP_TIMEOUT`
    (default 60 000 ms) (`run.ts:39-41`).
 2. `loadFlows()` lists `specs/*.flow.json`, sorted, and parses each as `Flow`
-   (`run.ts:53-61`).
+   (`run.ts:75-83`).
 3. For every step, `resolveArgs` replaces `{BASE}` (trailing slash trimmed) in
    the argv and the command runs with `cwd = e2e/`, the step timeout and a
    32 MB stdout buffer (`lib/assert.ts:37-40`, `run.ts:44-51`).
-4. A non-zero exit — including a `wait --text` / `wait --url` whose condition
-   never holds — rejects, the step is recorded as failed with the first line
-   of the error, a screenshot `test-results/<id>-fail.png` is attempted and
-   the flow stops; an optional `assert.stdoutIncludes` miss fails the same
-   way (`run.ts:68-89`).
+4. Every step line carries its elapsed time (`✓ label (123 ms)`). A non-zero
+   exit — including a `wait --text` / `wait --url` whose condition never
+   holds — rejects, the step is recorded as failed with the first line of the
+   error, and the flow stops; an optional `assert.stdoutIncludes` miss fails
+   the same way (`run.ts:90-114`). On a failure `captureFailure` prints the
+   current URL and the page errors, saves the accessibility tree to
+   `test-results/<id>-fail.snapshot.txt` and a screenshot to
+   `test-results/<id>-fail.png`, each best-effort (`run.ts:59-73`). All of
+   them show the page AFTER the failure: a list that loaded a moment later is
+   already visible there, so read them together with the step's error and
+   elapsed time.
 5. All flows share one browser session (the agent-browser daemon keeps the
    page between commands); `agent-browser close` runs in `finally`
-   (`run.ts:104-111`).
+   (`run.ts:129-136`).
 6. `summarize` prints PASS/FAIL per flow with failed step details and
    `n/m flows passed`; the process exits 0 only when every flow passed
-   (`lib/assert.ts:46-58`, `run.ts:113-114`).
+   (`lib/assert.ts:46-58`, `run.ts:138-139`).
 
 ## Hermetic stack (`../scripts/e2e.sh`)
 
@@ -71,17 +77,31 @@ fixtures: every expectation comes from the server seed
 ## Boundaries & dependencies
 
 - **Deterministic locators only**: `open`, `wait --url|--text|--load`,
-  `find text|role … click`, `screenshot`, `close`. The AI `chat` command is
+  `find text|role … click`, `eval`, `screenshot`, `close`. `eval` runs a
+  single-line IIFE whose returned string is checked by `assert.stdoutIncludes`
+  (flow 08: `specs/08-skills.flow.json:15-16`). The AI `chat` command is
   never used, so no key is needed (`README.md`).
-- **Read-only**: flows never submit forms or start a review; the only
-  mutations are the server's own GitHub-less imports, which no-op without a
-  token.
+- **`find` does not wait.** Every `find … click` is preceded by a `wait --text`
+  for its own target; `wait --url` and `wait --load networkidle` do not prove
+  that the data behind a page has rendered. The rule and its evidence are in
+  `specs/flows-contract.md` → "Flow authoring rules".
+- **Read-only, except 09**: flows 01–08 never submit forms or start a
+  review; the only mutations are the server's own GitHub-less imports, which
+  no-op without a token. Flow 08 types an unsaved draft into the skill body
+  editor and never presses Save, so nothing is written. Flow 09 is the one
+  writing flow (HW02 D20): it accepts, rejects and edits the seeded
+  conventions candidates and creates the `repo-conventions` skill linked to
+  General Reviewer. It therefore needs a fresh seed (hermetic stack, CI),
+  runs last (filename order), and no other flow may assert on what it
+  changes (`specs/flows-contract.md` → "Flow authoring rules").
 - **Seed is the fixture.** Texts asserted by flows (`Pull Requests`,
   `Add rate limiting to public API endpoints`, `Security Reviewer`,
   `request changes`, `2 findings`, `Hardcoded Stripe secret key in commit`,
   the seeded file path *src/config.ts*, `Add a repository`, `Repository URL`, `API Keys`,
-  `Feature Models`) come from `../server/src/db/seed.ts` and the client's
-  i18n / kit labels; a copy change there breaks a flow here.
+  `Feature Models`, the seeded convention rules, `Detected from 14 sample
+  files`, `0 of 4 accepted`) come from `../server/src/db/seed.ts`,
+  `../server/src/db/seed-conventions.ts` and the client's i18n / kit labels;
+  a copy change there breaks a flow here.
 - **First-repo assumption.** Flows 02, 04 and 05 follow the home redirect to
   the first repo, so the DB must contain only the seeded repo — true in CI and
   in the hermetic stack, usually false against a dev DB.
@@ -92,8 +112,10 @@ fixtures: every expectation comes from the server seed
 
 - **New flow:** `specs/NN-<slug>.flow.json` with `name`, `description`,
   `steps[]` of `{ cmd, label?, assert? }`; assert with `wait --text` /
-  `wait --url` on seeded data; add the row to `README.md` "Coverage" and the
-  preconditions to `specs/flows-contract.md`.
+  `wait --url` on seeded data, and follow "Flow authoring rules" in
+  `specs/flows-contract.md` (wait for a target before every `find`); add the
+  row to `README.md` "Coverage" and the preconditions to
+  `specs/flows-contract.md`.
 - **New seeded expectation:** change `../server/src/db/seed.ts` and update
   the affected flow and the contract in the same commit.
 - **New port / env knob:** add it to `../scripts/e2e.sh` config block and to

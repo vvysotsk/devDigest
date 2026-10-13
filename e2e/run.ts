@@ -18,7 +18,7 @@
  */
 import { execFile } from "node:child_process";
 import { promisify } from "node:util";
-import { readdirSync, readFileSync, mkdirSync } from "node:fs";
+import { readdirSync, readFileSync, mkdirSync, writeFileSync } from "node:fs";
 import { fileURLToPath } from "node:url";
 import { dirname, join } from "node:path";
 import {
@@ -50,6 +50,28 @@ async function ab(args: string[]): Promise<string> {
   return stdout ?? "";
 }
 
+/**
+ * Best-effort diagnostics after a failed step. Everything here shows the page
+ * as it is AFTER the failure — a list that finished loading a moment later is
+ * already visible — so the URL, the accessibility snapshot and the page
+ * errors are printed next to the step's own error and elapsed time.
+ */
+async function captureFailure(id: string): Promise<void> {
+  mkdirSync(RESULTS_DIR, { recursive: true });
+  const url = await ab(["get", "url"]).catch(() => "");
+  if (url.trim()) console.log(`     url after failure: ${url.trim()}`);
+  const snapshot = await ab(["snapshot"]).catch(() => "");
+  if (snapshot) {
+    const file = join(RESULTS_DIR, `${id}-fail.snapshot.txt`);
+    writeFileSync(file, snapshot);
+    console.log(`     accessibility snapshot after failure: ${file}`);
+  }
+  const errors = await ab(["errors"]).catch(() => "");
+  if (errors.trim()) console.log(`     page errors: ${errors.trim().split("\n").join(" | ")}`);
+  // Screenshot for the CI artifact upload (also taken after the failure).
+  await ab(["screenshot", join(RESULTS_DIR, `${id}-fail.png`)]).catch(() => {});
+}
+
 function loadFlows(): { file: string; flow: Flow }[] {
   return readdirSync(SPECS_DIR)
     .filter((f) => f.endsWith(".flow.json"))
@@ -68,22 +90,25 @@ async function runFlow(file: string, flow: Flow): Promise<FlowResult> {
   for (const step of flow.steps) {
     const args = resolveArgs(step.cmd, BASE);
     const label = step.label ?? args.join(" ");
+    const started = Date.now();
+    // Elapsed time per step: a `find` that fails in ~0.1 s did not wait at all
+    // (agent-browser `find` does not auto-wait; see specs/flows-contract.md).
+    const ms = () => `${Date.now() - started} ms`;
     try {
       const stdout = await ab(args);
       if (step.assert?.stdoutIncludes && !stdoutContains(stdout, step.assert.stdoutIncludes)) {
         steps.push({ label, ok: false, detail: `stdout missing "${step.assert.stdoutIncludes}"` });
-        console.log(`   ✗ ${label} — assertion failed`);
+        console.log(`   ✗ ${label} — assertion failed (${ms()})`);
+        await captureFailure(id);
         break;
       }
       steps.push({ label, ok: true });
-      console.log(`   ✓ ${label}`);
+      console.log(`   ✓ ${label} (${ms()})`);
     } catch (e) {
       const msg = (e as Error).message.split("\n")[0];
       steps.push({ label, ok: false, detail: msg });
-      console.log(`   ✗ ${label} — ${msg}`);
-      // Best-effort failure screenshot for the artifact upload.
-      mkdirSync(RESULTS_DIR, { recursive: true });
-      await ab(["screenshot", join(RESULTS_DIR, `${id}-fail.png`)]).catch(() => {});
+      console.log(`   ✗ ${label} — ${msg} (${ms()})`);
+      await captureFailure(id);
       break;
     }
   }
